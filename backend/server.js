@@ -2,30 +2,39 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(morgan('dev'));
 
 console.log('🔄 Connecting to MongoDB Atlas...');
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
-    app.listen(process.env.PORT || 5000, () =>
+    app.listen(process.env.PORT || 5050, () =>
       console.log(`Server running on port ${process.env.PORT || 5000}`)
     );
   })
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
-const projectSchema = new mongoose.Schema({
-  name: String,
-  tasks: [{ title: String, completed: Boolean }],
-});
+const projectSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    tasks: [{ title: String, completed: { type: Boolean, default: false } }],
+  },
+  { timestamps: true }
+);
 
 const Project = mongoose.model('Project', projectSchema);
+
+app.get('/', (_req, res) => {
+  res.send('✅ API up. Try GET /projects');
+});
 
 // Routes
 app.get('/projects', async (req, res) => {
@@ -34,7 +43,14 @@ app.get('/projects', async (req, res) => {
 });
 
 app.post('/projects', async (req, res) => {
-  const newProject = new Project(req.body);
-  await newProject.save();
-  res.json(newProject);
+  try {
+    console.log('📩 Received POST /projects:', req.body);
+    const newProject = new Project(req.body);
+    const saved = await newProject.save();
+    res.json(saved);
+  } catch (err) {
+    console.error('❌ Error saving project:', err);
+    res.status(201).json(saved);
+  }
 });
+
