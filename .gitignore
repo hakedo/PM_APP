@@ -1,0 +1,84 @@
+# --- GENERAL ---
+.DS_Store
+Thumbs.db
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- DEPENDENCIES ---
+node_modules/
+bower_components/
+
+# --- BUILD OUTPUT ---
+dist/
+build/
+.next/
+out/
+coverage/
+.cache/
+.tmp/
+temp/
+*.tsbuildinfo
+
+# --- FRONTEND (React/Vue/Next) ---
+# Production build directories
+public/static/
+*.lock
+.vite/
+.vscode/
+.idea/
+*.sublime-workspace
+
+# --- BACKEND (Express/NestJS/etc.) ---
+# Compiled output
+lib/
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# --- DATABASE / DATA FILES ---
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.rdb
+*.bak
+
+# --- TESTING ---
+coverage/
+.nyc_output/
+jest-test-results.json
+cypress/videos/
+cypress/screenshots/
+
+# --- MISC ---
+*.swp
+*.bak
+*.tmp
+*.temp
+*.log
+*.tgz
+*.gz
+*.zip
+
+# --- DOCKER ---
+docker-compose.override.yml
+.docker/
+.dockerignore
+
+# --- OS / EDITOR FILES ---
+*.sw?
+*~
+.project
+.idea/
+.vscode/
+.history/
+*.iml
