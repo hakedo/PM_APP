@@ -27,7 +27,10 @@ const projectSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true }
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    collection: 'projects' // Explicitly set collection name
+  }
 );
 
 const Project = mongoose.model('Project', projectSchema);
