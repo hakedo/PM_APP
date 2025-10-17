@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from '../../components/Modal/Modal';
 import './Projects.css';
 
 function Projects() {
+  const navigate = useNavigate();
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [projects, setProjects] = useState([]);
   const [newProject, setNewProject] = useState({
@@ -76,7 +78,11 @@ function Projects() {
       </div>
       <div className="projects-list">
         {projects.map(project => (
-          <div key={project._id} className="project-item">
+          <div 
+            key={project._id} 
+            className="project-item hover:shadow-lg transition-all duration-200 cursor-pointer"
+            onClick={() => navigate(`/projects/${project._id}`)}
+          >
             <h3>{project.title}</h3>
             <p>{project.description}</p>
             <div className="project-dates">
