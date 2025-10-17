@@ -17,15 +17,15 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ Connected to MongoDB Atlas');
     app.listen(process.env.PORT || 5050, () =>
-      console.log(`Server running on port ${process.env.PORT || 5000}`)
+      console.log(`Server running on port ${process.env.PORT || 5050}`)
     );
   })
   .catch(err => console.error('❌ MongoDB connection error:', err));
 
 const projectSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
-    tasks: [{ title: String, completed: { type: Boolean, default: false } }],
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true }
   },
   { timestamps: true }
 );

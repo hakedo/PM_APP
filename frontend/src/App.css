@@ -1,0 +1,16 @@
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.content-area {
+  flex: 1;
+  padding: 20px;
+  margin-left: 200px; /* Same as nav-sidebar width */
+  transition: margin-left 0.3s ease;
+}
+
+/* When nav is collapsed, adjust content area */
+.nav-sidebar.collapsed ~ .content-area {
+  margin-left: 50px;
+}
