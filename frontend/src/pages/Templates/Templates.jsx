@@ -5,13 +5,14 @@ import {
   Play, Pause, RotateCcw, Ban, Zap, Star, Flag, Target, TrendingUp,
   Archive, Inbox, Send, FileCheck, FileX, FileClock, Rocket, Sparkles,
   Eye, EyeOff, ThumbsUp, ThumbsDown, CheckCircle, XCircle, AlertTriangle,
-  Info, HelpCircle, Lightbulb, Coffee, Flame, Heart, Gift, Award
+  Info, HelpCircle, Lightbulb, Coffee, Flame, Heart, Gift, Award, Layers, Package, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 
 const iconMap = {
   'Circle': Circle,
@@ -78,25 +79,45 @@ const availableIcons = [
 function Templates() {
   const [projectStatuses, setProjectStatuses] = useState([]);
   const [taskStatuses, setTaskStatuses] = useState([]);
+  const [phases, setPhases] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
+  const [expandedDeliverables, setExpandedDeliverables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAddingStatus, setIsAddingStatus] = useState(false);
+  const [isAddingPhase, setIsAddingPhase] = useState(false);
+  const [isAddingDeliverable, setIsAddingDeliverable] = useState(false);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [selectedDeliverable, setSelectedDeliverable] = useState(null);
   const [statusType, setStatusType] = useState(''); // 'project' or 'task'
   const [newStatus, setNewStatus] = useState({
     name: '',
     color: 'bg-blue-500',
     icon: 'Circle',
   });
+  const [newPhase, setNewPhase] = useState({
+    name: '',
+    color: 'bg-blue-500',
+    icon: 'Circle',
+  });
+  const [newDeliverable, setNewDeliverable] = useState({
+    name: '',
+  });
+  const [newTask, setNewTask] = useState({
+    name: '',
+  });
 
   useEffect(() => {
     fetchStatuses();
+    fetchPhases();
+    fetchDeliverables();
   }, []);
 
   const fetchStatuses = async () => {
     try {
       setLoading(true);
       const [projectRes, taskRes] = await Promise.all([
-        fetch('http://localhost:5050/templates/project'),
-        fetch('http://localhost:5050/templates/task'),
+        fetch('http://localhost:5050/templates/projectStatus'),
+        fetch('http://localhost:5050/templates/taskStatus'),
       ]);
 
       if (projectRes.ok) {
@@ -112,6 +133,30 @@ function Templates() {
       console.error('Error fetching statuses:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPhases = async () => {
+    try {
+      const response = await fetch('http://localhost:5050/templates/phase');
+      if (response.ok) {
+        const data = await response.json();
+        setPhases(data.phases || []);
+      }
+    } catch (error) {
+      console.error('Error fetching phases:', error);
+    }
+  };
+
+  const fetchDeliverables = async () => {
+    try {
+      const response = await fetch('http://localhost:5050/templates/deliverable');
+      if (response.ok) {
+        const data = await response.json();
+        setDeliverables(data.deliverables || []);
+      }
+    } catch (error) {
+      console.error('Error fetching deliverables:', error);
     }
   };
 
@@ -165,6 +210,142 @@ function Templates() {
       }
     } catch (error) {
       console.error('Error deleting status:', error);
+    }
+  };
+
+  // Phase handlers
+  const handleAddPhase = () => {
+    setIsAddingPhase(true);
+  };
+
+  const handleClosePhaseModal = () => {
+    setIsAddingPhase(false);
+    setNewPhase({ name: '', color: 'bg-blue-500', icon: 'Circle' });
+  };
+
+  const handleSubmitPhase = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('http://localhost:5050/templates/phase/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPhase),
+      });
+
+      if (response.ok) {
+        handleClosePhaseModal();
+        fetchPhases();
+      }
+    } catch (error) {
+      console.error('Error adding phase:', error);
+    }
+  };
+
+  const handleDeletePhase = async (phaseId) => {
+    try {
+      const response = await fetch(`http://localhost:5050/templates/phase/items/${phaseId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchPhases();
+      }
+    } catch (error) {
+      console.error('Error deleting phase:', error);
+    }
+  };
+
+  // Deliverable handlers
+  const handleAddDeliverable = () => {
+    setIsAddingDeliverable(true);
+  };
+
+  const handleCloseDeliverableModal = () => {
+    setIsAddingDeliverable(false);
+    setNewDeliverable({ name: '' });
+  };
+
+  const handleSubmitDeliverable = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('http://localhost:5050/templates/deliverable/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDeliverable),
+      });
+
+      if (response.ok) {
+        handleCloseDeliverableModal();
+        fetchDeliverables();
+      }
+    } catch (error) {
+      console.error('Error adding deliverable:', error);
+    }
+  };
+
+  const handleDeleteDeliverable = async (deliverableId) => {
+    try {
+      const response = await fetch(`http://localhost:5050/templates/deliverable/items/${deliverableId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchDeliverables();
+      }
+    } catch (error) {
+      console.error('Error deleting deliverable:', error);
+    }
+  };
+
+  const toggleDeliverable = (deliverableId) => {
+    setExpandedDeliverables(prev =>
+      prev.includes(deliverableId)
+        ? prev.filter(id => id !== deliverableId)
+        : [...prev, deliverableId]
+    );
+  };
+
+  // Task handlers
+  const handleAddTask = (deliverable) => {
+    setSelectedDeliverable(deliverable);
+    setIsAddingTask(true);
+  };
+
+  const handleCloseTaskModal = () => {
+    setIsAddingTask(false);
+    setSelectedDeliverable(null);
+    setNewTask({ name: '' });
+  };
+
+  const handleSubmitTask = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch(`http://localhost:5050/templates/deliverable/items/${selectedDeliverable._id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTask),
+      });
+
+      if (response.ok) {
+        handleCloseTaskModal();
+        fetchDeliverables();
+      }
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (deliverableId, taskId) => {
+    try {
+      const response = await fetch(`http://localhost:5050/templates/deliverable/items/${deliverableId}/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchDeliverables();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
     }
   };
 
@@ -223,7 +404,7 @@ function Templates() {
                     Manage the default statuses that can be used across all projects
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => handleAddStatus('project')}>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => handleAddStatus('projectStatus')}>
                   <Plus className="w-4 h-4" />
                   Add Status
                 </Button>
@@ -242,7 +423,7 @@ function Templates() {
                       className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors bg-white group relative"
                     >
                       <button
-                        onClick={() => handleDeleteStatus('project', status._id)}
+                        onClick={() => handleDeleteStatus('projectStatus', status._id)}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
                       >
                         <X className="w-3 h-3 text-gray-500" />
@@ -275,7 +456,7 @@ function Templates() {
                     Manage the default statuses that can be used for all tasks
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2" onClick={() => handleAddStatus('task')}>
+                <Button variant="outline" size="sm" className="gap-2" onClick={() => handleAddStatus('taskStatus')}>
                   <Plus className="w-4 h-4" />
                   Add Status
                 </Button>
@@ -294,7 +475,7 @@ function Templates() {
                       className="flex items-center gap-2 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors bg-white group relative"
                     >
                       <button
-                        onClick={() => handleDeleteStatus('task', status._id)}
+                        onClick={() => handleDeleteStatus('taskStatus', status._id)}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
                       >
                         <X className="w-3 h-3 text-gray-500" />
@@ -311,13 +492,173 @@ function Templates() {
           </Card>
         </motion.div>
 
+        {/* Default Project Phases */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="mb-8"
+        >
+          <Card className="border-gray-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl mb-2 flex items-center gap-2">
+                    <Layers className="w-6 h-6" />
+                    Default Project Phases
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Define standard phases for project workflows
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleAddPhase}>
+                  <Plus className="w-4 h-4" />
+                  Add Phase
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {phases.map((phase, index) => {
+                  const Icon = iconMap[phase.icon] || Circle;
+                  return (
+                    <motion.div
+                      key={phase._id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.6 + index * 0.05 }}
+                      className="p-4 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors bg-white group relative"
+                    >
+                      <button
+                        onClick={() => handleDeletePhase(phase._id)}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                      >
+                        <X className="w-3 h-3 text-gray-500" />
+                      </button>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 ${phase.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-gray-900 text-sm">{phase.name}</h4>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Default Project Deliverables */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.7 }}
+          className="mb-8"
+        >
+          <Card className="border-gray-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl mb-2 flex items-center gap-2">
+                    <Package className="w-6 h-6" />
+                    Default Project Deliverables
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Create deliverable templates with default tasks
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" className="gap-2" onClick={handleAddDeliverable}>
+                  <Plus className="w-4 h-4" />
+                  Add Deliverable
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {deliverables.map((deliverable, index) => {
+                  const isExpanded = expandedDeliverables.includes(deliverable._id);
+                  return (
+                    <motion.div
+                      key={deliverable._id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.7 + index * 0.05 }}
+                      className="rounded-lg border border-gray-200 bg-white overflow-hidden"
+                    >
+                      <div className="p-4 flex items-center justify-between group">
+                        <div className="flex items-center gap-3 flex-1">
+                          <button
+                            onClick={() => toggleDeliverable(deliverable._id)}
+                            className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-500" />
+                            )}
+                          </button>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{deliverable.name}</h4>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {deliverable.defaultTasks?.length || 0} default tasks
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAddTask(deliverable)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity gap-1"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Add Task
+                          </Button>
+                          <button
+                            onClick={() => handleDeleteDeliverable(deliverable._id)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded"
+                          >
+                            <X className="w-3 h-3 text-gray-500" />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {isExpanded && deliverable.defaultTasks && deliverable.defaultTasks.length > 0 && (
+                        <div className="px-4 pb-4 pl-12 space-y-2">
+                          {deliverable.defaultTasks.map((task) => (
+                            <div
+                              key={task._id}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg group/task"
+                            >
+                              <h5 className="text-sm font-medium text-gray-900">{task.name}</h5>
+                              <button
+                                onClick={() => handleDeleteTask(deliverable._id, task._id)}
+                                className="opacity-0 group-hover/task:opacity-100 transition-opacity p-1 hover:bg-gray-200 rounded"
+                              >
+                                <X className="w-3 h-3 text-gray-500" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Add Status Dialog */}
         <Dialog open={isAddingStatus} onOpenChange={setIsAddingStatus}>
           <DialogContent onClose={handleCloseModal}>
             <DialogHeader>
-              <DialogTitle>Add New {statusType === 'project' ? 'Project' : 'Task'} Status</DialogTitle>
+              <DialogTitle>Add New {statusType === 'projectStatus' ? 'Project' : 'Task'} Status</DialogTitle>
               <DialogDescription>
-                Create a new status for your {statusType === 'project' ? 'projects' : 'tasks'}
+                Create a new status for your {statusType === 'projectStatus' ? 'projects' : 'tasks'}
               </DialogDescription>
             </DialogHeader>
             
@@ -392,6 +733,163 @@ function Templates() {
               </Button>
               <Button type="submit">Add Status</Button>
             </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Phase Dialog */}
+        <Dialog open={isAddingPhase} onOpenChange={setIsAddingPhase}>
+          <DialogContent onClose={handleClosePhaseModal}>
+            <DialogHeader>
+              <DialogTitle>Add New Project Phase</DialogTitle>
+              <DialogDescription>
+                Create a new phase for your project workflow
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmitPhase}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phase-name">
+                    Phase Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="phase-name"
+                    value={newPhase.name}
+                    onChange={(e) => setNewPhase({ ...newPhase, name: e.target.value })}
+                    placeholder="e.g., Planning"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {availableColors.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setNewPhase({ ...newPhase, color: color.value })}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          newPhase.color === color.value
+                            ? 'border-gray-900 scale-105'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 ${color.value} rounded-md mx-auto`} />
+                        <p className="text-xs mt-1 text-gray-600">{color.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Icon</Label>
+                  <div className="max-h-[300px] overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
+                    <div className="grid grid-cols-6 gap-1">
+                      {availableIcons.map((iconName) => {
+                        const IconComponent = iconMap[iconName];
+                        return (
+                          <button
+                            key={iconName}
+                            type="button"
+                            onClick={() => setNewPhase({ ...newPhase, icon: iconName })}
+                            className={`p-2 rounded-md transition-all hover:bg-gray-200 ${
+                              newPhase.icon === iconName
+                                ? 'bg-blue-100 hover:bg-blue-200'
+                                : 'bg-white'
+                            }`}
+                            title={iconName}
+                          >
+                            <IconComponent className={`w-5 h-5 mx-auto ${
+                              newPhase.icon === iconName ? 'text-blue-600' : 'text-gray-700'
+                            }`} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleClosePhaseModal}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Phase</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Deliverable Dialog */}
+        <Dialog open={isAddingDeliverable} onOpenChange={setIsAddingDeliverable}>
+          <DialogContent onClose={handleCloseDeliverableModal}>
+            <DialogHeader>
+              <DialogTitle>Add New Deliverable</DialogTitle>
+              <DialogDescription>
+                Create a new deliverable template
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmitDeliverable}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deliverable-name">
+                    Deliverable Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="deliverable-name"
+                    value={newDeliverable.name}
+                    onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })}
+                    placeholder="e.g., Project Charter"
+                    required
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseDeliverableModal}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Deliverable</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Task Dialog */}
+        <Dialog open={isAddingTask} onOpenChange={setIsAddingTask}>
+          <DialogContent onClose={handleCloseTaskModal}>
+            <DialogHeader>
+              <DialogTitle>Add Default Task</DialogTitle>
+              <DialogDescription>
+                Add a task to {selectedDeliverable?.name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <form onSubmit={handleSubmitTask}>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="task-name">
+                    Task Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="task-name"
+                    value={newTask.name}
+                    onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
+                    placeholder="e.g., Define project scope"
+                    required
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseTaskModal}>
+                  Cancel
+                </Button>
+                <Button type="submit">Add Task</Button>
+              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
