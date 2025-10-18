@@ -8,15 +8,15 @@ import './App.css';
 export default function App() {
   return (
     <Router>
-      <div className="app-container">
-        <main className="content-area">
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <main className="ml-[240px] transition-all duration-300">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
           </Routes>
         </main>
-        <Navigation />
       </div>
     </Router>
   );

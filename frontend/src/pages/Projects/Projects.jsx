@@ -1,12 +1,41 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Modal from '../../components/Modal/Modal';
-import './Projects.css';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Calendar, FolderKanban, Loader2 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.4,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
 
 function Projects() {
   const navigate = useNavigate();
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
@@ -25,6 +54,8 @@ function Projects() {
       setProjects(data);
     } catch (error) {
       console.error('Error fetching projects:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,116 +96,192 @@ function Projects() {
     }
   };
 
-  return (
-    <div className="projects-container">
-      <div className="projects-header">
-        <h1>Projects</h1>
-        <button 
-          className="add-project-button"
-          onClick={handleAddProject}
-        >
-          + Add Project
-        </button>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
-      <div className="projects-list">
-        {projects.map(project => (
-          <div 
-            key={project._id} 
-            className="project-item hover:shadow-lg transition-all duration-200 cursor-pointer"
-            onClick={() => navigate(`/projects/${project._id}`)}
-          >
-            <h3>{project.title}</h3>
-            <p>{project.description}</p>
-            <div className="project-dates">
-              <span>Start: {new Date(project.startDate).toLocaleDateString()}</span>
-              {project.endDate && (
-                <span>End: {new Date(project.endDate).toLocaleDateString()}</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+    );
+  }
 
-      <Modal 
-        isOpen={isAddingProject}
-        onClose={handleCloseModal}
-        onSubmit={handleSubmit}
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="max-w-7xl mx-auto"
       >
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4">Add New Project</h2>
-        <div className="mb-4">
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-            Project Name<span className="text-red-600 ml-1">*</span>
-          </label>
-          <input
-            type="text"
-            id="title"
-            name="title"
-            value={newProject.title}
-            onChange={handleInputChange}
-            placeholder="Enter project name"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Projects</h1>
+            <p className="text-gray-600">Manage and track all your projects</p>
+          </div>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button onClick={handleAddProject} size="lg" className="gap-2">
+              <Plus className="w-4 h-4" />
+              New Project
+            </Button>
+          </motion.div>
         </div>
-        <div className="mb-4">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-            Description<span className="text-red-600 ml-1">*</span>
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            value={newProject.description}
-            onChange={handleInputChange}
-            placeholder="Brief project description"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-24 resize-none"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-            Start Date<span className="text-red-600 ml-1">*</span>
-          </label>
-          <input
-            type="date"
-            id="startDate"
-            name="startDate"
-            value={newProject.startDate}
-            onChange={handleInputChange}
-            min={new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-            End Date
-          </label>
-          <input
-            type="date"
-            id="endDate"
-            name="endDate"
-            value={newProject.endDate}
-            onChange={handleInputChange}
-            min={newProject.startDate || new Date().toISOString().split('T')[0]}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div className="flex justify-end space-x-3 mt-6">
-          <button 
-            type="button" 
-            onClick={handleCloseModal}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+
+        {/* Projects Grid */}
+        {projects.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center justify-center py-20"
           >
-            Cancel
-          </button>
-          <button 
-            type="submit"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <FolderKanban className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No projects yet</h3>
+            <p className="text-gray-600 mb-6">Get started by creating your first project</p>
+            <Button onClick={handleAddProject} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Create Project
+            </Button>
+          </motion.div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            Create Project
-          </button>
-        </div>
-      </Modal>
+            {projects.map(project => (
+              <motion.div
+                key={project._id}
+                variants={itemVariants}
+                whileHover={{ y: -4 }}
+                onClick={() => navigate(`/projects/${project._id}`)}
+              >
+                <Card className="h-full cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200">
+                  <CardHeader>
+                    <CardTitle className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FolderKanban className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="line-clamp-2">{project.title}</span>
+                    </CardTitle>
+                    <CardDescription className="line-clamp-3 text-base mt-2">
+                      {project.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          {new Date(project.startDate).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      {project.endDate && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Calendar className="w-4 h-4" />
+                          <span>
+                            Due: {new Date(project.endDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Add Project Dialog */}
+        <Dialog open={isAddingProject} onOpenChange={setIsAddingProject}>
+          <DialogContent onClose={handleCloseModal}>
+            <form onSubmit={handleSubmit}>
+              <DialogHeader>
+                <DialogTitle>Create New Project</DialogTitle>
+                <DialogDescription>
+                  Add a new project to your workspace. Fill in the details below.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">
+                    Project Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={newProject.title}
+                    onChange={handleInputChange}
+                    placeholder="Enter project name"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">
+                    Description <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={newProject.description}
+                    onChange={handleInputChange}
+                    placeholder="Brief project description"
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">
+                      Start Date <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={newProject.startDate}
+                      onChange={handleInputChange}
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input
+                      type="date"
+                      id="endDate"
+                      name="endDate"
+                      value={newProject.endDate}
+                      onChange={handleInputChange}
+                      min={newProject.startDate || new Date().toISOString().split('T')[0]}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseModal}>
+                  Cancel
+                </Button>
+                <Button type="submit">Create Project</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </motion.div>
     </div>
   );
 }
