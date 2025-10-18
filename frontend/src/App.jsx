@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Projects from './pages/Projects/Projects';
 import ProjectDetails from './pages/ProjectDetails/ProjectDetails';
 import Home from './pages/Home/Home';
+import Settings from './pages/Settings/Settings';
+import Templates from './pages/Templates/Templates';
 import Navigation from './layouts/Navigation/Navigation';
 import './App.css';
 
@@ -15,6 +17,8 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetails />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/templates" element={<Templates />} />
           </Routes>
         </main>
       </div>
