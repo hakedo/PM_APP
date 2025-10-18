@@ -254,6 +254,53 @@ app.get('/templates/:id', async (req, res) => {
   }
 });
 
+// Update template (rename)
+app.patch('/templates/:id', async (req, res) => {
+  try {
+    console.log('📩 Updating template:', req.params.id, req.body);
+    const { name } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Template name is required' });
+    }
+    
+    const template = await Template.findByIdAndUpdate(
+      req.params.id,
+      { name: name.trim() },
+      { new: true, runValidators: true }
+    );
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    console.log('✅ Template updated:', template);
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error updating template:', err);
+    res.status(500).json({ error: 'Failed to update template' });
+  }
+});
+
+// Delete template
+app.delete('/templates/:id', async (req, res) => {
+  try {
+    console.log('📩 Deleting template:', req.params.id);
+    
+    const template = await Template.findByIdAndDelete(req.params.id);
+    
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    console.log('✅ Template deleted:', template.name);
+    res.json({ message: 'Template deleted successfully', template });
+  } catch (err) {
+    console.error('❌ Error deleting template:', err);
+    res.status(500).json({ error: 'Failed to delete template' });
+  }
+});
+
 // Add a single status to a template (supports both ID-based and type-based)
 app.post('/templates/:idOrType/statuses', async (req, res) => {
   try {

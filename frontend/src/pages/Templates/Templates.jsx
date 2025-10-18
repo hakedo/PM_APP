@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Plus, Loader2 } from 'lucide-react';
+import { FileText, Plus, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,6 +40,10 @@ function Templates() {
   const [loading, setLoading] = useState(true);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [isRenamingTemplate, setIsRenamingTemplate] = useState(false);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [newTemplateName, setNewTemplateName] = useState('');
 
   useEffect(() => {
     fetchTemplates();
@@ -79,6 +89,58 @@ function Templates() {
     } catch (error) {
       console.error('Error creating template:', error);
     }
+  };
+
+  const handleRenameTemplate = async () => {
+    if (!newTemplateName.trim() || !selectedTemplate) return;
+
+    try {
+      const response = await fetch(`http://localhost:5050/templates/${selectedTemplate._id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTemplateName }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Template renamed');
+        setIsRenamingTemplate(false);
+        setSelectedTemplate(null);
+        setNewTemplateName('');
+        fetchTemplates();
+      }
+    } catch (error) {
+      console.error('Error renaming template:', error);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplate) return;
+
+    try {
+      const response = await fetch(`http://localhost:5050/templates/${selectedTemplate._id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        console.log('✅ Template deleted');
+        setIsDeletingTemplate(false);
+        setSelectedTemplate(null);
+        fetchTemplates();
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+    }
+  };
+
+  const openRenameDialog = (template) => {
+    setSelectedTemplate(template);
+    setNewTemplateName(template.name);
+    setIsRenamingTemplate(true);
+  };
+
+  const openDeleteDialog = (template) => {
+    setSelectedTemplate(template);
+    setIsDeletingTemplate(true);
   };
 
   if (loading) {
@@ -205,13 +267,48 @@ function Templates() {
                 variants={itemVariants}
                 whileHover={{ y: -4 }}
               >
-                <Card className="h-full cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200">
+                <Card className="h-full hover:shadow-xl transition-all duration-300 border-gray-200 relative">
                   <CardHeader>
                     <CardTitle className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
-                      <span className="line-clamp-2">{template.name}</span>
+                      <span className="line-clamp-2 flex-1">{template.name}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 hover:bg-gray-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openRenameDialog(template);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteDialog(template);
+                            }}
+                            className="cursor-pointer text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </CardTitle>
                   </CardHeader>
                 </Card>
@@ -219,6 +316,115 @@ function Templates() {
             ))}
           </motion.div>
         )}
+
+        {/* Rename Template Dialog */}
+        <Dialog 
+          open={isRenamingTemplate} 
+          onOpenChange={(open) => {
+            setIsRenamingTemplate(open);
+            if (!open) {
+              setSelectedTemplate(null);
+              setNewTemplateName('');
+            }
+          }}
+        >
+          <DialogContent
+            onClose={() => {
+              setIsRenamingTemplate(false);
+              setSelectedTemplate(null);
+              setNewTemplateName('');
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Rename Template</DialogTitle>
+              <DialogDescription>
+                Enter a new name for your template
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="rename-template-name">
+                  Template Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="rename-template-name"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Enter template name"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleRenameTemplate();
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsRenamingTemplate(false);
+                  setSelectedTemplate(null);
+                  setNewTemplateName('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleRenameTemplate}
+                disabled={!newTemplateName.trim()}
+              >
+                Rename
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Template Dialog */}
+        <Dialog 
+          open={isDeletingTemplate} 
+          onOpenChange={(open) => {
+            setIsDeletingTemplate(open);
+            if (!open) setSelectedTemplate(null);
+          }}
+        >
+          <DialogContent
+            onClose={() => {
+              setIsDeletingTemplate(false);
+              setSelectedTemplate(null);
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete Template</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{selectedTemplate?.name}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeletingTemplate(false);
+                  setSelectedTemplate(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleDeleteTemplate}
+                variant="destructive"
+              >
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </div>
   );
