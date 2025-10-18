@@ -43,6 +43,9 @@ const templateSchema = new mongoose.Schema(
     // Template name (e.g., "Website Development Template")
     name: { type: String, required: true, trim: true },
     
+    // Optional description for the template
+    description: { type: String, trim: true, default: '' },
+    
     // Legacy type field for backward compatibility with old templates
     type: { 
       type: String, 
@@ -197,12 +200,13 @@ app.get('/templates/:type', async (req, res) => {
 app.post('/templates', async (req, res) => {
   try {
     console.log('📩 Received POST /templates:', req.body);
-    const { name, type, statuses } = req.body;
+    const { name, description, type, statuses } = req.body;
     
     // If creating a new named template
     if (name) {
       const template = new Template({ 
         name,
+        description: description || '',
         projectStatuses: [],
         taskStatuses: [],
         phases: [],
@@ -254,19 +258,24 @@ app.get('/templates/:id', async (req, res) => {
   }
 });
 
-// Update template (rename)
+// Update template (edit name and description)
 app.patch('/templates/:id', async (req, res) => {
   try {
     console.log('📩 Updating template:', req.params.id, req.body);
-    const { name } = req.body;
+    const { name, description } = req.body;
     
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Template name is required' });
     }
     
+    const updateData = { name: name.trim() };
+    if (description !== undefined) {
+      updateData.description = description.trim();
+    }
+    
     const template = await Template.findByIdAndUpdate(
       req.params.id,
-      { name: name.trim() },
+      updateData,
       { new: true, runValidators: true }
     );
     

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,10 +41,12 @@ function Templates() {
   const [loading, setLoading] = useState(true);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
-  const [isRenamingTemplate, setIsRenamingTemplate] = useState(false);
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateDescription, setNewTemplateDescription] = useState('');
 
   useEffect(() => {
     fetchTemplates();
@@ -74,7 +77,10 @@ function Templates() {
       const response = await fetch('http://localhost:5050/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: templateName }),
+        body: JSON.stringify({ 
+          name: templateName,
+          description: templateDescription 
+        }),
       });
 
       if (response.ok) {
@@ -83,6 +89,7 @@ function Templates() {
         // Close dialog and reset form
         setIsCreatingTemplate(false);
         setTemplateName('');
+        setTemplateDescription('');
         // Refresh the templates list
         fetchTemplates();
       }
@@ -91,25 +98,29 @@ function Templates() {
     }
   };
 
-  const handleRenameTemplate = async () => {
+  const handleEditTemplate = async () => {
     if (!newTemplateName.trim() || !selectedTemplate) return;
 
     try {
       const response = await fetch(`http://localhost:5050/templates/${selectedTemplate._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newTemplateName }),
+        body: JSON.stringify({ 
+          name: newTemplateName,
+          description: newTemplateDescription 
+        }),
       });
 
       if (response.ok) {
-        console.log('✅ Template renamed');
-        setIsRenamingTemplate(false);
+        console.log('✅ Template updated');
+        setIsEditingTemplate(false);
         setSelectedTemplate(null);
         setNewTemplateName('');
+        setNewTemplateDescription('');
         fetchTemplates();
       }
     } catch (error) {
-      console.error('Error renaming template:', error);
+      console.error('Error updating template:', error);
     }
   };
 
@@ -132,10 +143,11 @@ function Templates() {
     }
   };
 
-  const openRenameDialog = (template) => {
+  const openEditDialog = (template) => {
     setSelectedTemplate(template);
     setNewTemplateName(template.name);
-    setIsRenamingTemplate(true);
+    setNewTemplateDescription(template.description || '');
+    setIsEditingTemplate(true);
   };
 
   const openDeleteDialog = (template) => {
@@ -179,19 +191,23 @@ function Templates() {
           open={isCreatingTemplate} 
           onOpenChange={(open) => {
             setIsCreatingTemplate(open);
-            if (!open) setTemplateName('');
+            if (!open) {
+              setTemplateName('');
+              setTemplateDescription('');
+            }
           }}
         >
           <DialogContent
             onClose={() => {
               setIsCreatingTemplate(false);
               setTemplateName('');
+              setTemplateDescription('');
             }}
           >
             <DialogHeader>
               <DialogTitle>Create New Template</DialogTitle>
               <DialogDescription>
-                Give your template a name to get started
+                Give your template a name and description to get started
               </DialogDescription>
             </DialogHeader>
             
@@ -205,12 +221,19 @@ function Templates() {
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   placeholder="e.g., Website Development Template"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleCreateTemplate();
-                    }
-                  }}
                   autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="template-description">
+                  Description
+                </Label>
+                <Textarea
+                  id="template-description"
+                  value={templateDescription}
+                  onChange={(e) => setTemplateDescription(e.target.value)}
+                  placeholder="Describe what this template is for..."
+                  rows={3}
                 />
               </div>
             </div>
@@ -222,6 +245,7 @@ function Templates() {
                 onClick={() => {
                   setIsCreatingTemplate(false);
                   setTemplateName('');
+                  setTemplateDescription('');
                 }}
               >
                 Cancel
@@ -290,12 +314,12 @@ function Templates() {
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
-                              openRenameDialog(template);
+                              openEditDialog(template);
                             }}
                             className="cursor-pointer"
                           >
                             <Pencil className="mr-2 h-4 w-4" />
-                            Rename
+                            Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={(e) => {
@@ -310,6 +334,11 @@ function Templates() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </CardTitle>
+                    {template.description && (
+                      <CardDescription className="mt-2 line-clamp-2">
+                        {template.description}
+                      </CardDescription>
+                    )}
                   </CardHeader>
                 </Card>
               </motion.div>
@@ -317,47 +346,56 @@ function Templates() {
           </motion.div>
         )}
 
-        {/* Rename Template Dialog */}
+        {/* Edit Template Dialog */}
         <Dialog 
-          open={isRenamingTemplate} 
+          open={isEditingTemplate} 
           onOpenChange={(open) => {
-            setIsRenamingTemplate(open);
+            setIsEditingTemplate(open);
             if (!open) {
               setSelectedTemplate(null);
               setNewTemplateName('');
+              setNewTemplateDescription('');
             }
           }}
         >
           <DialogContent
             onClose={() => {
-              setIsRenamingTemplate(false);
+              setIsEditingTemplate(false);
               setSelectedTemplate(null);
               setNewTemplateName('');
+              setNewTemplateDescription('');
             }}
           >
             <DialogHeader>
-              <DialogTitle>Rename Template</DialogTitle>
+              <DialogTitle>Edit Template</DialogTitle>
               <DialogDescription>
-                Enter a new name for your template
+                Update your template name and description
               </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="rename-template-name">
+                <Label htmlFor="edit-template-name">
                   Template Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  id="rename-template-name"
+                  id="edit-template-name"
                   value={newTemplateName}
                   onChange={(e) => setNewTemplateName(e.target.value)}
                   placeholder="Enter template name"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleRenameTemplate();
-                    }
-                  }}
                   autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-template-description">
+                  Description
+                </Label>
+                <Textarea
+                  id="edit-template-description"
+                  value={newTemplateDescription}
+                  onChange={(e) => setNewTemplateDescription(e.target.value)}
+                  placeholder="Describe what this template is for..."
+                  rows={3}
                 />
               </div>
             </div>
@@ -367,18 +405,19 @@ function Templates() {
                 type="button" 
                 variant="outline" 
                 onClick={() => {
-                  setIsRenamingTemplate(false);
+                  setIsEditingTemplate(false);
                   setSelectedTemplate(null);
                   setNewTemplateName('');
+                  setNewTemplateDescription('');
                 }}
               >
                 Cancel
               </Button>
               <Button 
-                onClick={handleRenameTemplate}
+                onClick={handleEditTemplate}
                 disabled={!newTemplateName.trim()}
               >
-                Rename
+                Save
               </Button>
             </DialogFooter>
           </DialogContent>
