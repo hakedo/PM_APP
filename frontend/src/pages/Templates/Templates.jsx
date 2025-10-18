@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Plus, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
+import { useTemplates } from '../../hooks';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -37,8 +38,7 @@ const itemVariants = {
 };
 
 function Templates() {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useTemplates();
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
@@ -48,53 +48,19 @@ function Templates() {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:5050/templates');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📥 Fetched templates:', data);
-        // Filter to only show named templates (not legacy type-based ones)
-        const namedTemplates = data.filter(t => t.name);
-        setTemplates(namedTemplates);
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCreateTemplate = async () => {
     if (!templateName.trim()) return;
 
     try {
-      const response = await fetch('http://localhost:5050/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: templateName,
-          description: templateDescription 
-        }),
+      await createTemplate({
+        name: templateName,
+        description: templateDescription
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Template created:', data);
-        // Close dialog and reset form
-        setIsCreatingTemplate(false);
-        setTemplateName('');
-        setTemplateDescription('');
-        // Refresh the templates list
-        fetchTemplates();
-      }
+      setIsCreatingTemplate(false);
+      setTemplateName('');
+      setTemplateDescription('');
     } catch (error) {
-      console.error('Error creating template:', error);
+      console.error('Failed to create template:', error);
     }
   };
 
@@ -102,25 +68,16 @@ function Templates() {
     if (!newTemplateName.trim() || !selectedTemplate) return;
 
     try {
-      const response = await fetch(`http://localhost:5050/templates/${selectedTemplate._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: newTemplateName,
-          description: newTemplateDescription 
-        }),
+      await updateTemplate(selectedTemplate._id, {
+        name: newTemplateName,
+        description: newTemplateDescription
       });
-
-      if (response.ok) {
-        console.log('✅ Template updated');
-        setIsEditingTemplate(false);
-        setSelectedTemplate(null);
-        setNewTemplateName('');
-        setNewTemplateDescription('');
-        fetchTemplates();
-      }
+      setIsEditingTemplate(false);
+      setSelectedTemplate(null);
+      setNewTemplateName('');
+      setNewTemplateDescription('');
     } catch (error) {
-      console.error('Error updating template:', error);
+      console.error('Failed to update template:', error);
     }
   };
 
@@ -128,18 +85,11 @@ function Templates() {
     if (!selectedTemplate) return;
 
     try {
-      const response = await fetch(`http://localhost:5050/templates/${selectedTemplate._id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        console.log('✅ Template deleted');
-        setIsDeletingTemplate(false);
-        setSelectedTemplate(null);
-        fetchTemplates();
-      }
+      await deleteTemplate(selectedTemplate._id);
+      setIsDeletingTemplate(false);
+      setSelectedTemplate(null);
     } catch (error) {
-      console.error('Error deleting template:', error);
+      console.error('Failed to delete template:', error);
     }
   };
 

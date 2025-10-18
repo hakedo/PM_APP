@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X } from 'lucide-react';
@@ -6,82 +6,44 @@ import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
+import { useProject } from '../../hooks';
 
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { project, loading, updateProject } = useProject(id);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        const response = await fetch(`http://localhost:5050/projects/${id}`);
-        const data = await response.json();
-        setProject(data);
-        setEditedProject({
-          title: data.title,
-          description: data.description,
-          startDate: data.startDate ? new Date(data.startDate).toISOString().split('T')[0] : '',
-          endDate: data.endDate ? new Date(data.endDate).toISOString().split('T')[0] : '',
-        });
-      } catch (error) {
-        console.error('Error fetching project:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProject();
-  }, [id]);
-
   const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    // Reset to original values
     setEditedProject({
       title: project.title,
       description: project.description,
       startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
       endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
     });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditedProject(null);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      const response = await fetch(`http://localhost:5050/projects/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: editedProject.title,
-          description: editedProject.description,
-          startDate: editedProject.startDate,
-          endDate: editedProject.endDate || null,
-        }),
+      await updateProject({
+        title: editedProject.title,
+        description: editedProject.description,
+        startDate: editedProject.startDate,
+        endDate: editedProject.endDate || null,
       });
-
-      if (response.ok) {
-        const updatedProject = await response.json();
-        setProject(updatedProject);
-        setEditedProject({
-          title: updatedProject.title,
-          description: updatedProject.description,
-          startDate: updatedProject.startDate ? new Date(updatedProject.startDate).toISOString().split('T')[0] : '',
-          endDate: updatedProject.endDate ? new Date(updatedProject.endDate).toISOString().split('T')[0] : '',
-        });
-        setIsEditing(false);
-      }
+      setIsEditing(false);
+      setEditedProject(null);
     } catch (error) {
-      console.error('Error updating project:', error);
+      console.error('Failed to update project:', error);
     } finally {
       setSaving(false);
     }

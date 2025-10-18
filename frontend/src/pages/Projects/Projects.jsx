@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Calendar, FolderKanban, Loader2 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { useProjects } from '../../hooks';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -33,31 +34,14 @@ const itemVariants = {
 
 function Projects() {
   const navigate = useNavigate();
+  const { projects, loading, createProject } = useProjects();
   const [isAddingProject, setIsAddingProject] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
     startDate: '',
     endDate: ''
   });
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch('http://localhost:5050/projects');
-      const data = await response.json();
-      setProjects(data);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAddProject = () => {
     setIsAddingProject(true);
@@ -79,20 +63,11 @@ function Projects() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:5050/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newProject),
-      });
-
-      if (response.ok) {
-        handleCloseModal();
-        fetchProjects();
-      }
+      await createProject(newProject);
+      handleCloseModal();
     } catch (error) {
-      console.error('Error creating project:', error);
+      // Error is already handled by the hook
+      console.error('Failed to create project:', error);
     }
   };
 
