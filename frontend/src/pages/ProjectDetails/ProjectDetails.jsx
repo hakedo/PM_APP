@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -15,6 +15,7 @@ function ProjectDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleEdit = () => {
     setEditedProject({
@@ -115,7 +116,7 @@ function ProjectDetails() {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           <Card className="border-gray-200">
-            <CardHeader className="pb-6">
+            <CardHeader className="pb-6 cursor-pointer" onClick={() => !isEditing && setIsCollapsed(!isCollapsed)}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4 flex-1">
                   <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -126,6 +127,7 @@ function ProjectDetails() {
                       <Input
                         value={editedProject.title}
                         onChange={(e) => setEditedProject({ ...editedProject, title: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
                         className="text-3xl font-bold border-gray-300 shadow-none px-3 focus-visible:ring-1 focus-visible:ring-gray-400"
                         placeholder="Project title"
                       />
@@ -135,6 +137,29 @@ function ProjectDetails() {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  {!isEditing && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCollapsed(!isCollapsed);
+                      }}
+                      className="gap-1"
+                    >
+                      {isCollapsed ? (
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          Expand
+                        </>
+                      ) : (
+                        <>
+                          <ChevronUp className="w-4 h-4" />
+                          Collapse
+                        </>
+                      )}
+                    </Button>
+                  )}
                   {isEditing ? (
                     <>
                       <Button
@@ -170,7 +195,10 @@ function ProjectDetails() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={handleEdit}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit();
+                      }}
                       className="gap-2"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -180,7 +208,16 @@ function ProjectDetails() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <CardContent className="space-y-6">
               {/* Description */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -244,6 +281,9 @@ function ProjectDetails() {
                 </div>
               </div>
             </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         </motion.div>
       </motion.div>
