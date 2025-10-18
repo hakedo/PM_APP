@@ -37,16 +37,43 @@ const projectSchema = new mongoose.Schema(
 
 const Project = mongoose.model('Project', projectSchema);
 
-// Template Schema for statuses
+// Unified Template Schema for all reusable project templates
 const templateSchema = new mongoose.Schema(
   {
-    type: { type: String, required: true, enum: ['project', 'task'] }, // project or task statuses
+    type: { 
+      type: String, 
+      required: true, 
+      enum: ['projectStatus', 'taskStatus', 'phase', 'deliverable']
+    },
+    // For statuses (projectStatus, taskStatus)
     statuses: [
       {
         name: { type: String, required: true },
         color: { type: String, required: true },
         icon: { type: String, required: true },
         order: { type: Number, required: true }
+      }
+    ],
+    // For phases
+    phases: [
+      {
+        name: { type: String, required: true },
+        color: { type: String, required: true },
+        icon: { type: String, required: true },
+        order: { type: Number, required: true }
+      }
+    ],
+    // For deliverables
+    deliverables: [
+      {
+        name: { type: String, required: true },
+        order: { type: Number, required: true },
+        defaultTasks: [
+          {
+            name: { type: String, required: true },
+            order: { type: Number, required: true }
+          }
+        ]
       }
     ]
   },
@@ -126,7 +153,7 @@ app.get('/templates', async (req, res) => {
   }
 });
 
-// Get template by type (project or task)
+// Get template by type (projectStatus, taskStatus, phase, deliverable)
 app.get('/templates/:type', async (req, res) => {
   try {
     const template = await Template.findOne({ type: req.params.type });
@@ -210,6 +237,152 @@ app.delete('/templates/:type/statuses/:statusId', async (req, res) => {
   } catch (err) {
     console.error('❌ Error deleting status:', err);
     res.status(500).json({ error: 'Failed to delete status' });
+  }
+});
+
+// Phase Template Routes
+
+// Add a phase
+app.post('/templates/phase/items', async (req, res) => {
+  try {
+    console.log('📩 Adding phase:', req.body);
+    const newPhase = req.body;
+    
+    let template = await Template.findOne({ type: 'phase' });
+    
+    if (!template) {
+      template = new Template({
+        type: 'phase',
+        phases: [{ ...newPhase, order: 0 }]
+      });
+    } else {
+      const maxOrder = template.phases.reduce((max, p) => Math.max(max, p.order), -1);
+      template.phases.push({ ...newPhase, order: maxOrder + 1 });
+    }
+    
+    await template.save();
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error adding phase:', err);
+    res.status(500).json({ error: 'Failed to add phase' });
+  }
+});
+
+// Delete a phase
+app.delete('/templates/phase/items/:phaseId', async (req, res) => {
+  try {
+    const template = await Template.findOne({ type: 'phase' });
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    template.phases = template.phases.filter(p => p._id.toString() !== req.params.phaseId);
+    await template.save();
+    
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error deleting phase:', err);
+    res.status(500).json({ error: 'Failed to delete phase' });
+  }
+});
+
+// Deliverable Template Routes
+
+// Add a deliverable
+app.post('/templates/deliverable/items', async (req, res) => {
+  try {
+    console.log('📩 Adding deliverable:', req.body);
+    const newDeliverable = req.body;
+    
+    let template = await Template.findOne({ type: 'deliverable' });
+    
+    if (!template) {
+      template = new Template({
+        type: 'deliverable',
+        deliverables: [{ ...newDeliverable, order: 0, defaultTasks: [] }]
+      });
+    } else {
+      const maxOrder = template.deliverables.reduce((max, d) => Math.max(max, d.order), -1);
+      template.deliverables.push({ ...newDeliverable, order: maxOrder + 1, defaultTasks: [] });
+    }
+    
+    await template.save();
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error adding deliverable:', err);
+    res.status(500).json({ error: 'Failed to add deliverable' });
+  }
+});
+
+// Delete a deliverable
+app.delete('/templates/deliverable/items/:deliverableId', async (req, res) => {
+  try {
+    const template = await Template.findOne({ type: 'deliverable' });
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    template.deliverables = template.deliverables.filter(
+      d => d._id.toString() !== req.params.deliverableId
+    );
+    await template.save();
+    
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error deleting deliverable:', err);
+    res.status(500).json({ error: 'Failed to delete deliverable' });
+  }
+});
+
+// Add a task to a deliverable
+app.post('/templates/deliverable/items/:deliverableId/tasks', async (req, res) => {
+  try {
+    const template = await Template.findOne({ type: 'deliverable' });
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    const deliverable = template.deliverables.id(req.params.deliverableId);
+    if (!deliverable) {
+      return res.status(404).json({ error: 'Deliverable not found' });
+    }
+    
+    const maxOrder = deliverable.defaultTasks.reduce((max, t) => Math.max(max, t.order), -1);
+    deliverable.defaultTasks.push({
+      ...req.body,
+      order: maxOrder + 1
+    });
+    
+    await template.save();
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error adding task:', err);
+    res.status(500).json({ error: 'Failed to add task' });
+  }
+});
+
+// Delete a task from a deliverable
+app.delete('/templates/deliverable/items/:deliverableId/tasks/:taskId', async (req, res) => {
+  try {
+    const template = await Template.findOne({ type: 'deliverable' });
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    
+    const deliverable = template.deliverables.id(req.params.deliverableId);
+    if (!deliverable) {
+      return res.status(404).json({ error: 'Deliverable not found' });
+    }
+    
+    deliverable.defaultTasks = deliverable.defaultTasks.filter(
+      t => t._id.toString() !== req.params.taskId
+    );
+    
+    await template.save();
+    res.json(template);
+  } catch (err) {
+    console.error('❌ Error deleting task:', err);
+    res.status(500).json({ error: 'Failed to delete task' });
   }
 });
 
