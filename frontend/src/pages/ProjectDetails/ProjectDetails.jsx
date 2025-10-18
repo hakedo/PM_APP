@@ -67,7 +67,7 @@ function ProjectDetails() {
     );
   }
 
-  if (!project || !editedProject) {
+  if (!project) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
