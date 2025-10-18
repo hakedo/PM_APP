@@ -94,6 +94,25 @@ app.get('/projects/:id', async (req, res) => {
   }
 });
 
+// Update project by ID
+app.put('/projects/:id', async (req, res) => {
+  try {
+    console.log('📩 Received PUT /projects/:id:', req.body);
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+    if (!updatedProject) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json(updatedProject);
+  } catch (err) {
+    console.error('❌ Error updating project:', err);
+    res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
 // Template Routes
 
 // Get all templates (project and task statuses)
