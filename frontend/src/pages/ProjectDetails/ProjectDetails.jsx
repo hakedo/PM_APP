@@ -52,12 +52,11 @@ function ProjectDetails() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const date = new Date(dateString);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
   };
 
   if (loading) {
@@ -218,30 +217,30 @@ function ProjectDetails() {
                   style={{ overflow: "hidden" }}
                 >
                   <CardContent className="space-y-6">
-              {/* Description */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-gray-500" />
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</h3>
+              {/* Description, Start Date, End Date - All in one row */}
+              <div className="flex gap-8">
+                {/* Description - Takes most of the space */}
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-gray-500" />
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</h3>
+                  </div>
+                  {isEditing ? (
+                    <Textarea
+                      value={editedProject.description}
+                      onChange={(e) => setEditedProject({ ...editedProject, description: e.target.value })}
+                      className="pl-7 min-h-[100px] resize-none border-gray-300 focus-visible:ring-1 focus-visible:ring-gray-400"
+                      placeholder="Add a description..."
+                    />
+                  ) : (
+                    <p className="text-gray-900 leading-relaxed whitespace-pre-wrap pl-7">
+                      {project.description || 'No description'}
+                    </p>
+                  )}
                 </div>
-                {isEditing ? (
-                  <Textarea
-                    value={editedProject.description}
-                    onChange={(e) => setEditedProject({ ...editedProject, description: e.target.value })}
-                    className="pl-7 min-h-[100px] resize-none border-gray-300 focus-visible:ring-1 focus-visible:ring-gray-400"
-                    placeholder="Add a description..."
-                  />
-                ) : (
-                  <p className="text-gray-900 leading-relaxed whitespace-pre-wrap pl-7">
-                    {project.description || 'No description'}
-                  </p>
-                )}
-              </div>
 
-              {/* Dates Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Start Date */}
-                <div className="space-y-2">
+                {/* Start Date - Minimal width */}
+                <div className="space-y-2 w-48 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-gray-500" />
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Start Date</h3>
@@ -260,8 +259,8 @@ function ProjectDetails() {
                   )}
                 </div>
 
-                {/* End Date */}
-                <div className="space-y-2">
+                {/* End Date - Minimal width */}
+                <div className="space-y-2 w-48 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-gray-500" />
                     <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">End Date</h3>
