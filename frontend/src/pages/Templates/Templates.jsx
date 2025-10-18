@@ -113,8 +113,19 @@ function Templates() {
         {/* Content will go here */}
 
         {/* Create Template Dialog */}
-        <Dialog open={isCreatingTemplate} onOpenChange={setIsCreatingTemplate}>
-          <DialogContent>
+        <Dialog 
+          open={isCreatingTemplate} 
+          onOpenChange={(open) => {
+            setIsCreatingTemplate(open);
+            if (!open) setTemplateName('');
+          }}
+        >
+          <DialogContent
+            onClose={() => {
+              setIsCreatingTemplate(false);
+              setTemplateName('');
+            }}
+          >
             <DialogHeader>
               <DialogTitle>Create New Template</DialogTitle>
               <DialogDescription>
