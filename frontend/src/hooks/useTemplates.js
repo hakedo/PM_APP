@@ -11,9 +11,7 @@ export const useTemplates = () => {
       setLoading(true);
       setError(null);
       const data = await templateService.getAll();
-      // Filter to only show named templates (not legacy type-based ones)
-      const namedTemplates = data.filter(t => t.name);
-      setTemplates(namedTemplates);
+      setTemplates(data);
     } catch (err) {
       setError(err.message);
     } finally {

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Plus, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -38,6 +39,7 @@ const itemVariants = {
 };
 
 function Templates() {
+  const navigate = useNavigate();
   const { templates, loading, createTemplate, updateTemplate, deleteTemplate } = useTemplates();
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -240,8 +242,9 @@ function Templates() {
                 key={template._id}
                 variants={itemVariants}
                 whileHover={{ y: -4 }}
+                onClick={() => navigate(`/templates/${template._id}`)}
               >
-                <Card className="h-full hover:shadow-xl transition-all duration-300 border-gray-200 relative">
+                <Card className="h-full cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200 relative">
                   <CardHeader>
                     <CardTitle className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">

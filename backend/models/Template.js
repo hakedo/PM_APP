@@ -1,25 +1,6 @@
 import mongoose from 'mongoose';
 
-// Sub-schemas for better organization
-const statusItemSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  color: { type: String, required: true },
-  icon: { type: String, required: true },
-  order: { type: Number, required: true, min: 0 }
-}, { _id: true });
-
-const taskSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  order: { type: Number, required: true, min: 0 }
-}, { _id: true });
-
-const deliverableSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  order: { type: Number, required: true, min: 0 },
-  defaultTasks: [taskSchema]
-}, { _id: true });
-
-// Main Template Schema
+// Simplified Template Schema - Only name and description
 const templateSchema = new mongoose.Schema(
   {
     name: { 
@@ -33,20 +14,8 @@ const templateSchema = new mongoose.Schema(
       type: String, 
       trim: true, 
       default: '',
-      maxlength: [1000, 'Description cannot exceed 1000 characters']
-    },
-    // Legacy type field for backward compatibility
-    type: { 
-      type: String, 
-      enum: ['projectStatus', 'taskStatus', 'phase', 'deliverable'],
-      sparse: true
-    },
-    projectStatuses: [statusItemSchema],
-    taskStatuses: [statusItemSchema],
-    phases: [statusItemSchema],
-    deliverables: [deliverableSchema],
-    // Legacy statuses for backward compatibility
-    statuses: [statusItemSchema]
+      maxlength: [2000, 'Description cannot exceed 2000 characters']
+    }
   },
   { 
     timestamps: true,
@@ -54,7 +23,7 @@ const templateSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
+// Indexes for better query performance
 templateSchema.index({ name: 1 });
 templateSchema.index({ createdAt: -1 });
 
