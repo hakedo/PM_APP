@@ -26,7 +26,8 @@ export const useProjects = () => {
   const createProject = async (projectData) => {
     try {
       const newProject = await projectService.create(projectData);
-      setProjects(prev => [newProject, ...prev]);
+      // Refetch all projects to ensure UI is in sync with backend
+      await fetchProjects();
       return newProject;
     } catch (err) {
       setError(err.message);

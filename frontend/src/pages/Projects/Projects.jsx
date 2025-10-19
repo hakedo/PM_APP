@@ -36,6 +36,7 @@ function Projects() {
   const navigate = useNavigate();
   const { projects, loading, createProject } = useProjects();
   const [isAddingProject, setIsAddingProject] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newProject, setNewProject] = useState({
     title: '',
     description: '',
@@ -62,12 +63,16 @@ function Projects() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
     try {
       await createProject(newProject);
       handleCloseModal();
     } catch (error) {
-      // Error is already handled by the hook
       console.error('Failed to create project:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -178,7 +183,7 @@ function Projects() {
         )}
 
         {/* Add Project Dialog */}
-        <Dialog open={isAddingProject} onOpenChange={setIsAddingProject}>
+        <Dialog open={isAddingProject} onOpenChange={(open) => !isSubmitting && setIsAddingProject(open)}>
           <DialogContent onClose={handleCloseModal}>
             <form onSubmit={handleSubmit}>
               <DialogHeader>
@@ -248,10 +253,19 @@ function Projects() {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleCloseModal}>
+                <Button type="button" variant="outline" onClick={handleCloseModal} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">Create Project</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Project'
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
