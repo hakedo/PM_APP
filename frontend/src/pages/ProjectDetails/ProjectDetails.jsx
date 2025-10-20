@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -19,6 +19,7 @@ function ProjectDetails() {
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isDeliverablesCollapsed, setIsDeliverablesCollapsed] = useState(false);
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -594,6 +595,71 @@ function ProjectDetails() {
                 )}
               </div>
             </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
+        </motion.div>
+
+        {/* Deliverables Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="mt-6"
+        >
+          <Card className="border-gray-200">
+            <CardHeader 
+              className="pb-6 cursor-pointer" 
+              onClick={() => setIsDeliverablesCollapsed(!isDeliverablesCollapsed)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
+                    <Package className="w-7 h-7 text-white" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900">Deliverables</h2>
+                </CardTitle>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsDeliverablesCollapsed(!isDeliverablesCollapsed);
+                  }}
+                  className="gap-2"
+                >
+                  {isDeliverablesCollapsed ? (
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      Expand
+                    </>
+                  ) : (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      Collapse
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+
+            <AnimatePresence>
+              {!isDeliverablesCollapsed && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <CardContent className="pt-0">
+                    <div className="text-center py-12 text-gray-500">
+                      <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-sm">No deliverables yet</p>
+                    </div>
+                  </CardContent>
                 </motion.div>
               )}
             </AnimatePresence>
