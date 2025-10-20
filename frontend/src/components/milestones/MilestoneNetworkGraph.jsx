@@ -162,51 +162,156 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
     return layers;
   }
 
-  // Draw arrow between two points
-  function drawArrow(from, to, isCritical) {
+  // Draw arrow between two points with smart routing
+  function drawArrow(from, to, isCritical, allNodePositions) {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const angle = Math.atan2(dy, dx);
     
-    // Shorten line to account for node radius + pie ring
+    // Define radii
     const nodeRadius = 50;
-    const pieRingRadius = 70; // Outer radius including deliverable ring
+    const pieRingRadius = 75; // Outer radius including deliverable ring (slightly larger buffer)
+    
+    // Calculate start and end points (edge of the rings/nodes)
     const fromX = from.x + Math.cos(angle) * pieRingRadius;
     const fromY = from.y + Math.sin(angle) * pieRingRadius;
-    const toX = to.x - Math.cos(angle) * pieRingRadius;
-    const toY = to.y - Math.sin(angle) * pieRingRadius;
-
-    // Arrow head
-    const arrowLength = 12;
-    const arrowWidth = 8;
-    const arrowAngle1 = angle - Math.PI + Math.PI / 6;
-    const arrowAngle2 = angle - Math.PI - Math.PI / 6;
     
-    const arrowX1 = toX + Math.cos(arrowAngle1) * arrowLength;
-    const arrowY1 = toY + Math.sin(arrowAngle1) * arrowLength;
-    const arrowX2 = toX + Math.cos(arrowAngle2) * arrowLength;
-    const arrowY2 = toY + Math.sin(arrowAngle2) * arrowLength;
-
-    console.log('Drawing arrow:', { fromX, fromY, toX, toY, fromId: from.id, toId: to.id, isCritical });
+    // Arrow head dimensions - scale with line thickness
+    const arrowLength = isCritical ? 14 : 12;
+    const arrowWidth = isCritical ? 7 : 6;
     
+    // End point of line (before arrow head) - stop line before arrow to prevent overlap
+    const lineEndX = to.x - Math.cos(angle) * (pieRingRadius + arrowLength);
+    const lineEndY = to.y - Math.sin(angle) * (pieRingRadius + arrowLength);
+    
+    // Arrow head tip position (at edge of node)
+    const arrowTipX = to.x - Math.cos(angle) * pieRingRadius;
+    const arrowTipY = to.y - Math.sin(angle) * pieRingRadius;
+    
+    // Calculate arrow head points
+    const arrowAngle1 = angle - Math.PI + Math.PI / 7;
+    const arrowAngle2 = angle - Math.PI - Math.PI / 7;
+    
+    const arrowX1 = arrowTipX + Math.cos(arrowAngle1) * arrowLength;
+    const arrowY1 = arrowTipY + Math.sin(arrowAngle1) * arrowLength;
+    const arrowX2 = arrowTipX + Math.cos(arrowAngle2) * arrowLength;
+    const arrowY2 = arrowTipY + Math.sin(arrowAngle2) * arrowLength;
+
+    // Check if arrow path intersects with any other nodes (basic collision detection)
+    const needsRouting = checkPathCollision(
+      { x: fromX, y: fromY },
+      { x: lineEndX, y: lineEndY },
+      from.id,
+      to.id,
+      allNodePositions
+    );
+
+    // Colors with better contrast for critical path
+    const strokeColor = isCritical ? '#dc2626' : '#9ca3af';
+    const strokeWidth = isCritical ? 2.5 : 2;
+    
+    if (needsRouting) {
+      // Use a curved path to avoid node collision
+      const midX = (fromX + lineEndX) / 2;
+      const midY = (fromY + lineEndY) / 2;
+      // Offset perpendicular to the line
+      const perpAngle = angle + Math.PI / 2;
+      const offset = 60;
+      const controlX = midX + Math.cos(perpAngle) * offset;
+      const controlY = midY + Math.sin(perpAngle) * offset;
+      
+      return (
+        <g key={`arrow-${from.id}-to-${to.id}`}>
+          {/* Curved line */}
+          <path
+            d={`M ${fromX} ${fromY} Q ${controlX} ${controlY} ${lineEndX} ${lineEndY}`}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+          {/* Arrow head */}
+          <path
+            d={`M ${arrowTipX} ${arrowTipY} L ${arrowX1} ${arrowY1} L ${arrowX2} ${arrowY2} Z`}
+            fill={strokeColor}
+            stroke="none"
+          />
+        </g>
+      );
+    }
+    
+    // Straight line when no collision
     return (
       <g key={`arrow-${from.id}-to-${to.id}`}>
         {/* Line */}
         <line
           x1={fromX}
           y1={fromY}
-          x2={toX}
-          y2={toY}
-          stroke={isCritical ? '#ef4444' : '#6b7280'}
-          strokeWidth={isCritical ? 3 : 2}
+          x2={lineEndX}
+          y2={lineEndY}
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
         />
         {/* Arrow head */}
-        <polygon
-          points={`${toX},${toY} ${arrowX1},${arrowY1} ${arrowX2},${arrowY2}`}
-          fill={isCritical ? '#ef4444' : '#6b7280'}
+        <path
+          d={`M ${arrowTipX} ${arrowTipY} L ${arrowX1} ${arrowY1} L ${arrowX2} ${arrowY2} Z`}
+          fill={strokeColor}
+          stroke="none"
         />
       </g>
     );
+  }
+
+  // Check if a line path collides with any nodes
+  function checkPathCollision(from, to, fromId, toId, allPositions) {
+    const collisionRadius = 80; // Slightly larger than pie ring radius
+    
+    // Check each node position
+    for (const [nodeId, pos] of Object.entries(allPositions)) {
+      // Skip the source and target nodes
+      if (nodeId === fromId || nodeId === toId) continue;
+      
+      // Calculate distance from node to line segment
+      const distance = distanceToLineSegment(
+        { x: pos.x, y: pos.y },
+        from,
+        to
+      );
+      
+      if (distance < collisionRadius) {
+        return true; // Collision detected
+      }
+    }
+    
+    return false;
+  }
+
+  // Calculate distance from a point to a line segment
+  function distanceToLineSegment(point, lineStart, lineEnd) {
+    const dx = lineEnd.x - lineStart.x;
+    const dy = lineEnd.y - lineStart.y;
+    const lengthSquared = dx * dx + dy * dy;
+    
+    if (lengthSquared === 0) {
+      // Line start and end are the same point
+      const distX = point.x - lineStart.x;
+      const distY = point.y - lineStart.y;
+      return Math.sqrt(distX * distX + distY * distY);
+    }
+    
+    // Calculate projection parameter t
+    let t = ((point.x - lineStart.x) * dx + (point.y - lineStart.y) * dy) / lengthSquared;
+    t = Math.max(0, Math.min(1, t));
+    
+    // Calculate closest point on line segment
+    const closestX = lineStart.x + t * dx;
+    const closestY = lineStart.y + t * dy;
+    
+    // Calculate distance from point to closest point
+    const distX = point.x - closestX;
+    const distY = point.y - closestY;
+    return Math.sqrt(distX * distX + distY * distY);
   }
 
   // Create deliverable pie ring segments
@@ -289,45 +394,37 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
   }
 
   return (
-    <div className="relative w-full overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-4">
+    <div className="relative w-full overflow-auto bg-white rounded-lg border border-gray-200 p-6">
       <svg
         ref={svgRef}
         width={dimensions.width}
         height={dimensions.height}
         className="mx-auto"
+        style={{ backgroundColor: '#fafafa' }}
       >
         {/* Draw dependency arrows first (so they appear behind nodes) */}
         {allNodes.map(milestone => {
           if (!milestone.dependencies || milestone.dependencies.length === 0) return null;
           
           const toPos = positions[milestone._id];
-          if (!toPos) {
-            console.log('No position found for milestone:', milestone.name, milestone._id);
-            return null;
-          }
+          if (!toPos) return null;
 
           return milestone.dependencies.map((depId, idx) => {
             // Handle both string IDs and populated objects
             const actualDepId = typeof depId === 'object' ? (depId._id || depId.id) : depId;
-            console.log(`Arrow from ${actualDepId} to ${milestone._id}`, { 
-              dependency: depId, 
-              actualDepId,
-              positions: Object.keys(positions) 
-            });
             
             const fromPos = positions[actualDepId];
-            if (!fromPos) {
-              console.log('No position found for dependency:', actualDepId, depId);
-              return null;
-            }
+            if (!fromPos) return null;
 
-            const depMilestone = milestones.find(m => m._id === actualDepId);
+            // Check if both nodes are on critical path
+            const depMilestone = allNodes.find(m => m._id === actualDepId);
             const isCriticalPath = milestone.isCritical && depMilestone?.isCritical;
 
             return drawArrow(
               { x: fromPos.x, y: fromPos.y, id: actualDepId },
               { x: toPos.x, y: toPos.y, id: milestone._id },
-              isCriticalPath
+              isCriticalPath,
+              positions
             );
           });
         })}
@@ -363,14 +460,23 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
               <motion.circle
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.3 }}
+                whileHover={!isProjectStart ? { 
+                  scale: 1.08,
+                  transition: { duration: 0.2, ease: "easeOut" }
+                } : {}}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 cx={pos.x}
                 cy={pos.y}
                 r={isProjectStart ? 55 : 50}
                 fill={fillColor}
                 stroke={strokeColor}
-                strokeWidth={isProjectStart ? 4 : milestone.isCritical ? 4 : 3}
-                className={isProjectStart ? "cursor-default" : "cursor-pointer hover:opacity-80 transition-opacity"}
+                strokeWidth={isProjectStart ? 3 : milestone.isCritical ? 3 : 2.5}
+                className={isProjectStart ? "cursor-default" : "cursor-pointer"}
+                style={{ 
+                  filter: milestone.isCritical ? 'drop-shadow(0 2px 4px rgba(220, 38, 38, 0.3))' : 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))',
+                  transformOrigin: 'center',
+                  transformBox: 'fill-box'
+                }}
                 onClick={() => !isProjectStart && onMilestoneClick && onMilestoneClick(milestone)}
               />
               
@@ -437,8 +543,8 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
       </svg>
 
       {/* Legend */}
-      <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
-        <div className="text-sm font-semibold text-gray-700 mb-3">Legend</div>
+      <div className="mt-6 p-5 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="text-sm font-semibold text-gray-800 mb-4">Legend</div>
         
         {/* Milestone Status */}
         <div className="mb-4">
@@ -503,30 +609,30 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
         </div>
 
         {/* Dependencies */}
-        <div className="pt-3 border-t border-gray-300">
+        <div className="pt-3 border-t border-gray-200">
           <div className="text-xs font-medium text-gray-600 mb-2">Dependencies</div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
             <div className="flex items-center gap-2">
-              <svg width="30" height="10">
-                <line x1="0" y1="5" x2="25" y2="5" stroke="#ef4444" strokeWidth="3" />
-                <polygon points="25,5 20,2 20,8" fill="#ef4444" />
+              <svg width="35" height="16">
+                <line x1="2" y1="8" x2="24" y2="8" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M 30 8 L 25 5.5 L 25 10.5 Z" fill="#dc2626" />
               </svg>
-              <span>Critical dependency</span>
+              <span>Critical path</span>
             </div>
             <div className="flex items-center gap-2">
-              <svg width="30" height="10">
-                <line x1="0" y1="5" x2="25" y2="5" stroke="#6b7280" strokeWidth="2" />
-                <polygon points="25,5 20,2 20,8" fill="#6b7280" />
+              <svg width="35" height="16">
+                <line x1="2" y1="8" x2="24" y2="8" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
+                <path d="M 30 8 L 25 5.5 L 25 10.5 Z" fill="#9ca3af" />
               </svg>
-              <span>Dependency</span>
+              <span>Standard dependency</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Instructions */}
-      <div className="mt-4 text-sm text-gray-600 text-center">
-        Click on any milestone node to edit it
+      <div className="mt-4 text-xs text-gray-500 text-center">
+        💡 Click on any milestone node to edit it
       </div>
     </div>
   );
