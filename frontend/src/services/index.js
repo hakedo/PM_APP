@@ -5,3 +5,4 @@ export { default as clientService } from './clientService';
 export { default as assignmentService } from './assignmentService';
 export { default as milestoneService } from './milestoneService';
 export { default as deliverableService } from './deliverableService';
+export { default as taskService } from './taskService';

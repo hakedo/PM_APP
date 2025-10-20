@@ -8,6 +8,7 @@ import clientRoutes from './routes/clients.js';
 import clientProjectAssignmentRoutes from './routes/clientProjectAssignments.js';
 import milestoneRoutes from './routes/milestones.js';
 import deliverableRoutes from './routes/deliverables.js';
+import deliverableTaskRoutes from './routes/deliverableTasks.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -45,6 +46,7 @@ app.get('/health', (req, res) => {
 app.use('/projects', projectRoutes);
 app.use('/projects', milestoneRoutes);
 app.use('/projects', deliverableRoutes);
+app.use('/projects', deliverableTaskRoutes);
 app.use('/templates', templateRoutes);
 app.use('/clients', clientRoutes);
 app.use('/assignments', clientProjectAssignmentRoutes);

@@ -9,11 +9,12 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
-import { clientService, assignmentService, milestoneService, deliverableService } from '../../services';
+import { clientService, assignmentService, milestoneService, deliverableService, taskService } from '../../services';
 import TimelineGrid from '../../components/milestones/TimelineGrid';
 import MilestoneNetworkGraph from '../../components/milestones/MilestoneNetworkGraph';
 import MilestoneForm from '../../components/milestones/MilestoneForm';
 import DeliverableForm from '../../components/milestones/DeliverableForm';
+import TaskForm from '../../components/milestones/TaskForm';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -39,6 +40,13 @@ function ProjectDetails() {
   const [isDeliverableFormOpen, setIsDeliverableFormOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
   const [currentMilestone, setCurrentMilestone] = useState(null); // For creating/editing deliverables
+  const [expandedDeliverables, setExpandedDeliverables] = useState(new Set()); // Track expanded deliverable cards
+
+  // Task state
+  const [tasks, setTasks] = useState({}); // Map of deliverableId -> tasks array
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [currentDeliverable, setCurrentDeliverable] = useState(null); // For creating/editing tasks
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -321,6 +329,97 @@ function ProjectDetails() {
       } catch (error) {
         console.error('Failed to delete deliverable:', error);
         alert(`Failed to delete deliverable: ${error.message || 'Unknown error'}`);
+      }
+    }
+  };
+
+  // Task handlers
+  const toggleDeliverableCard = (milestoneId, deliverableId) => {
+    console.log('🔄 Toggling deliverable card:', deliverableId);
+    setExpandedDeliverables(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(deliverableId)) {
+        console.log('📥 Collapsing deliverable:', deliverableId);
+        newSet.delete(deliverableId);
+      } else {
+        console.log('📤 Expanding deliverable:', deliverableId);
+        newSet.add(deliverableId);
+        // Fetch tasks when expanding
+        fetchTasks(milestoneId, deliverableId);
+      }
+      return newSet;
+    });
+  };
+
+  const fetchTasks = async (milestoneId, deliverableId) => {
+    try {
+      console.log('🔍 Fetching tasks for deliverable:', deliverableId);
+      const data = await taskService.getTasks(id, milestoneId, deliverableId);
+      console.log('✅ Fetched tasks:', data);
+      setTasks(prev => ({ ...prev, [deliverableId]: data }));
+    } catch (error) {
+      console.error('❌ Failed to fetch tasks:', error);
+    }
+  };
+
+  const handleCreateTask = (milestone, deliverable) => {
+    setCurrentMilestone(milestone);
+    setCurrentDeliverable(deliverable);
+    setEditingTask(null);
+    setIsTaskFormOpen(true);
+  };
+
+  const handleEditTask = (milestone, deliverable, task) => {
+    setCurrentMilestone(milestone);
+    setCurrentDeliverable(deliverable);
+    setEditingTask(task);
+    setIsTaskFormOpen(true);
+  };
+
+  const handleSaveTask = async (taskData) => {
+    try {
+      if (editingTask) {
+        await taskService.updateTask(
+          id,
+          currentMilestone._id,
+          currentDeliverable._id,
+          editingTask._id,
+          taskData
+        );
+      } else {
+        await taskService.createTask(
+          id,
+          currentMilestone._id,
+          currentDeliverable._id,
+          taskData
+        );
+      }
+
+      // Ensure deliverable is expanded to show the new/updated task
+      setExpandedDeliverables(prev => {
+        const newSet = new Set(prev);
+        newSet.add(currentDeliverable._id);
+        return newSet;
+      });
+
+      await fetchTasks(currentMilestone._id, currentDeliverable._id);
+      setIsTaskFormOpen(false);
+      setEditingTask(null);
+      setCurrentDeliverable(null);
+    } catch (error) {
+      console.error('Failed to save task:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteTask = async (milestoneId, deliverableId, taskId, taskName) => {
+    if (window.confirm(`Delete task "${taskName}"? This action cannot be undone.`)) {
+      try {
+        await taskService.deleteTask(id, milestoneId, deliverableId, taskId);
+        await fetchTasks(milestoneId, deliverableId);
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+        alert(`Failed to delete task: ${error.message || 'Unknown error'}`);
       }
     }
   };
@@ -1080,53 +1179,158 @@ function ProjectDetails() {
                                                     {deliverables[milestone._id].map((deliverable) => (
                                                       <div
                                                         key={deliverable._id}
-                                                        className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                                                        className="bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
                                                       >
-                                                        <div className="flex-1 min-w-0">
-                                                          <div className="text-sm font-medium text-gray-900">{deliverable.name}</div>
-                                                          {deliverable.description && (
-                                                            <div className="text-xs text-gray-500 mt-0.5 truncate">
-                                                              {deliverable.description}
+                                                        {/* Deliverable Header */}
+                                                        <div
+                                                          className="flex items-center justify-between p-2 cursor-pointer"
+                                                          onClick={() => toggleDeliverableCard(milestone._id, deliverable._id)}
+                                                        >
+                                                          <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedDeliverables.has(deliverable._id) ? 'rotate-180' : ''}`} />
+                                                            <div className="flex-1 min-w-0">
+                                                              <div className="text-sm font-medium text-gray-900">{deliverable.name}</div>
+                                                              {deliverable.description && (
+                                                                <div className="text-xs text-gray-500 mt-0.5 truncate">
+                                                                  {deliverable.description}
+                                                                </div>
+                                                              )}
+                                                              {deliverable.startDate && deliverable.endDate && (
+                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                  {new Date(deliverable.startDate).toLocaleDateString()} - {new Date(deliverable.endDate).toLocaleDateString()}
+                                                                </div>
+                                                              )}
                                                             </div>
-                                                          )}
-                                                          {deliverable.startDate && deliverable.endDate && (
-                                                            <div className="text-xs text-gray-500 mt-1">
-                                                              {new Date(deliverable.startDate).toLocaleDateString()} - {new Date(deliverable.endDate).toLocaleDateString()}
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                        <div className="flex items-center gap-2 ml-3">
-                                                          <div className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                            deliverable.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                            deliverable.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                                            deliverable.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
-                                                            'bg-gray-200 text-gray-700'
-                                                          }`}>
-                                                            {deliverable.status.replace('-', ' ')}
                                                           </div>
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              handleEditDeliverable(milestone, deliverable);
-                                                            }}
-                                                            className="h-7 w-7 p-0"
-                                                          >
-                                                            <Edit2 className="w-3 h-3" />
-                                                          </Button>
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                              e.stopPropagation();
-                                                              handleDeleteDeliverable(milestone._id, deliverable._id, deliverable.name);
-                                                            }}
-                                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                          >
-                                                            <Trash2 className="w-3 h-3" />
-                                                          </Button>
+                                                          <div className="flex items-center gap-2 ml-3">
+                                                            <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                              deliverable.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                              deliverable.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                                              deliverable.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
+                                                              'bg-gray-200 text-gray-700'
+                                                            }`}>
+                                                              {deliverable.status.replace('-', ' ')}
+                                                            </div>
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleEditDeliverable(milestone, deliverable);
+                                                              }}
+                                                              className="h-7 w-7 p-0"
+                                                            >
+                                                              <Edit2 className="w-3 h-3" />
+                                                            </Button>
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteDeliverable(milestone._id, deliverable._id, deliverable.name);
+                                                              }}
+                                                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            >
+                                                              <Trash2 className="w-3 h-3" />
+                                                            </Button>
+                                                          </div>
                                                         </div>
+
+                                                        {/* Tasks Section (Expandable) */}
+                                                        {expandedDeliverables.has(deliverable._id) && (
+                                                          <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                              <div className="text-xs font-semibold text-gray-700">Tasks</div>
+                                                              <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  handleCreateTask(milestone, deliverable);
+                                                                }}
+                                                                className="h-6 text-xs"
+                                                              >
+                                                                <Plus className="w-3 h-3 mr-1" />
+                                                                Add Task
+                                                              </Button>
+                                                            </div>
+
+                                                            {tasks[deliverable._id] && tasks[deliverable._id].length > 0 ? (
+                                                              <div className="space-y-1">
+                                                                {tasks[deliverable._id].map((task) => (
+                                                                  <div
+                                                                    key={task._id}
+                                                                    className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                                                                  >
+                                                                    <div className="flex-1 min-w-0">
+                                                                      <div className="flex items-center gap-2">
+                                                                        <div className="text-xs font-medium text-gray-900">{task.name}</div>
+                                                                        {task.priority === 'critical' && (
+                                                                          <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">!</span>
+                                                                        )}
+                                                                        {task.priority === 'high' && (
+                                                                          <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded font-medium">High</span>
+                                                                        )}
+                                                                      </div>
+                                                                      {task.description && (
+                                                                        <div className="text-xs text-gray-500 mt-0.5 truncate">
+                                                                          {task.description}
+                                                                        </div>
+                                                                      )}
+                                                                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                                                        {task.assignedTo && (
+                                                                          <span>👤 {task.assignedTo}</span>
+                                                                        )}
+                                                                        {task.estimatedHours > 0 && (
+                                                                          <span>⏱️ {task.estimatedHours}h</span>
+                                                                        )}
+                                                                        {task.dueDate && (
+                                                                          <span>📅 {new Date(task.dueDate).toLocaleDateString()}</span>
+                                                                        )}
+                                                                      </div>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 ml-3">
+                                                                      <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                                        task.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                                        task.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                                                        task.status === 'blocked' ? 'bg-red-100 text-red-700' :
+                                                                        'bg-gray-200 text-gray-700'
+                                                                      }`}>
+                                                                        {task.status.replace('-', ' ')}
+                                                                      </div>
+                                                                      <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                          e.stopPropagation();
+                                                                          handleEditTask(milestone, deliverable, task);
+                                                                        }}
+                                                                        className="h-6 w-6 p-0"
+                                                                      >
+                                                                        <Edit2 className="w-3 h-3" />
+                                                                      </Button>
+                                                                      <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                          e.stopPropagation();
+                                                                          handleDeleteTask(milestone._id, deliverable._id, task._id, task.name);
+                                                                        }}
+                                                                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                      >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                      </Button>
+                                                                    </div>
+                                                                  </div>
+                                                                ))}
+                                                              </div>
+                                                            ) : (
+                                                              <div className="text-xs text-gray-400 italic text-center py-2 bg-white rounded border border-gray-100">
+                                                                No tasks yet. Click "Add Task" to create one.
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        )}
                                                       </div>
                                                     ))}
                                                   </div>
@@ -1365,6 +1569,22 @@ function ProjectDetails() {
         }}
         isOpen={isDeliverableFormOpen}
       />
+
+      {/* Task Form Dialog */}
+      {isTaskFormOpen && currentDeliverable && (
+        <TaskForm
+          task={editingTask}
+          deliverable={currentDeliverable}
+          milestone={currentMilestone}
+          projectId={id}
+          onSave={handleSaveTask}
+          onCancel={() => {
+            setIsTaskFormOpen(false);
+            setEditingTask(null);
+            setCurrentDeliverable(null);
+          }}
+        />
+      )}
     </div>
   );
 }

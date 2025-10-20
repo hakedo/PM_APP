@@ -4,6 +4,7 @@ import Template from './Template.js';
 import ClientProjectAssignment from './ClientProjectAssignment.js';
 import Milestone from './Milestone.js';
 import Deliverable from './Deliverable.js';
+import DeliverableTask from './DeliverableTask.js';
 
 export {
   Client,
@@ -11,5 +12,6 @@ export {
   Template,
   ClientProjectAssignment,
   Milestone,
-  Deliverable
+  Deliverable,
+  DeliverableTask
 };
