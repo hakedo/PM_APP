@@ -28,15 +28,6 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
   };
 
   useEffect(() => {
-    console.log('MilestoneNetworkGraph received milestones:', milestones);
-    milestones.forEach(m => {
-      console.log(`Milestone ${m.name}:`, {
-        id: m._id,
-        dependencies: m.dependencies,
-        isCritical: m.isCritical
-      });
-    });
-    
     // Combine project start node with milestones
     // Milestones without dependencies should depend on project start
     const processedMilestones = milestones.map(milestone => {
@@ -54,112 +45,247 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
 
     // Calculate node positions using a layered layout with dynamic dimensions
     const result = calculateLayout(nodesWithStart);
-    console.log('Calculated layout:', result);
     setPositions(result.positions);
     setDimensions(result.dimensions);
   }, [milestones, projectStartDate]);
 
-  // Calculate layered layout for nodes (horizontal layout: left to right)
+  // Calculate clean column-based layout to prevent arrow overlap
   function calculateLayout(nodes) {
     if (nodes.length === 0) return { positions: {}, dimensions: { width: 1000, height: 400 } };
 
-    // Create adjacency map for dependencies
-    const adjacencyMap = new Map();
+    // Build dependency graph
+    const edges = [];
+    const nodeMap = new Map();
     nodes.forEach(node => {
-      adjacencyMap.set(node._id, node.dependencies || []);
+      nodeMap.set(node._id, node);
+      const deps = node.dependencies || [];
+      deps.forEach(depId => {
+        edges.push({ from: depId, to: node._id });
+      });
     });
 
-    // Assign layers using topological sort
-    const layers = assignLayers(nodes, adjacencyMap);
+    // Step 1: Assign layers using SHORTEST path for compact columns
+    const layers = assignLayersByShortestPath(nodes, edges);
     
-    // Calculate layout constants
-    const padding = 100;
-    const nodeRadius = 50;
-    const horizontalSpacing = 250; // Spacing between layers (left to right)
-    const verticalSpacing = 150;   // Spacing between nodes in same layer (top to bottom)
-    const minHeight = 400;         // Minimum canvas height
-
-    // Calculate layer counts for centering nodes within each layer
-    const layerCounts = new Map();
-    layers.forEach(layer => {
-      layerCounts.set(layer, (layerCounts.get(layer) || 0) + 1);
+    // Step 2: Group nodes by layer
+    const layerGroups = new Map();
+    nodes.forEach(node => {
+      const layer = layers.get(node._id) || 0;
+      if (!layerGroups.has(layer)) {
+        layerGroups.set(layer, []);
+      }
+      layerGroups.get(layer).push(node._id);
     });
 
-    // Find maximum layer and maximum nodes in any layer
+    // Step 3: Order nodes within layers aggressively to minimize crossings
+    orderNodesWithinLayers(layerGroups, edges, layers, nodeMap);
+
+    // Step 4: Calculate positions with smart vertical spacing
+    const padding = 100;
+    const horizontalSpacing = 300; // Fixed horizontal distance between columns
+    const minVerticalSpacing = 150; // Minimum space between nodes
+    const maxVerticalSpacing = 250; // Maximum space between nodes
+    const nodeRadius = 50;
+
+    const positions = {};
     const maxLayer = Math.max(...Array.from(layers.values()));
-    const maxNodesInLayer = Math.max(...Array.from(layerCounts.values()));
+    const maxNodesInLayer = Math.max(...Array.from(layerGroups.values()).map(g => g.length));
 
-    // Calculate dynamic dimensions
-    const calculatedWidth = padding * 2 + maxLayer * horizontalSpacing + nodeRadius * 2;
-    const calculatedHeight = Math.max(
-      minHeight,
-      padding * 2 + maxNodesInLayer * verticalSpacing + nodeRadius * 2
-    );
+    // Calculate canvas dimensions
+    const width = Math.max(1000, padding * 2 + maxLayer * horizontalSpacing + nodeRadius * 2);
+    const height = Math.max(500, padding * 2 + maxNodesInLayer * maxVerticalSpacing);
 
-    const dynamicDimensions = {
-      width: calculatedWidth,
-      height: calculatedHeight
-    };
-
-    // Calculate positions
-    const layout = {};
-    const layerIndices = new Map();
-    nodes.forEach((node, idx) => {
-      const layer = layers.get(node._id);
-      const indexInLayer = layerIndices.get(layer) || 0;
-      layerIndices.set(layer, indexInLayer + 1);
-
-      const layerCount = layerCounts.get(layer);
-      const totalHeight = layerCount * verticalSpacing;
-      const startY = (dynamicDimensions.height - totalHeight) / 2;
-
-      // Horizontal layout: X position based on layer, Y position based on index within layer
-      layout[node._id] = {
-        x: padding + layer * horizontalSpacing,
-        y: startY + indexInLayer * verticalSpacing + verticalSpacing / 2,
-        layer
-      };
+    // Position each node - use adaptive spacing based on layer density
+    layerGroups.forEach((nodeIds, layer) => {
+      const x = padding + layer * horizontalSpacing;
+      const nodeCount = nodeIds.length;
+      
+      if (nodeCount === 1) {
+        // Single node - center vertically
+        positions[nodeIds[0]] = {
+          x: x,
+          y: height / 2,
+          layer: layer
+        };
+      } else {
+        // Multiple nodes - use adaptive spacing
+        // More nodes = tighter spacing, fewer nodes = looser spacing
+        const adaptiveSpacing = Math.max(
+          minVerticalSpacing,
+          Math.min(maxVerticalSpacing, (height - padding * 2) / (nodeCount + 1))
+        );
+        
+        const totalHeight = (nodeCount - 1) * adaptiveSpacing;
+        const startY = (height - totalHeight) / 2;
+        
+        nodeIds.forEach((nodeId, index) => {
+          positions[nodeId] = {
+            x: x,
+            y: startY + index * adaptiveSpacing,
+            layer: layer
+          };
+        });
+      }
     });
 
     return {
-      positions: layout,
-      dimensions: dynamicDimensions
+      positions: positions,
+      dimensions: { width, height }
     };
   }
 
-  // Assign layers to nodes based on dependencies
-  function assignLayers(nodes, adjacencyMap) {
+  // Assign layers based on SHORTEST path from root - keeps columns compact
+  function assignLayersByShortestPath(nodes, edges) {
     const layers = new Map();
+    const incomingEdges = new Map();
+    const outgoingEdges = new Map();
+
+    // Initialize
+    nodes.forEach(node => {
+      incomingEdges.set(node._id, []);
+      outgoingEdges.set(node._id, []);
+    });
+
+    // Build adjacency lists
+    edges.forEach(edge => {
+      incomingEdges.get(edge.to).push(edge.from);
+      outgoingEdges.get(edge.from).push(edge.to);
+    });
+
+    // BFS for shortest path from roots
+    const queue = [];
     const visited = new Set();
 
-    function getLayer(nodeId, depth = 0) {
-      if (visited.has(nodeId)) {
-        return layers.get(nodeId) || 0;
+    // Find root nodes (no incoming edges)
+    nodes.forEach(node => {
+      if (incomingEdges.get(node._id).length === 0) {
+        queue.push(node._id);
+        layers.set(node._id, 0);
+        visited.add(node._id);
       }
+    });
 
-      visited.add(nodeId);
-      const deps = adjacencyMap.get(nodeId) || [];
+    // BFS traversal - assign on first visit (shortest path)
+    while (queue.length > 0) {
+      const nodeId = queue.shift();
+      const currentLayer = layers.get(nodeId);
 
-      if (deps.length === 0) {
-        layers.set(nodeId, 0);
-        return 0;
-      }
-
-      let maxDepth = 0;
-      deps.forEach(depId => {
-        const depLayer = getLayer(depId, depth + 1);
-        maxDepth = Math.max(maxDepth, depLayer + 1);
+      const children = outgoingEdges.get(nodeId) || [];
+      children.forEach(childId => {
+        if (!visited.has(childId)) {
+          layers.set(childId, currentLayer + 1);
+          visited.add(childId);
+          queue.push(childId);
+        }
       });
-
-      layers.set(nodeId, maxDepth);
-      return maxDepth;
     }
 
+    // Handle any unvisited nodes
     nodes.forEach(node => {
-      getLayer(node._id);
+      if (!layers.has(node._id)) {
+        layers.set(node._id, 0);
+      }
     });
 
     return layers;
+  }
+
+  // Order nodes within layers using barycenter method to minimize edge crossings
+  function orderNodesWithinLayers(layerGroups, edges, layers, nodeMap) {
+    // Build predecessor and successor maps
+    const predecessors = new Map();
+    const successors = new Map();
+
+    // Initialize for all nodes
+    Array.from(nodeMap.keys()).forEach(nodeId => {
+      predecessors.set(nodeId, []);
+      successors.set(nodeId, []);
+    });
+
+    edges.forEach(edge => {
+      predecessors.get(edge.to).push(edge.from);
+      successors.get(edge.from).push(edge.to);
+    });
+
+    const layerArray = Array.from(layerGroups.entries()).sort((a, b) => a[0] - b[0]);
+
+    // Multiple passes to reduce crossings (barycenter heuristic)
+    // More passes = better ordering
+    for (let pass = 0; pass < 12; pass++) {
+      // Forward pass: order by average position of predecessors
+      for (let i = 1; i < layerArray.length; i++) {
+        const [layerNum, nodeIds] = layerArray[i];
+        const prevLayer = layerArray[i - 1][1];
+        
+        // Create position map for previous layer
+        const posMap = new Map();
+        prevLayer.forEach((id, pos) => posMap.set(id, pos));
+
+        // Sort by barycenter (average position of predecessors)
+        nodeIds.sort((a, b) => {
+          const aPreds = predecessors.get(a) || [];
+          const bPreds = predecessors.get(b) || [];
+
+          // Calculate barycenters
+          let aBarycenter = 0;
+          let bBarycenter = 0;
+          
+          const aValidPreds = aPreds.filter(p => posMap.has(p));
+          const bValidPreds = bPreds.filter(p => posMap.has(p));
+          
+          if (aValidPreds.length > 0) {
+            aBarycenter = aValidPreds.reduce((sum, p) => sum + posMap.get(p), 0) / aValidPreds.length;
+          }
+          
+          if (bValidPreds.length > 0) {
+            bBarycenter = bValidPreds.reduce((sum, p) => sum + posMap.get(p), 0) / bValidPreds.length;
+          }
+
+          // Nodes with no predecessors go to the end
+          if (aValidPreds.length === 0 && bValidPreds.length > 0) return 1;
+          if (bValidPreds.length === 0 && aValidPreds.length > 0) return -1;
+          
+          return aBarycenter - bBarycenter;
+        });
+      }
+
+      // Backward pass: order by average position of successors
+      for (let i = layerArray.length - 2; i >= 0; i--) {
+        const [layerNum, nodeIds] = layerArray[i];
+        const nextLayer = layerArray[i + 1][1];
+        
+        // Create position map for next layer
+        const posMap = new Map();
+        nextLayer.forEach((id, pos) => posMap.set(id, pos));
+
+        // Sort by barycenter (average position of successors)
+        nodeIds.sort((a, b) => {
+          const aSuccs = successors.get(a) || [];
+          const bSuccs = successors.get(b) || [];
+
+          // Calculate barycenters
+          let aBarycenter = 0;
+          let bBarycenter = 0;
+          
+          const aValidSuccs = aSuccs.filter(s => posMap.has(s));
+          const bValidSuccs = bSuccs.filter(s => posMap.has(s));
+          
+          if (aValidSuccs.length > 0) {
+            aBarycenter = aValidSuccs.reduce((sum, s) => sum + posMap.get(s), 0) / aValidSuccs.length;
+          }
+          
+          if (bValidSuccs.length > 0) {
+            bBarycenter = bValidSuccs.reduce((sum, s) => sum + posMap.get(s), 0) / bValidSuccs.length;
+          }
+
+          // Nodes with no successors go to the end
+          if (aValidSuccs.length === 0 && bValidSuccs.length > 0) return 1;
+          if (bValidSuccs.length === 0 && aValidSuccs.length > 0) return -1;
+          
+          return aBarycenter - bBarycenter;
+        });
+      }
+    }
   }
 
   // Draw arrow between two points with smart routing
