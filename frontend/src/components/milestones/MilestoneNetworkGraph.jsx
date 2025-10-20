@@ -639,35 +639,45 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
                 </g>
               )}
 
-              {/* Node label */}
-              <foreignObject
-                x={pos.x - 45}
-                y={pos.y - 20}
-                width={90}
-                height={40}
-                className="pointer-events-none"
-              >
-                <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                  {milestone.code && (
-                    <p className="text-white text-[10px] font-bold tracking-wider drop-shadow-md">
-                      {milestone.code}
-                    </p>
-                  )}
-                  <p className="text-white text-xs font-semibold text-center leading-tight drop-shadow-md px-1">
-                    {milestone.name.length > 20 
-                      ? milestone.name.substring(0, 20) + '...' 
-                      : milestone.name}
-                  </p>
-                </div>
-              </foreignObject>
+              {/* Code inside circle */}
+              {milestone.code && (
+                <text
+                  x={pos.x}
+                  y={pos.y + 6}
+                  textAnchor="middle"
+                  fill="#fff"
+                  fontSize="18"
+                  fontWeight="bold"
+                  letterSpacing="1"
+                  className="pointer-events-none"
+                  style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }}
+                >
+                  {milestone.code}
+                </text>
+              )}
 
-              {/* Duration/Slack info below node */}
+              {/* Milestone name below node */}
               <text
                 x={pos.x}
                 y={pos.y + 70}
                 textAnchor="middle"
-                fill="#4b5563"
-                fontSize="12"
+                fill="#1f2937"
+                fontSize="13"
+                fontWeight="600"
+                className="pointer-events-none"
+              >
+                {milestone.name.length > 25 
+                  ? milestone.name.substring(0, 25) + '...' 
+                  : milestone.name}
+              </text>
+
+              {/* Duration/Slack info below name */}
+              <text
+                x={pos.x}
+                y={pos.y + 88}
+                textAnchor="middle"
+                fill="#6b7280"
+                fontSize="11"
                 fontWeight="500"
               >
                 {isProjectStart && milestone.startDate 
