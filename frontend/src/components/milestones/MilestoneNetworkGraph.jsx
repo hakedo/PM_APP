@@ -647,7 +647,12 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
                 height={40}
                 className="pointer-events-none"
               >
-                <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center justify-center h-full gap-0.5">
+                  {milestone.code && (
+                    <p className="text-white text-[10px] font-bold tracking-wider drop-shadow-md">
+                      {milestone.code}
+                    </p>
+                  )}
                   <p className="text-white text-xs font-semibold text-center leading-tight drop-shadow-md px-1">
                     {milestone.name.length > 20 
                       ? milestone.name.substring(0, 20) + '...' 

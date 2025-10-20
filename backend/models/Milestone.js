@@ -14,6 +14,13 @@ const milestoneSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, 'Name cannot exceed 200 characters']
     },
+    code: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      maxlength: [10, 'Code cannot exceed 10 characters'],
+      match: [/^[A-Z0-9]*$/, 'Code can only contain uppercase letters and numbers']
+    },
     description: {
       type: String,
       trim: true,

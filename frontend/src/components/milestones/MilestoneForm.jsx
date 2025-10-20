@@ -21,6 +21,7 @@ function MilestoneForm({
 }) {
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     description: '',
     startDate: '',
     endDate: '',
@@ -37,6 +38,7 @@ function MilestoneForm({
     if (milestone) {
       setFormData({
         name: milestone.name || '',
+        code: milestone.code || '',
         description: milestone.description || '',
         startDate: milestone.startDate ? formatDateForInput(milestone.startDate) : '',
         endDate: milestone.endDate ? formatDateForInput(milestone.endDate) : '',
@@ -48,6 +50,7 @@ function MilestoneForm({
     } else {
       setFormData({
         name: '',
+        code: '',
         description: '',
         startDate: '',
         endDate: '',
@@ -107,6 +110,7 @@ function MilestoneForm({
     try {
       const submitData = {
         name: formData.name,
+        code: formData.code.toUpperCase(),
         description: formData.description,
         status: formData.status,
         dependencies: formData.dependencies
@@ -154,102 +158,123 @@ function MilestoneForm({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            {/* Name */}
-            <div className="grid gap-2">
-              <Label htmlFor="name">Milestone Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Design Phase Complete"
-                className={errors.name ? 'border-red-500' : ''}
-              />
-              {errors.name && <span className="text-xs text-red-500">{errors.name}</span>}
-            </div>
-
-            {/* Description */}
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description"
-                rows={3}
-              />
-            </div>
-
-            {/* Status */}
-            <div className="grid gap-2">
-              <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
-              >
-                <option value="not-started">Not Started</option>
-                <option value="in-progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </div>
-
-            {/* Date Type Toggle */}
-            <div className="grid gap-2">
-              <Label>Milestone Type</Label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={!formData.useDuration}
-                    onChange={() => setFormData({ ...formData, useDuration: false })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Fixed Dates</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    checked={formData.useDuration}
-                    onChange={() => setFormData({ ...formData, useDuration: true })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">Duration-based (requires dependencies)</span>
-                </label>
+          <div className="grid gap-3 py-4">
+            {/* Name and Code Row */}
+            <div className="grid grid-cols-[1fr_120px] gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="name" className="text-sm">Milestone Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Design Phase Complete"
+                  className={errors.name ? 'border-red-500' : ''}
+                />
+                {errors.name && <span className="text-xs text-red-500">{errors.name}</span>}
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="code" className="text-sm">Code</Label>
+                <Input
+                  id="code"
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                  placeholder="PLN"
+                  maxLength={10}
+                  className="uppercase"
+                />
               </div>
             </div>
 
-            {/* Fixed Dates or Duration */}
+            {/* Description - Optional and Collapsible */}
+            <details className="group">
+              <summary className="text-sm text-gray-600 cursor-pointer hover:text-gray-900 list-none flex items-center gap-1">
+                <span className="transform group-open:rotate-90 transition-transform">▶</span>
+                Description (optional)
+              </summary>
+              <div className="mt-2">
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Optional description"
+                  rows={2}
+                  className="text-sm"
+                />
+              </div>
+            </details>
+
+            {/* Status and Type Row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="status" className="text-sm">Status</Label>
+                <select
+                  id="status"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                >
+                  <option value="not-started">Not Started</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
+
+              {/* Type Toggle - Inline Radio */}
+              <div className="grid gap-1.5">
+                <Label className="text-sm">Milestone Type</Label>
+                <div className="flex gap-3 items-center h-9">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                    <input
+                      type="radio"
+                      checked={!formData.useDuration}
+                      onChange={() => setFormData({ ...formData, useDuration: false })}
+                      className="w-4 h-4"
+                    />
+                    <span>Fixed Dates</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-sm">
+                    <input
+                      type="radio"
+                      checked={formData.useDuration}
+                      onChange={() => setFormData({ ...formData, useDuration: true })}
+                      className="w-4 h-4"
+                    />
+                    <span>Duration-based</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Dates or Duration - Compact */}
             {!formData.useDuration ? (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="startDate">Start Date *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="startDate" className="text-sm">Start Date *</Label>
                   <Input
                     id="startDate"
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className={errors.startDate ? 'border-red-500' : ''}
+                    className={`text-sm ${errors.startDate ? 'border-red-500' : ''}`}
                   />
                   {errors.startDate && <span className="text-xs text-red-500">{errors.startDate}</span>}
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="endDate">End Date *</Label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="endDate" className="text-sm">End Date *</Label>
                   <Input
                     id="endDate"
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className={errors.endDate ? 'border-red-500' : ''}
+                    className={`text-sm ${errors.endDate ? 'border-red-500' : ''}`}
                   />
                   {errors.endDate && <span className="text-xs text-red-500">{errors.endDate}</span>}
                 </div>
               </div>
             ) : (
-              <div className="grid gap-2">
-                <Label htmlFor="duration">Duration (days) *</Label>
+              <div className="grid gap-1.5">
+                <Label htmlFor="duration" className="text-sm">Duration (days) *</Label>
                 <Input
                   id="duration"
                   type="number"
@@ -257,47 +282,41 @@ function MilestoneForm({
                   value={formData.duration}
                   onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                   placeholder="e.g., 5"
-                  className={errors.duration ? 'border-red-500' : ''}
+                  className={`text-sm ${errors.duration ? 'border-red-500' : ''}`}
                 />
                 {errors.duration && <span className="text-xs text-red-500">{errors.duration}</span>}
-                <span className="text-xs text-gray-500">
-                  This milestone will start after its dependencies are completed
-                </span>
               </div>
             )}
 
-            {/* Dependencies */}
+            {/* Dependencies - Compact */}
             {availableDependencies.length > 0 && (
-              <div className="grid gap-2">
-                <Label>Dependencies</Label>
-                <div className="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto">
+              <div className="grid gap-1.5">
+                <Label className="text-sm">Dependencies {formData.useDuration && '*'}</Label>
+                <div className="border border-gray-200 rounded-md p-2 max-h-32 overflow-y-auto bg-gray-50">
                   {availableDependencies.map((dep) => (
                     <label
                       key={dep._id}
-                      className="flex items-center gap-2 py-2 cursor-pointer hover:bg-gray-50 px-2 rounded"
+                      className="flex items-center gap-2 py-1 px-1.5 cursor-pointer hover:bg-white rounded text-sm"
                     >
                       <input
                         type="checkbox"
                         checked={formData.dependencies.includes(dep._id)}
                         onChange={() => handleDependencyToggle(dep._id)}
-                        className="w-4 h-4"
+                        className="w-3.5 h-3.5"
                       />
-                      <span className="text-sm flex-1">{dep.name}</span>
+                      <span className="flex-1">{dep.name}</span>
                       {dep.isCritical && (
-                        <span className="text-xs text-red-500 font-medium">Critical</span>
+                        <span className="text-xs text-red-600 font-medium">!</span>
                       )}
                     </label>
                   ))}
                 </div>
                 {errors.dependencies && <span className="text-xs text-red-500">{errors.dependencies}</span>}
-                <span className="text-xs text-gray-500">
-                  Select milestones that must be completed before this one starts
-                </span>
               </div>
             )}
 
             {errors.submit && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+              <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                 {errors.submit}
               </div>
             )}
