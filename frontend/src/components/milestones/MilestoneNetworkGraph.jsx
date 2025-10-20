@@ -49,23 +49,32 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
     setDimensions(result.dimensions);
   }, [milestones, projectStartDate]);
 
-  // Calculate clean column-based layout to prevent arrow overlap
+  // Calculate clean column-based layout using topological layering
+  // This creates a proper hierarchical layout from left to right
   function calculateLayout(nodes) {
     if (nodes.length === 0) return { positions: {}, dimensions: { width: 1000, height: 400 } };
 
-    // Build dependency graph
+    // Build dependency graph and normalize dependencies
     const edges = [];
     const nodeMap = new Map();
-    nodes.forEach(node => {
-      nodeMap.set(node._id, node);
-      const deps = node.dependencies || [];
-      deps.forEach(depId => {
+    const normalizedNodes = nodes.map(node => {
+      const normalizedDeps = (node.dependencies || []).map(dep => 
+        typeof dep === 'object' && dep._id ? dep._id : dep
+      );
+      const normalizedNode = { ...node, dependencies: normalizedDeps };
+      nodeMap.set(node._id, normalizedNode);
+      
+      normalizedDeps.forEach(depId => {
         edges.push({ from: depId, to: node._id });
       });
+      
+      return normalizedNode;
     });
 
-    // Step 1: Assign layers using SHORTEST path for compact columns
-    const layers = assignLayersByShortestPath(nodes, edges);
+    console.log('📦 Nodes:', normalizedNodes.map(n => ({ name: n.name, deps: n.dependencies })));
+
+    // Step 1: Assign layers using longest path algorithm (proper topological ordering)
+    const layers = assignLayersByLongestPath(normalizedNodes);
     
     // Step 2: Group nodes by layer
     const layerGroups = new Map();
@@ -76,6 +85,11 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
       }
       layerGroups.get(layer).push(node._id);
     });
+
+    console.log('📊 Layer groups:', Array.from(layerGroups.entries()).sort((a, b) => a[0] - b[0]).map(([layer, nodeIds]) => ({
+      layer,
+      nodes: nodeIds.map(id => nodes.find(n => n._id === id)?.name || id)
+    })));
 
     // Step 3: Order nodes within layers aggressively to minimize crossings
     orderNodesWithinLayers(layerGroups, edges, layers, nodeMap);
@@ -134,59 +148,76 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
     };
   }
 
-  // Assign layers based on SHORTEST path from root - keeps columns compact
-  function assignLayersByShortestPath(nodes, edges) {
+  // Assign layers using longest path from source (proper topological layering)
+  // This ensures all dependencies are to the left of their dependents
+  function assignLayersByLongestPath(nodes) {
     const layers = new Map();
-    const incomingEdges = new Map();
-    const outgoingEdges = new Map();
-
-    // Initialize
+    const nodeMap = new Map();
+    
     nodes.forEach(node => {
-      incomingEdges.set(node._id, []);
-      outgoingEdges.set(node._id, []);
+      nodeMap.set(node._id, node);
+      layers.set(node._id, 0); // Initialize all to layer 0
     });
 
-    // Build adjacency lists
-    edges.forEach(edge => {
-      incomingEdges.get(edge.to).push(edge.from);
-      outgoingEdges.get(edge.from).push(edge.to);
-    });
+    // Find all nodes with no dependencies (source nodes)
+    const sourceNodes = nodes.filter(n => !n.dependencies || n.dependencies.length === 0);
+    
+    console.log('🎯 Source nodes:', sourceNodes.map(n => n.name));
 
-    // BFS for shortest path from roots
-    const queue = [];
+    // Use DFS to calculate longest path to each node
     const visited = new Set();
-
-    // Find root nodes (no incoming edges)
-    nodes.forEach(node => {
-      if (incomingEdges.get(node._id).length === 0) {
-        queue.push(node._id);
-        layers.set(node._id, 0);
-        visited.add(node._id);
+    const recursionStack = new Set();
+    
+    function dfs(nodeId) {
+      if (visited.has(nodeId)) {
+        return layers.get(nodeId);
       }
-    });
-
-    // BFS traversal - assign on first visit (shortest path)
-    while (queue.length > 0) {
-      const nodeId = queue.shift();
-      const currentLayer = layers.get(nodeId);
-
-      const children = outgoingEdges.get(nodeId) || [];
-      children.forEach(childId => {
-        if (!visited.has(childId)) {
-          layers.set(childId, currentLayer + 1);
-          visited.add(childId);
-          queue.push(childId);
-        }
-      });
+      
+      if (recursionStack.has(nodeId)) {
+        console.warn('⚠️ Circular dependency detected at', nodeMap.get(nodeId)?.name);
+        return 0;
+      }
+      
+      recursionStack.add(nodeId);
+      const node = nodeMap.get(nodeId);
+      
+      if (!node) {
+        recursionStack.delete(nodeId);
+        return 0;
+      }
+      
+      let maxDepLayer = -1;
+      
+      // Process all dependencies
+      if (node.dependencies && node.dependencies.length > 0) {
+        node.dependencies.forEach(depId => {
+          const depLayer = dfs(depId);
+          maxDepLayer = Math.max(maxDepLayer, depLayer);
+        });
+      }
+      
+      // This node's layer is one more than its deepest dependency
+      const nodeLayer = maxDepLayer + 1;
+      layers.set(nodeId, nodeLayer);
+      
+      recursionStack.delete(nodeId);
+      visited.add(nodeId);
+      
+      return nodeLayer;
     }
-
-    // Handle any unvisited nodes
+    
+    // Process all nodes
     nodes.forEach(node => {
-      if (!layers.has(node._id)) {
-        layers.set(node._id, 0);
+      if (!visited.has(node._id)) {
+        dfs(node._id);
       }
     });
-
+    
+    console.log('📍 Layer assignments:', Array.from(layers.entries()).map(([nodeId, layer]) => ({
+      node: nodeMap.get(nodeId)?.name || nodeId,
+      layer
+    })));
+    
     return layers;
   }
 
