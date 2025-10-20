@@ -1,5 +1,5 @@
 import express from 'express';
-import { Project, ClientProjectAssignment } from '../models/index.js';
+import { Project, ClientProjectAssignment, Milestone, Deliverable, DeliverableTask } from '../models/index.js';
 
 const router = express.Router();
 
@@ -93,21 +93,54 @@ router.put('/:id', async (req, res, next) => {
 // Delete project by ID
 router.delete('/:id', async (req, res, next) => {
   try {
-    const deletedProject = await Project.findByIdAndDelete(req.params.id);
+    const projectId = req.params.id;
+    
+    const deletedProject = await Project.findById(projectId);
     
     if (!deletedProject) {
       return res.status(404).json({ 
         error: 'Project not found',
-        message: `No project found with id: ${req.params.id}`
+        message: `No project found with id: ${projectId}`
       });
     }
 
-    // Remove all client assignments for this project
-    await ClientProjectAssignment.deleteMany({ projectId: req.params.id });
+    // CASCADE DELETE: Remove all related data
+    // 1. Get all milestones for this project
+    const milestones = await Milestone.find({ projectId });
+    const milestoneIds = milestones.map(m => m._id);
+    
+    // 2. Get all deliverables for these milestones
+    const deliverables = await Deliverable.find({ projectId });
+    const deliverableIds = deliverables.map(d => d._id);
+    
+    // 3. Delete all tasks for these deliverables
+    if (deliverableIds.length > 0) {
+      await DeliverableTask.deleteMany({ projectId });
+    }
+    
+    // 4. Delete all deliverables for these milestones
+    if (milestoneIds.length > 0) {
+      await Deliverable.deleteMany({ projectId });
+    }
+    
+    // 5. Delete all milestones for this project
+    await Milestone.deleteMany({ projectId });
+    
+    // 6. Remove all client assignments for this project
+    await ClientProjectAssignment.deleteMany({ projectId });
+    
+    // 7. Finally, delete the project itself
+    await deletedProject.deleteOne();
     
     res.json({ 
-      message: 'Project deleted successfully',
-      project: deletedProject
+      message: 'Project and all related data deleted successfully',
+      project: deletedProject,
+      deletedCounts: {
+        milestones: milestoneIds.length,
+        deliverables: deliverableIds.length,
+        tasks: deliverableIds.length > 0 ? 'cascade' : 0,
+        clientAssignments: 'cascade'
+      }
     });
   } catch (error) {
     if (error.name === 'CastError') {

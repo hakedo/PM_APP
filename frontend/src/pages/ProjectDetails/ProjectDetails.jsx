@@ -46,6 +46,12 @@ function ProjectDetails() {
   const [editingTask, setEditingTask] = useState(null);
   const [currentDeliverable, setCurrentDeliverable] = useState(null); // For creating/editing tasks
 
+  // Dependency reassignment dialog state
+  const [showDependencyDialog, setShowDependencyDialog] = useState(false);
+  const [dependencyConflict, setDependencyConflict] = useState(null);
+  const [selectedReassignment, setSelectedReassignment] = useState(null);
+  const [milestoneToDelete, setMilestoneToDelete] = useState(null);
+
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
   const [allClients, setAllClients] = useState([]);
@@ -428,9 +434,53 @@ function ProjectDetails() {
         await fetchMilestones();
       } catch (error) {
         console.error('Failed to delete milestone:', error);
-        alert(`Failed to delete milestone: ${error.message || 'Unknown error'}`);
+        
+        // Check if this is a dependency conflict
+        // APIError has status and data properties directly (not error.response)
+        if (error.status === 409 && error.data?.dependents) {
+          setDependencyConflict(error.data);
+          setMilestoneToDelete(milestoneId);
+          setShowDependencyDialog(true);
+          
+          // Auto-select if there's only one option
+          if (error.data.canAutoReassign && error.data.suggestion?.newDependency) {
+            setSelectedReassignment(error.data.suggestion.newDependency);
+          }
+        } else {
+          alert(`Failed to delete milestone: ${error.data?.message || error.message || 'Unknown error'}`);
+        }
       }
     }
+  };
+
+  const handleConfirmDependencyReassignment = async () => {
+    if (!milestoneToDelete) return;
+
+    try {
+      // Send delete request with reassignment information
+      await milestoneService.deleteMilestone(id, milestoneToDelete, {
+        reassignments: {
+          newDependency: selectedReassignment
+        }
+      });
+      
+      // Close dialog and refresh
+      setShowDependencyDialog(false);
+      setDependencyConflict(null);
+      setMilestoneToDelete(null);
+      setSelectedReassignment(null);
+      await fetchMilestones();
+    } catch (error) {
+      console.error('Failed to delete milestone with reassignment:', error);
+      alert(`Failed to delete milestone: ${error.data?.message || error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleCancelDependencyReassignment = () => {
+    setShowDependencyDialog(false);
+    setDependencyConflict(null);
+    setMilestoneToDelete(null);
+    setSelectedReassignment(null);
   };
 
   const filteredClients = allClients.filter(client => {
@@ -1476,6 +1526,140 @@ function ProjectDetails() {
         }}
         isOpen={isMilestoneFormOpen}
       />
+
+      {/* Dependency Reassignment Dialog */}
+      <Dialog open={showDependencyDialog} onOpenChange={setShowDependencyDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Dependency Conflict
+            </DialogTitle>
+            <DialogDescription>
+              {dependencyConflict?.message}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Show dependents info */}
+            {dependencyConflict?.dependents && dependencyConflict.dependents.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-amber-900 mb-2">
+                  The following milestones depend on this one:
+                </h4>
+                <ul className="list-disc list-inside space-y-1 text-sm text-amber-800">
+                  {dependencyConflict.dependents.map(dep => (
+                    <li key={dep.id}>{dep.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Automatic reassignment suggestion */}
+            {dependencyConflict?.canAutoReassign && dependencyConflict?.suggestion?.type === 'automatic' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-blue-900 mb-2">
+                  Recommended Action:
+                </h4>
+                <p className="text-sm text-blue-800">
+                  {dependencyConflict.suggestion.description}
+                </p>
+              </div>
+            )}
+
+            {/* Remove dependency suggestion */}
+            {dependencyConflict?.canAutoReassign && dependencyConflict?.suggestion?.type === 'remove' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-sm text-blue-900 mb-2">
+                  Recommended Action:
+                </h4>
+                <p className="text-sm text-blue-800">
+                  {dependencyConflict.suggestion.description}
+                </p>
+              </div>
+            )}
+
+            {/* Multiple options - user choice required */}
+            {dependencyConflict?.requiresUserChoice && dependencyConflict?.options && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm text-gray-900">
+                  Choose a new dependency for the dependent milestones:
+                </h4>
+                <div className="space-y-2">
+                  {dependencyConflict.options.map(option => (
+                    <label
+                      key={option.id}
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        selectedReassignment === option.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="reassignment"
+                        value={option.id}
+                        checked={selectedReassignment === option.id}
+                        onChange={(e) => setSelectedReassignment(e.target.value)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm text-gray-900">
+                          {option.name}
+                        </div>
+                        {option.description && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            {option.description}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                      selectedReassignment === null || selectedReassignment === 'none'
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="reassignment"
+                      value="none"
+                      checked={selectedReassignment === null || selectedReassignment === 'none'}
+                      onChange={() => setSelectedReassignment(null)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-gray-900">
+                        No dependency
+                      </div>
+                      <div className="text-sm text-gray-600 mt-1">
+                        Dependent milestones will have no dependencies
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelDependencyReassignment}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDependencyReassignment}
+              disabled={dependencyConflict?.requiresUserChoice && !selectedReassignment && selectedReassignment !== null}
+            >
+              Delete Milestone
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Deliverable Form Dialog */}
       <DeliverableForm

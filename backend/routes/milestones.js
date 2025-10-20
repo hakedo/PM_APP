@@ -1,5 +1,5 @@
 import express from 'express';
-import { Milestone, Project } from '../models/index.js';
+import { Milestone, Project, Deliverable, DeliverableTask } from '../models/index.js';
 import { calculateCriticalPath, detectCircularDependencies } from '../utils/cpm.js';
 
 const router = express.Router();
@@ -269,6 +269,7 @@ router.put('/:projectId/milestones/:milestoneId', async (req, res, next) => {
 router.delete('/:projectId/milestones/:milestoneId', async (req, res, next) => {
   try {
     const { projectId, milestoneId } = req.params;
+    const { reassignments } = req.body; // Optional: user-specified dependency reassignments
     
     const milestone = await Milestone.findOne({
       _id: milestoneId,
@@ -289,13 +290,119 @@ router.delete('/:projectId/milestones/:milestoneId', async (req, res, next) => {
     });
 
     if (dependents.length > 0) {
-      return res.status(400).json({
-        error: 'Cannot delete milestone',
-        message: 'Other milestones depend on this milestone. Remove those dependencies first.',
-        dependents: dependents.map(m => ({ id: m._id, name: m.name }))
-      });
+      // If no reassignments provided, offer options
+      if (!reassignments) {
+        // Get the dependencies of the milestone being deleted
+        const deletedMilestoneDeps = milestone.dependencies || [];
+        
+        // Determine if automatic reassignment is possible
+        if (deletedMilestoneDeps.length === 1) {
+          // Simple case: Only one dependency - automatically reassign to it
+          // Fetch the dependency milestone to get its name
+          const depMilestone = await Milestone.findById(deletedMilestoneDeps[0]);
+          
+          return res.status(409).json({
+            error: 'Dependency conflict',
+            message: 'Other milestones depend on this milestone.',
+            canAutoReassign: true,
+            suggestion: {
+              type: 'automatic',
+              description: `Reassign all dependents to "${depMilestone?.name || 'previous milestone'}"`,
+              newDependency: deletedMilestoneDeps[0]
+            },
+            dependents: dependents.map(m => ({ 
+              id: m._id, 
+              name: m.name,
+              currentDependencies: m.dependencies 
+            })),
+            milestoneDependencies: deletedMilestoneDeps
+          });
+        } else if (deletedMilestoneDeps.length > 1) {
+          // Multiple dependencies - user must choose
+          const depMilestones = await Milestone.find({
+            _id: { $in: deletedMilestoneDeps },
+            projectId
+          });
+          
+          return res.status(409).json({
+            error: 'Dependency conflict',
+            message: 'Other milestones depend on this milestone.',
+            canAutoReassign: false,
+            requiresUserChoice: true,
+            description: 'This milestone has multiple dependencies. Please choose which one to reassign dependents to.',
+            options: depMilestones.map(m => ({
+              id: m._id,
+              name: m.name,
+              description: m.description
+            })),
+            dependents: dependents.map(m => ({ 
+              id: m._id, 
+              name: m.name,
+              currentDependencies: m.dependencies 
+            })),
+            milestoneDependencies: deletedMilestoneDeps
+          });
+        } else {
+          // No dependencies - remove this milestone from dependents
+          return res.status(409).json({
+            error: 'Dependency conflict',
+            message: 'Other milestones depend on this milestone.',
+            canAutoReassign: true,
+            suggestion: {
+              type: 'remove',
+              description: 'Remove this dependency from all dependent milestones (they will have no dependencies)'
+            },
+            dependents: dependents.map(m => ({ 
+              id: m._id, 
+              name: m.name,
+              currentDependencies: m.dependencies 
+            })),
+            milestoneDependencies: []
+          });
+        }
+      }
+
+      // Process reassignments
+      for (const dependent of dependents) {
+        // Remove the deleted milestone from dependencies
+        const newDependencies = dependent.dependencies.filter(
+          dep => dep.toString() !== milestoneId
+        );
+
+        // Add reassigned dependencies
+        if (reassignments && reassignments.newDependency) {
+          // User specified a new dependency
+          if (!newDependencies.includes(reassignments.newDependency)) {
+            newDependencies.push(reassignments.newDependency);
+          }
+        } else if (milestone.dependencies && milestone.dependencies.length === 1) {
+          // Automatic reassignment to the single dependency
+          if (!newDependencies.includes(milestone.dependencies[0].toString())) {
+            newDependencies.push(milestone.dependencies[0]);
+          }
+        }
+        // If no dependencies, newDependencies will be empty (milestone becomes independent)
+
+        // Update the dependent milestone
+        await Milestone.findByIdAndUpdate(dependent._id, {
+          dependencies: newDependencies
+        });
+      }
     }
 
+    // CASCADE DELETE: Remove all deliverables and tasks for this milestone
+    const deliverables = await Deliverable.find({ milestoneId });
+    const deliverableIds = deliverables.map(d => d._id);
+    
+    // Delete all tasks for these deliverables
+    if (deliverableIds.length > 0) {
+      await DeliverableTask.deleteMany({ deliverableId: { $in: deliverableIds } });
+    }
+    
+    // Delete all deliverables for this milestone
+    await Deliverable.deleteMany({ milestoneId });
+
+    // Delete the milestone
     await milestone.deleteOne();
 
     // Recalculate critical path for remaining milestones

@@ -1,6 +1,7 @@
 import express from 'express';
 import Deliverable from '../models/Deliverable.js';
 import Milestone from '../models/Milestone.js';
+import DeliverableTask from '../models/DeliverableTask.js';
 
 const router = express.Router();
 
@@ -143,7 +144,7 @@ router.delete('/:projectId/milestones/:milestoneId/deliverables/:deliverableId',
   try {
     const { projectId, milestoneId, deliverableId } = req.params;
 
-    const deliverable = await Deliverable.findOneAndDelete({ 
+    const deliverable = await Deliverable.findOne({ 
       _id: deliverableId,
       projectId, 
       milestoneId 
@@ -153,7 +154,13 @@ router.delete('/:projectId/milestones/:milestoneId/deliverables/:deliverableId',
       return res.status(404).json({ message: 'Deliverable not found' });
     }
 
-    res.json({ message: 'Deliverable deleted successfully', deliverable });
+    // CASCADE DELETE: Remove all tasks for this deliverable
+    await DeliverableTask.deleteMany({ deliverableId });
+    
+    // Delete the deliverable
+    await deliverable.deleteOne();
+
+    res.json({ message: 'Deliverable and related tasks deleted successfully', deliverable });
   } catch (error) {
     console.error('Error deleting deliverable:', error);
     res.status(500).json({ message: 'Failed to delete deliverable', error: error.message });

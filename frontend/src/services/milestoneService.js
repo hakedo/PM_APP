@@ -76,11 +76,15 @@ const milestoneService = {
    * Delete a milestone
    * @param {string} projectId - The project ID
    * @param {string} milestoneId - The milestone ID
+   * @param {Object} options - Optional delete options (e.g., reassignments)
    * @returns {Promise<Object>} Deletion confirmation
    */
-  async deleteMilestone(projectId, milestoneId) {
+  async deleteMilestone(projectId, milestoneId, options = {}) {
     try {
-      const data = await api.delete(`/projects/${projectId}/milestones/${milestoneId}`);
+      const data = await api.delete(
+        `/projects/${projectId}/milestones/${milestoneId}`,
+        options
+      );
       return data;
     } catch (error) {
       console.error('Error deleting milestone:', error);

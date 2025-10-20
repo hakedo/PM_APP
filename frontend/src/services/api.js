@@ -79,8 +79,12 @@ class APIClient {
     });
   }
 
-  delete(endpoint, options = {}) {
-    return this.request(endpoint, { ...options, method: 'DELETE' });
+  delete(endpoint, data, options = {}) {
+    const requestOptions = { ...options, method: 'DELETE' };
+    if (data) {
+      requestOptions.body = JSON.stringify(data);
+    }
+    return this.request(endpoint, requestOptions);
   }
 }
 
