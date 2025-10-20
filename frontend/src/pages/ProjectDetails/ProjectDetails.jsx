@@ -787,6 +787,7 @@ function ProjectDetails() {
                       <MilestoneNetworkGraph
                         milestones={milestones || []}
                         onMilestoneClick={handleEditMilestone}
+                        projectStartDate={project?.startDate}
                       />
                     ) : (
                       <TimelineGrid

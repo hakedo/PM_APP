@@ -7,10 +7,24 @@ import PropTypes from 'prop-types';
  * MilestoneNetworkGraph Component
  * Displays milestones as a network graph with nodes and dependency arrows
  */
-function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
+function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStartDate }) {
   const svgRef = useRef(null);
   const [positions, setPositions] = useState({});
   const [dimensions, setDimensions] = useState({ width: 1000, height: 600 });
+  const [allNodes, setAllNodes] = useState([]);
+
+  // Create the default "Project Start" node
+  const PROJECT_START_ID = 'project-start-node';
+  const projectStartNode = {
+    _id: PROJECT_START_ID,
+    name: 'Project Start',
+    status: 'completed',
+    duration: 0,
+    dependencies: [],
+    isProjectStart: true,
+    startDate: projectStartDate,
+    isCritical: true // Always part of the critical path
+  };
 
   useEffect(() => {
     console.log('MilestoneNetworkGraph received milestones:', milestones);
@@ -22,17 +36,31 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
       });
     });
     
-    if (milestones.length === 0) return;
+    // Combine project start node with milestones
+    // Milestones without dependencies should depend on project start
+    const processedMilestones = milestones.map(milestone => {
+      if (!milestone.dependencies || milestone.dependencies.length === 0) {
+        return {
+          ...milestone,
+          dependencies: [PROJECT_START_ID]
+        };
+      }
+      return milestone;
+    });
 
-    // Calculate node positions using a layered layout
-    const layout = calculateLayout(milestones);
-    console.log('Calculated layout:', layout);
-    setPositions(layout);
-  }, [milestones]);
+    const nodesWithStart = [projectStartNode, ...processedMilestones];
+    setAllNodes(nodesWithStart);
 
-  // Calculate layered layout for nodes
+    // Calculate node positions using a layered layout with dynamic dimensions
+    const result = calculateLayout(nodesWithStart);
+    console.log('Calculated layout:', result);
+    setPositions(result.positions);
+    setDimensions(result.dimensions);
+  }, [milestones, projectStartDate]);
+
+  // Calculate layered layout for nodes (horizontal layout: left to right)
   function calculateLayout(nodes) {
-    if (nodes.length === 0) return {};
+    if (nodes.length === 0) return { positions: {}, dimensions: { width: 1000, height: 400 } };
 
     // Create adjacency map for dependencies
     const adjacencyMap = new Map();
@@ -43,19 +71,37 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
     // Assign layers using topological sort
     const layers = assignLayers(nodes, adjacencyMap);
     
-    // Calculate positions
-    const layout = {};
+    // Calculate layout constants
     const padding = 100;
     const nodeRadius = 50;
-    const horizontalSpacing = 200;
-    const verticalSpacing = 150;
+    const horizontalSpacing = 250; // Spacing between layers (left to right)
+    const verticalSpacing = 150;   // Spacing between nodes in same layer (top to bottom)
+    const minHeight = 400;         // Minimum canvas height
 
-    // Calculate layer widths for centering
+    // Calculate layer counts for centering nodes within each layer
     const layerCounts = new Map();
     layers.forEach(layer => {
       layerCounts.set(layer, (layerCounts.get(layer) || 0) + 1);
     });
 
+    // Find maximum layer and maximum nodes in any layer
+    const maxLayer = Math.max(...Array.from(layers.values()));
+    const maxNodesInLayer = Math.max(...Array.from(layerCounts.values()));
+
+    // Calculate dynamic dimensions
+    const calculatedWidth = padding * 2 + maxLayer * horizontalSpacing + nodeRadius * 2;
+    const calculatedHeight = Math.max(
+      minHeight,
+      padding * 2 + maxNodesInLayer * verticalSpacing + nodeRadius * 2
+    );
+
+    const dynamicDimensions = {
+      width: calculatedWidth,
+      height: calculatedHeight
+    };
+
+    // Calculate positions
+    const layout = {};
     const layerIndices = new Map();
     nodes.forEach((node, idx) => {
       const layer = layers.get(node._id);
@@ -63,17 +109,21 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
       layerIndices.set(layer, indexInLayer + 1);
 
       const layerCount = layerCounts.get(layer);
-      const totalWidth = layerCount * horizontalSpacing;
-      const startX = (dimensions.width - totalWidth) / 2;
+      const totalHeight = layerCount * verticalSpacing;
+      const startY = (dynamicDimensions.height - totalHeight) / 2;
 
+      // Horizontal layout: X position based on layer, Y position based on index within layer
       layout[node._id] = {
-        x: startX + indexInLayer * horizontalSpacing + horizontalSpacing / 2,
-        y: padding + layer * verticalSpacing,
+        x: padding + layer * horizontalSpacing,
+        y: startY + indexInLayer * verticalSpacing + verticalSpacing / 2,
         layer
       };
     });
 
-    return layout;
+    return {
+      positions: layout,
+      dimensions: dynamicDimensions
+    };
   }
 
   // Assign layers to nodes based on dependencies
@@ -157,7 +207,7 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
     );
   }
 
-  if (milestones.length === 0) {
+  if (milestones.length === 0 && !projectStartDate) {
     return (
       <div className="text-center py-12 text-gray-500">
         <TrendingUp className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -175,7 +225,7 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
         className="mx-auto"
       >
         {/* Draw dependency arrows first (so they appear behind nodes) */}
-        {milestones.map(milestone => {
+        {allNodes.map(milestone => {
           if (!milestone.dependencies || milestone.dependencies.length === 0) return null;
           
           const toPos = positions[milestone._id];
@@ -211,10 +261,11 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
         })}
 
         {/* Draw nodes */}
-        {milestones.map(milestone => {
+        {allNodes.map(milestone => {
           const pos = positions[milestone._id];
           if (!pos) return null;
 
+          const isProjectStart = milestone.isProjectStart;
           const statusColors = {
             'completed': '#10b981',
             'in-progress': '#3b82f6',
@@ -222,23 +273,30 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
             'not-started': '#9ca3af'
           };
 
-          const fillColor = milestone.isCritical ? '#ef4444' : statusColors[milestone.status] || '#9ca3af';
+          // Project start node gets a special appearance
+          const fillColor = isProjectStart 
+            ? '#8b5cf6' // Purple for project start
+            : milestone.isCritical ? '#ef4444' : statusColors[milestone.status] || '#9ca3af';
+          
+          const strokeColor = isProjectStart 
+            ? '#6d28d9' // Darker purple
+            : milestone.isCritical ? '#991b1b' : '#fff';
           
           return (
             <g key={milestone._id}>
-              {/* Node circle */}
+              {/* Node circle - make project start slightly larger */}
               <motion.circle
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3 }}
                 cx={pos.x}
                 cy={pos.y}
-                r={50}
+                r={isProjectStart ? 55 : 50}
                 fill={fillColor}
-                stroke={milestone.isCritical ? '#991b1b' : '#fff'}
-                strokeWidth={milestone.isCritical ? 4 : 3}
-                className="cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => onMilestoneClick && onMilestoneClick(milestone)}
+                stroke={strokeColor}
+                strokeWidth={isProjectStart ? 4 : milestone.isCritical ? 4 : 3}
+                className={isProjectStart ? "cursor-default" : "cursor-pointer hover:opacity-80 transition-opacity"}
+                onClick={() => !isProjectStart && onMilestoneClick && onMilestoneClick(milestone)}
               />
               
               {/* Critical path indicator */}
@@ -291,8 +349,12 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
                 fontSize="12"
                 fontWeight="500"
               >
-                {milestone.duration ? `${milestone.duration}d` : 'Fixed'}
-                {milestone.slack > 0 && ` (${milestone.slack}d slack)`}
+                {isProjectStart && milestone.startDate 
+                  ? new Date(milestone.startDate).toLocaleDateString()
+                  : milestone.duration 
+                    ? `${milestone.duration}d` 
+                    : 'Fixed'}
+                {!isProjectStart && milestone.slack > 0 && ` (${milestone.slack}d slack)`}
               </text>
             </g>
           );
@@ -302,7 +364,11 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
       {/* Legend */}
       <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
         <div className="text-sm font-semibold text-gray-700 mb-3">Legend</div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-purple-600 rounded-full border-2 border-purple-800"></div>
+            <span>Project Start</span>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-red-800"></div>
             <span>Critical Path</span>
@@ -352,12 +418,14 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick }) {
 
 MilestoneNetworkGraph.propTypes = {
   milestones: PropTypes.array,
-  onMilestoneClick: PropTypes.func
+  onMilestoneClick: PropTypes.func,
+  projectStartDate: PropTypes.string
 };
 
 MilestoneNetworkGraph.defaultProps = {
   milestones: [],
-  onMilestoneClick: null
+  onMilestoneClick: null,
+  projectStartDate: null
 };
 
 export default MilestoneNetworkGraph;
