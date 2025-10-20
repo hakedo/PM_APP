@@ -1,5 +1,5 @@
 import express from 'express';
-import { Client } from '../models/index.js';
+import { Client, ClientProjectAssignment } from '../models/index.js';
 
 const router = express.Router();
 
@@ -165,6 +165,9 @@ router.delete('/:id', async (req, res, next) => {
         message: `No client found with id: ${req.params.id}`
       });
     }
+
+    // Remove all project assignments for this client
+    await ClientProjectAssignment.deleteMany({ clientId: req.params.id });
 
     res.json({
       message: 'Client deleted successfully',
