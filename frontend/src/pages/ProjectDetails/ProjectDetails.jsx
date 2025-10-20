@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Trash2, TrendingUp, BarChart3, Network } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronRight, Users, UserPlus, Search, Plus, Trash2, TrendingUp, BarChart3, Network, Clock, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -23,8 +23,7 @@ function ProjectDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [isDeliverablesCollapsed, setIsDeliverablesCollapsed] = useState(false);
+  const [showProjectDetails, setShowProjectDetails] = useState(false); // Toggle for project details section
 
   // Milestone state
   const [milestones, setMilestones] = useState([]);
@@ -32,15 +31,14 @@ function ProjectDetails() {
   const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState(null);
   const [viewMode, setViewMode] = useState('network'); // 'network' or 'timeline'
-  const [isMilestoneDetailsCollapsed, setIsMilestoneDetailsCollapsed] = useState(true);
-  const [expandedMilestones, setExpandedMilestones] = useState(new Set()); // Track expanded milestone cards
+  const [selectedMilestone, setSelectedMilestone] = useState(null); // Currently selected/expanded milestone
 
   // Deliverable state
   const [deliverables, setDeliverables] = useState({}); // Map of milestoneId -> deliverables array
   const [isDeliverableFormOpen, setIsDeliverableFormOpen] = useState(false);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
   const [currentMilestone, setCurrentMilestone] = useState(null); // For creating/editing deliverables
-  const [expandedDeliverables, setExpandedDeliverables] = useState(new Set()); // Track expanded deliverable cards
+  const [selectedDeliverable, setSelectedDeliverable] = useState(null); // Currently selected/expanded deliverable
 
   // Task state
   const [tasks, setTasks] = useState({}); // Map of deliverableId -> tasks array
@@ -246,21 +244,15 @@ function ProjectDetails() {
     setIsMilestoneFormOpen(true);
   };
 
-  const toggleMilestoneCard = (milestoneId) => {
-    console.log('🔄 Toggling milestone card:', milestoneId);
-    setExpandedMilestones(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(milestoneId)) {
-        console.log('📥 Collapsing milestone:', milestoneId);
-        newSet.delete(milestoneId);
-      } else {
-        console.log('📤 Expanding milestone:', milestoneId);
-        newSet.add(milestoneId);
-        // Fetch deliverables when expanding
-        fetchDeliverables(milestoneId);
-      }
-      return newSet;
-    });
+  const selectMilestone = (milestone) => {
+    if (selectedMilestone?._id === milestone._id) {
+      setSelectedMilestone(null); // Deselect if clicking the same one
+    } else {
+      setSelectedMilestone(milestone);
+      setSelectedDeliverable(null); // Reset deliverable selection
+      // Fetch deliverables when selecting
+      fetchDeliverables(milestone._id);
+    }
   };
 
   // Deliverable handlers
@@ -304,13 +296,6 @@ function ProjectDetails() {
         );
       }
       
-      // Ensure milestone is expanded to show the new/updated deliverable
-      setExpandedMilestones(prev => {
-        const newSet = new Set(prev);
-        newSet.add(currentMilestone._id);
-        return newSet;
-      });
-      
       await fetchDeliverables(currentMilestone._id);
       setIsDeliverableFormOpen(false);
       setEditingDeliverable(null);
@@ -334,21 +319,14 @@ function ProjectDetails() {
   };
 
   // Task handlers
-  const toggleDeliverableCard = (milestoneId, deliverableId) => {
-    console.log('🔄 Toggling deliverable card:', deliverableId);
-    setExpandedDeliverables(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(deliverableId)) {
-        console.log('📥 Collapsing deliverable:', deliverableId);
-        newSet.delete(deliverableId);
-      } else {
-        console.log('📤 Expanding deliverable:', deliverableId);
-        newSet.add(deliverableId);
-        // Fetch tasks when expanding
-        fetchTasks(milestoneId, deliverableId);
-      }
-      return newSet;
-    });
+  const selectDeliverable = (deliverable) => {
+    if (selectedDeliverable?._id === deliverable._id) {
+      setSelectedDeliverable(null); // Deselect if clicking the same one
+    } else {
+      setSelectedDeliverable(deliverable);
+      // Fetch tasks when selecting
+      fetchTasks(selectedMilestone._id, deliverable._id);
+    }
   };
 
   const fetchTasks = async (milestoneId, deliverableId) => {
@@ -394,13 +372,6 @@ function ProjectDetails() {
           taskData
         );
       }
-
-      // Ensure deliverable is expanded to show the new/updated task
-      setExpandedDeliverables(prev => {
-        const newSet = new Set(prev);
-        newSet.add(currentDeliverable._id);
-        return newSet;
-      });
 
       await fetchTasks(currentMilestone._id, currentDeliverable._id);
       setIsTaskFormOpen(false);
@@ -516,6 +487,35 @@ function ProjectDetails() {
     return `${month}/${day}/${year}`;
   };
 
+  // Status Badge Component
+  const StatusBadge = ({ status, small, selected }) => {
+    const statusConfig = {
+      'completed': { bg: 'bg-green-100', text: 'text-green-700', selectedBg: 'bg-green-500', selectedText: 'text-white', icon: CheckCircle2 },
+      'in-progress': { bg: 'bg-blue-100', text: 'text-blue-700', selectedBg: 'bg-blue-500', selectedText: 'text-white', icon: Clock },
+      'blocked': { bg: 'bg-red-100', text: 'text-red-700', selectedBg: 'bg-red-500', selectedText: 'text-white', icon: AlertCircle },
+      'not-started': { bg: 'bg-gray-200', text: 'text-gray-700', selectedBg: 'bg-gray-600', selectedText: 'text-white', icon: Circle }
+    };
+
+    const config = statusConfig[status] || statusConfig['not-started'];
+    const Icon = config.icon;
+    
+    if (selected) {
+      return (
+        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${small ? 'text-xs' : 'text-sm'} font-medium ${config.selectedBg} ${config.selectedText} mt-1`}>
+          <Icon className={small ? 'w-3 h-3' : 'w-4 h-4'} />
+          <span>{status.replace('-', ' ')}</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded ${small ? 'text-xs' : 'text-sm'} font-medium ${config.bg} ${config.text}`}>
+        <Icon className={small ? 'w-3 h-3' : 'w-4 h-4'} />
+        <span>{status.replace('-', ' ')}</span>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -541,220 +541,216 @@ function ProjectDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-7xl mx-auto"
-      >
-        {/* Back Button */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="mb-6"
-        >
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/projects')}
-            className="gap-2 -ml-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Projects
-          </Button>
-        </motion.div>
-
-        {/* Project Details Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <Card className="border-gray-200">
-            <CardHeader className="pb-6 cursor-pointer" onClick={() => !isEditing && setIsCollapsed(!isCollapsed)}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <FolderKanban className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    {isEditing ? (
-                      <Input
-                        value={editedProject.title}
-                        onChange={(e) => setEditedProject({ ...editedProject, title: e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-3xl font-bold border-gray-300 shadow-none px-3 focus-visible:ring-1 focus-visible:ring-gray-400"
-                        placeholder="Project title"
-                      />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/projects')}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Projects
+              </Button>
+              <div className="h-6 w-px bg-gray-300" />
+              {isEditing ? (
+                <Input
+                  value={editedProject.title}
+                  onChange={(e) => setEditedProject({ ...editedProject, title: e.target.value })}
+                  className="text-2xl font-bold border-none shadow-none px-2 py-1 h-auto focus-visible:ring-1"
+                  placeholder="Project title"
+                />
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancel}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="gap-2"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving
+                      </>
                     ) : (
-                      <CardTitle className="text-3xl">{project.title}</CardTitle>
+                      <>
+                        <Save className="w-4 h-4" />
+                        Save
+                      </>
                     )}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {!isEditing && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCollapsed(!isCollapsed);
-                      }}
-                      className="gap-1"
-                    >
-                      {isCollapsed ? (
-                        <>
-                          <ChevronDown className="w-4 h-4" />
-                          Expand
-                        </>
-                      ) : (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          Collapse
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {isEditing ? (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCancel}
-                        disabled={saving}
-                        className="gap-2"
-                      >
-                        <X className="w-4 h-4" />
-                        Cancel
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="gap-2"
-                      >
-                        {saving ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4" />
-                            Save
-                          </>
-                        )}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit();
-                      }}
-                      className="gap-2"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <AnimatePresence>
-              {!isCollapsed && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                  style={{ overflow: "hidden" }}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="gap-2"
                 >
-                  <CardContent className="space-y-6">
-              {/* Description, Start Date, End Date - All in one row */}
-              <div className="flex gap-8">
-                {/* Description - Takes most of the space */}
-                <div className="space-y-2 flex-1">
+                  <Edit2 className="w-4 h-4" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {/* Project Meta Info with Expand Button */}
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-6 text-sm text-gray-600">
+              {project.startDate && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>{formatDate(project.startDate)}</span>
+                  {project.endDate && (
+                    <>
+                      <span>→</span>
+                      <span>{formatDate(project.endDate)}</span>
+                    </>
+                  )}
+                </div>
+              )}
+              {assignedClients.length > 0 && (
+                <>
+                  <div className="h-4 w-px bg-gray-300" />
                   <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-gray-500" />
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</h3>
+                    <Users className="w-4 h-4" />
+                    <span>{assignedClients.length} {assignedClients.length === 1 ? 'Client' : 'Clients'}</span>
                   </div>
+                </>
+              )}
+              {milestones.length > 0 && (
+                <>
+                  <div className="h-4 w-px bg-gray-300" />
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>{milestones.length} {milestones.length === 1 ? 'Milestone' : 'Milestones'}</span>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {!isEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowProjectDetails(!showProjectDetails)}
+                className="gap-2 text-gray-600"
+              >
+                {showProjectDetails ? (
+                  <>
+                    <ChevronRight className="w-4 h-4 rotate-90" />
+                    Hide Details
+                  </>
+                ) : (
+                  <>
+                    <ChevronRight className="w-4 h-4" />
+                    Show Details
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Expandable Project Details & Clients */}
+      <AnimatePresence>
+        {(showProjectDetails || isEditing) && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-white border-b border-gray-200 overflow-hidden"
+          >
+            <div className="max-w-7xl mx-auto px-6 py-6">
+              <div className="grid grid-cols-12 gap-6">
+                {/* Description */}
+                <div className="col-span-8">
+                  <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
+                    Description
+                  </Label>
                   {isEditing ? (
                     <Textarea
                       value={editedProject.description}
                       onChange={(e) => setEditedProject({ ...editedProject, description: e.target.value })}
-                      className="pl-7 min-h-[100px] resize-none border-gray-300 focus-visible:ring-1 focus-visible:ring-gray-400"
+                      className="min-h-[100px] resize-none"
                       placeholder="Add a description..."
                     />
                   ) : (
-                    <p className="text-gray-900 leading-relaxed whitespace-pre-wrap pl-7">
+                    <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap">
                       {project.description || 'No description'}
                     </p>
                   )}
                 </div>
 
-                {/* Start Date - Minimal width */}
-                <div className="space-y-2 w-48 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-gray-500" />
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Start Date</h3>
+                {/* Dates */}
+                <div className="col-span-4 space-y-4">
+                  <div>
+                    <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
+                      Start Date
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        type="date"
+                        value={editedProject.startDate}
+                        onChange={(e) => setEditedProject({ ...editedProject, startDate: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm font-medium">
+                        {formatDate(project.startDate)}
+                      </p>
+                    )}
                   </div>
-                  {isEditing ? (
-                    <Input
-                      type="date"
-                      value={editedProject.startDate}
-                      onChange={(e) => setEditedProject({ ...editedProject, startDate: e.target.value })}
-                      className="pl-7 border-gray-300 focus-visible:ring-1 focus-visible:ring-gray-400"
-                    />
-                  ) : (
-                    <p className="text-gray-900 font-medium pl-7">
-                      {formatDate(project.startDate)}
-                    </p>
-                  )}
-                </div>
 
-                {/* End Date - Minimal width */}
-                <div className="space-y-2 w-48 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-gray-500" />
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">End Date</h3>
+                  <div>
+                    <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">
+                      End Date
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        type="date"
+                        value={editedProject.endDate}
+                        onChange={(e) => setEditedProject({ ...editedProject, endDate: e.target.value })}
+                      />
+                    ) : (
+                      <p className="text-gray-900 text-sm font-medium">
+                        {project.endDate ? formatDate(project.endDate) : 'Not set'}
+                      </p>
+                    )}
                   </div>
-                  {isEditing ? (
-                    <Input
-                      type="date"
-                      value={editedProject.endDate}
-                      onChange={(e) => setEditedProject({ ...editedProject, endDate: e.target.value })}
-                      className="pl-7 border-gray-300 focus-visible:ring-1 focus-visible:ring-gray-400"
-                    />
-                  ) : (
-                    <p className="text-gray-900 font-medium pl-7">
-                      {project.endDate ? formatDate(project.endDate) : 'Not set'}
-                    </p>
-                  )}
                 </div>
               </div>
 
               {/* Assigned Clients Section */}
-              <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Assigned Clients
-                    <span className="text-sm font-normal text-gray-500">
-                      ({assignedClients.length})
-                    </span>
-                  </h3>
+                  <Label className="text-xs text-gray-500 uppercase tracking-wide">
+                    Assigned Clients ({assignedClients.length})
+                  </Label>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsCreatingClient(true);
-                      }}
+                      onClick={() => setIsCreatingClient(true)}
                       className="gap-2"
                     >
                       <UserPlus className="w-4 h-4" />
@@ -762,14 +758,11 @@ function ProjectDetails() {
                     </Button>
                     <Button
                       size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowClientSearch(!showClientSearch);
-                      }}
+                      onClick={() => setShowClientSearch(!showClientSearch)}
                       className="gap-2"
                     >
                       <Search className="w-4 h-4" />
-                      Assign Existing
+                      Assign Client
                     </Button>
                   </div>
                 </div>
@@ -790,7 +783,6 @@ function ProjectDetails() {
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="pl-10"
-                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                       
@@ -802,24 +794,21 @@ function ProjectDetails() {
                               <Loader2 className="w-4 h-4 animate-spin mx-auto" />
                             </div>
                           ) : filteredClients.length === 0 ? (
-                            <div className="p-4 text-center text-gray-500">
+                            <div className="p-4 text-center text-gray-500 text-sm">
                               No clients found
                             </div>
                           ) : (
                             filteredClients.map(client => (
                               <button
                                 key={client._id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAssignClient(client);
-                                }}
+                                onClick={() => handleAssignClient(client)}
                                 className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
                               >
-                                <div className="font-medium text-gray-900">{client.fullName}</div>
+                                <div className="font-medium text-gray-900 text-sm">{client.fullName}</div>
                                 {client.company && (
-                                  <div className="text-sm text-gray-500">{client.company}</div>
+                                  <div className="text-xs text-gray-500">{client.company}</div>
                                 )}
-                                <div className="text-sm text-gray-400">{client.email}</div>
+                                <div className="text-xs text-gray-400">{client.email}</div>
                               </button>
                             ))
                           )}
@@ -831,8 +820,8 @@ function ProjectDetails() {
 
                 {/* Assigned Clients List */}
                 {assignedClients.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500">
-                    <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-gray-400 bg-gray-50 rounded-lg">
+                    <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">No clients assigned yet</p>
                   </div>
                 ) : (
@@ -843,7 +832,7 @@ function ProjectDetails() {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors group"
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                       >
                         <div className="flex flex-col">
                           <span className="font-medium text-gray-900 text-sm">{client.fullName}</span>
@@ -852,10 +841,7 @@ function ProjectDetails() {
                           )}
                         </div>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveClient(client.assignmentId, client.fullName);
-                          }}
+                          onClick={() => handleRemoveClient(client.assignmentId, client.fullName)}
                           className="text-gray-400 hover:text-red-600 transition-colors ml-1"
                         >
                           <X className="w-4 h-4" />
@@ -865,501 +851,436 @@ function ProjectDetails() {
                   </div>
                 )}
               </div>
-            </CardContent>
-                </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Sidebar - Milestones List */}
+          <div className="col-span-3">
+            <div className="sticky top-6 space-y-4">
+              {/* Add Milestone Button */}
+              <Button
+                onClick={handleCreateMilestone}
+                className="w-full gap-2"
+                size="sm"
+              >
+                <Plus className="w-4 h-4" />
+                New Milestone
+              </Button>
+
+              {/* View Mode Toggle */}
+              {milestones && milestones.length > 0 && (
+                <div className="flex gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('network')}
+                    className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      viewMode === 'network'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Network
+                  </button>
+                  <button
+                    onClick={() => setViewMode('timeline')}
+                    className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      viewMode === 'timeline'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Timeline
+                  </button>
+                </div>
               )}
-            </AnimatePresence>
-          </Card>
-        </motion.div>
 
-        {/* Deliverables Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="mt-6"
-        >
-          <Card className="border-gray-200">
-            <CardHeader 
-              className="pb-6 cursor-pointer" 
-              onClick={() => setIsDeliverablesCollapsed(!isDeliverablesCollapsed)}
-            >
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
-                    <Package className="w-7 h-7 text-white" />
+              {/* Milestones List */}
+              <div className="space-y-2">
+                {loadingMilestones ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-6 h-6 mx-auto animate-spin text-gray-400" />
                   </div>
-                  <span className="text-3xl font-bold text-gray-900">Deliverables</span>
-                </CardTitle>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDeliverablesCollapsed(!isDeliverablesCollapsed);
-                  }}
-                  className="gap-2"
-                >
-                  {isDeliverablesCollapsed ? (
-                    <>
-                      <ChevronDown className="w-4 h-4" />
-                      Expand
-                    </>
-                  ) : (
-                    <>
-                      <ChevronUp className="w-4 h-4" />
-                      Collapse
-                    </>
-                  )}
-                </Button>
+                ) : milestones.length === 0 ? (
+                  <div className="text-center py-8 text-sm text-gray-500">
+                    No milestones yet
+                  </div>
+                ) : (
+                  milestones.map((milestone) => (
+                    <button
+                      key={milestone._id}
+                      onClick={() => selectMilestone(milestone)}
+                      className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                        selectedMilestone?._id === milestone._id
+                          ? 'border-gray-900 bg-gray-900 text-white shadow-lg'
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="font-medium text-sm line-clamp-2">
+                          {milestone.name}
+                        </div>
+                        {milestone.isCritical && (
+                          <TrendingUp className={`w-4 h-4 flex-shrink-0 ${
+                            selectedMilestone?._id === milestone._id ? 'text-white' : 'text-red-500'
+                          }`} />
+                        )}
+                      </div>
+                      <div className={`text-xs ${
+                        selectedMilestone?._id === milestone._id ? 'text-gray-300' : 'text-gray-500'
+                      }`}>
+                        {milestone.duration ? `${milestone.duration}d` : 'No duration'}
+                        {milestone.slack > 0 && (
+                          <span className="ml-2">• {milestone.slack}d slack</span>
+                        )}
+                      </div>
+                      <StatusBadge status={milestone.status} small selected={selectedMilestone?._id === milestone._id} />
+                    </button>
+                  ))
+                )}
               </div>
-            </CardHeader>
+            </div>
+          </div>
 
-            <AnimatePresence>
-              {!isDeliverablesCollapsed && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <CardContent className="pt-0">
-                    {/* Toolbar */}
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Project Milestones</h3>
-                        {milestones && milestones.length > 0 && milestones.some(m => m.isCritical) && (
-                          <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm">
-                            <TrendingUp className="w-4 h-4" />
-                            <span className="font-medium">Critical Path Active</span>
-                          </div>
+          {/* Main Content Area */}
+          <div className="col-span-9 space-y-6">
+            {/* CPM Visualization */}
+            {milestones.length > 0 && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-semibold">
+                    {viewMode === 'network' ? 'Network Diagram' : 'Timeline View'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {viewMode === 'network' ? (
+                    <MilestoneNetworkGraph
+                      milestones={milestones}
+                      onMilestoneClick={selectMilestone}
+                      projectStartDate={project?.startDate}
+                    />
+                  ) : (
+                    <TimelineGrid
+                      milestones={milestones}
+                      projectStartDate={project?.startDate}
+                      projectEndDate={project?.endDate}
+                      onMilestoneClick={selectMilestone}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Selected Milestone Details */}
+            {selectedMilestone && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
+                {/* Combined Milestone & Deliverables Card */}
+                <Card>
+                  <CardContent className="p-6">
+                    {/* Milestone Header */}
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                          {selectedMilestone.name}
+                        </h2>
+                        {selectedMilestone.description && (
+                          <p className="text-gray-600 text-sm">{selectedMilestone.description}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* View Toggle */}
-                        {milestones && milestones.length > 0 && (
-                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                            <button
-                              onClick={() => setViewMode('network')}
-                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                                viewMode === 'network'
-                                  ? 'bg-white text-gray-900 shadow-sm'
-                                  : 'text-gray-600 hover:text-gray-900'
-                              }`}
-                            >
-                              <Network className="w-4 h-4" />
-                              Network
-                            </button>
-                            <button
-                              onClick={() => setViewMode('timeline')}
-                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                                viewMode === 'timeline'
-                                  ? 'bg-white text-gray-900 shadow-sm'
-                                  : 'text-gray-600 hover:text-gray-900'
-                              }`}
-                            >
-                              <BarChart3 className="w-4 h-4" />
-                              Timeline
-                            </button>
-                          </div>
-                        )}
-                        <Button onClick={handleCreateMilestone} className="gap-2">
-                          <Plus className="w-4 h-4" />
-                          Add Milestone
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditMilestone(selectedMilestone)}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteMilestone(selectedMilestone._id, selectedMilestone.name)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
 
-                    {/* Milestone Visualization */}
-                    {loadingMilestones ? (
-                      <div className="text-center py-12">
-                        <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-gray-400" />
-                        <p className="text-sm text-gray-500">Loading milestones...</p>
-                      </div>
-                    ) : viewMode === 'network' ? (
-                      <MilestoneNetworkGraph
-                        milestones={milestones || []}
-                        onMilestoneClick={handleEditMilestone}
-                        projectStartDate={project?.startDate}
-                      />
-                    ) : (
-                      <TimelineGrid
-                        milestones={milestones || []}
-                        projectStartDate={project?.startDate}
-                        projectEndDate={project?.endDate}
-                        onMilestoneClick={handleEditMilestone}
-                      />
-                    )}
-
-                    {/* Milestone List (below timeline) */}
-                    {milestones && milestones.length > 0 && (
-                      <div className="mt-8 border-t pt-6">
-                        <div 
-                          className="flex items-center justify-between mb-3 cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1 rounded transition-colors"
-                          onClick={() => setIsMilestoneDetailsCollapsed(!isMilestoneDetailsCollapsed)}
-                        >
-                          <h4 className="text-sm font-semibold text-gray-700">Milestone Details</h4>
-                          {isMilestoneDetailsCollapsed ? (
-                            <ChevronDown className="w-5 h-5 text-gray-500" />
-                          ) : (
-                            <ChevronUp className="w-5 h-5 text-gray-500" />
-                          )}
+                    {/* Milestone Stats */}
+                    <div className="grid grid-cols-4 gap-4 mb-6">
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500 uppercase tracking-wide">Duration</div>
+                        <div className="text-lg font-semibold text-gray-900">
+                          {selectedMilestone.duration || 0} days
                         </div>
-                        <AnimatePresence>
-                          {!isMilestoneDetailsCollapsed && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="space-y-3">
-                                {milestones.map((milestone) => {
-                                  const isExpanded = expandedMilestones.has(milestone._id);
-                                  return (
-                                    <div
-                                      key={milestone._id}
-                                      className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden"
-                                    >
-                                      {/* Card Header - Always Visible */}
-                                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                                        onClick={() => toggleMilestoneCard(milestone._id)}
-                                      >
-                                        <div className="flex items-center gap-3 flex-1">
-                                          {milestone.isCritical && (
-                                            <TrendingUp className="w-5 h-5 text-red-500 flex-shrink-0" />
-                                          )}
-                                          <div className="flex-1 min-w-0">
-                                            <div className="font-medium text-gray-900">{milestone.name}</div>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                              {milestone.earliestStart && milestone.earliestFinish && (
-                                                <>
-                                                  {new Date(milestone.earliestStart).toLocaleDateString()} - 
-                                                  {new Date(milestone.earliestFinish).toLocaleDateString()}
-                                                </>
-                                              )}
-                                              {milestone.dependencies && milestone.dependencies.length > 0 && (
-                                                <span className="ml-2">
-                                                  • {milestone.dependencies.length} {milestone.dependencies.length === 1 ? 'dependency' : 'dependencies'}
-                                                </span>
-                                              )}
-                                              {milestone.slack > 0 && (
-                                                <span className="ml-2 text-green-600">
-                                                  • {milestone.slack}d slack
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                          <div className={`px-2 py-1 rounded text-xs font-medium ${
-                                            milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                            milestone.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                            milestone.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
-                                            'bg-gray-200 text-gray-700'
-                                          }`}>
-                                            {milestone.status.replace('-', ' ')}
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 ml-4">
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleEditMilestone(milestone);
-                                            }}
-                                          >
-                                            <Edit2 className="w-4 h-4" />
-                                          </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDeleteMilestone(milestone._id, milestone.name);
-                                            }}
-                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                          >
-                                            <Trash2 className="w-4 h-4" />
-                                          </Button>
-                                          {isExpanded ? (
-                                            <ChevronUp className="w-5 h-5 text-gray-400 ml-2" />
-                                          ) : (
-                                            <ChevronDown className="w-5 h-5 text-gray-400 ml-2" />
-                                          )}
-                                        </div>
-                                      </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-gray-500 uppercase tracking-wide">Status</div>
+                        <StatusBadge status={selectedMilestone.status} />
+                      </div>
+                      {selectedMilestone.isCritical && (
+                        <div className="space-y-1">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Critical Path</div>
+                          <div className="flex items-center gap-1 text-red-600 font-semibold">
+                            <TrendingUp className="w-4 h-4" />
+                            <span>Yes</span>
+                          </div>
+                        </div>
+                      )}
+                      {selectedMilestone.slack > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Slack</div>
+                          <div className="text-lg font-semibold text-green-600">
+                            {selectedMilestone.slack} days
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                                      {/* Card Body - Collapsible Content */}
-                                      <AnimatePresence>
-                                        {isExpanded && (
-                                          <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="overflow-hidden border-t border-gray-200"
-                                          >
-                                            <div className="p-4 bg-gray-50 space-y-3">
-                                              {/* Description */}
-                                              {milestone.description && (
-                                                <div>
-                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Description</div>
-                                                  <div className="text-sm text-gray-600">{milestone.description}</div>
-                                                </div>
-                                              )}
-
-                                              {/* Duration */}
-                                              {milestone.duration && (
-                                                <div>
-                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Duration</div>
-                                                  <div className="text-sm text-gray-600">{milestone.duration} days</div>
-                                                </div>
-                                              )}
-
-                                              {/* Dependencies */}
-                                              {milestone.dependencies && milestone.dependencies.length > 0 && (
-                                                <div>
-                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Dependencies</div>
-                                                  <div className="flex flex-wrap gap-2">
-                                                    {milestone.dependencies.map((dep, idx) => {
-                                                      const depName = typeof dep === 'object' ? dep.name : 
-                                                        milestones.find(m => m._id === dep)?.name || 'Unknown';
-                                                      return (
-                                                        <span key={idx} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                                                          {depName}
-                                                        </span>
-                                                      );
-                                                    })}
-                                                  </div>
-                                                </div>
-                                              )}
-
-                                              {/* Critical Path Info */}
-                                              {milestone.isCritical && (
-                                                <div>
-                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Critical Path</div>
-                                                  <div className="text-sm text-red-600 flex items-center gap-1">
-                                                    <TrendingUp className="w-4 h-4" />
-                                                    This milestone is on the critical path
-                                                  </div>
-                                                </div>
-                                              )}
-
-                                              {/* Deliverables Section */}
-                                              <div className="pt-3 border-t border-gray-300">
-                                                <div className="flex items-center justify-between mb-2">
-                                                  <div className="text-xs font-semibold text-gray-700">Deliverables</div>
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      handleCreateDeliverable(milestone);
-                                                    }}
-                                                    className="h-7 text-xs"
-                                                  >
-                                                    <Plus className="w-3 h-3 mr-1" />
-                                                    Add Deliverable
-                                                  </Button>
-                                                </div>
-
-                                                {(() => {
-                                                  console.log('🎨 Rendering deliverables for milestone:', milestone._id, 
-                                                    'Has data?', !!deliverables[milestone._id],
-                                                    'Count:', deliverables[milestone._id]?.length || 0,
-                                                    'Data:', deliverables[milestone._id]);
-                                                  return null;
-                                                })()}
-
-                                                {deliverables[milestone._id] && deliverables[milestone._id].length > 0 ? (
-                                                  <div className="space-y-2">
-                                                    {deliverables[milestone._id].map((deliverable) => (
-                                                      <div
-                                                        key={deliverable._id}
-                                                        className="bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
-                                                      >
-                                                        {/* Deliverable Header */}
-                                                        <div
-                                                          className="flex items-center justify-between p-2 cursor-pointer"
-                                                          onClick={() => toggleDeliverableCard(milestone._id, deliverable._id)}
-                                                        >
-                                                          <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${expandedDeliverables.has(deliverable._id) ? 'rotate-180' : ''}`} />
-                                                            <div className="flex-1 min-w-0">
-                                                              <div className="text-sm font-medium text-gray-900">{deliverable.name}</div>
-                                                              {deliverable.description && (
-                                                                <div className="text-xs text-gray-500 mt-0.5 truncate">
-                                                                  {deliverable.description}
-                                                                </div>
-                                                              )}
-                                                              {deliverable.startDate && deliverable.endDate && (
-                                                                <div className="text-xs text-gray-500 mt-1">
-                                                                  {new Date(deliverable.startDate).toLocaleDateString()} - {new Date(deliverable.endDate).toLocaleDateString()}
-                                                                </div>
-                                                              )}
-                                                            </div>
-                                                          </div>
-                                                          <div className="flex items-center gap-2 ml-3">
-                                                            <div className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                              deliverable.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                              deliverable.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                                              deliverable.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
-                                                              'bg-gray-200 text-gray-700'
-                                                            }`}>
-                                                              {deliverable.status.replace('-', ' ')}
-                                                            </div>
-                                                            <Button
-                                                              variant="ghost"
-                                                              size="sm"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleEditDeliverable(milestone, deliverable);
-                                                              }}
-                                                              className="h-7 w-7 p-0"
-                                                            >
-                                                              <Edit2 className="w-3 h-3" />
-                                                            </Button>
-                                                            <Button
-                                                              variant="ghost"
-                                                              size="sm"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeleteDeliverable(milestone._id, deliverable._id, deliverable.name);
-                                                              }}
-                                                              className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                            >
-                                                              <Trash2 className="w-3 h-3" />
-                                                            </Button>
-                                                          </div>
-                                                        </div>
-
-                                                        {/* Tasks Section (Expandable) */}
-                                                        {expandedDeliverables.has(deliverable._id) && (
-                                                          <div className="px-4 pb-3 pt-1 border-t border-gray-100 bg-gray-50">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                              <div className="text-xs font-semibold text-gray-700">Tasks</div>
-                                                              <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  handleCreateTask(milestone, deliverable);
-                                                                }}
-                                                                className="h-6 text-xs"
-                                                              >
-                                                                <Plus className="w-3 h-3 mr-1" />
-                                                                Add Task
-                                                              </Button>
-                                                            </div>
-
-                                                            {tasks[deliverable._id] && tasks[deliverable._id].length > 0 ? (
-                                                              <div className="space-y-1">
-                                                                {tasks[deliverable._id].map((task) => (
-                                                                  <div
-                                                                    key={task._id}
-                                                                    className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
-                                                                  >
-                                                                    <div className="flex-1 min-w-0">
-                                                                      <div className="flex items-center gap-2">
-                                                                        <div className="text-xs font-medium text-gray-900">{task.name}</div>
-                                                                        {task.priority === 'critical' && (
-                                                                          <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">!</span>
-                                                                        )}
-                                                                        {task.priority === 'high' && (
-                                                                          <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded font-medium">High</span>
-                                                                        )}
-                                                                      </div>
-                                                                      {task.description && (
-                                                                        <div className="text-xs text-gray-500 mt-0.5 truncate">
-                                                                          {task.description}
-                                                                        </div>
-                                                                      )}
-                                                                      <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                                                        {task.assignedTo && (
-                                                                          <span>👤 {task.assignedTo}</span>
-                                                                        )}
-                                                                        {task.estimatedHours > 0 && (
-                                                                          <span>⏱️ {task.estimatedHours}h</span>
-                                                                        )}
-                                                                        {task.dueDate && (
-                                                                          <span>📅 {new Date(task.dueDate).toLocaleDateString()}</span>
-                                                                        )}
-                                                                      </div>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 ml-3">
-                                                                      <div className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                                                        task.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                                        task.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                                                        task.status === 'blocked' ? 'bg-red-100 text-red-700' :
-                                                                        'bg-gray-200 text-gray-700'
-                                                                      }`}>
-                                                                        {task.status.replace('-', ' ')}
-                                                                      </div>
-                                                                      <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={(e) => {
-                                                                          e.stopPropagation();
-                                                                          handleEditTask(milestone, deliverable, task);
-                                                                        }}
-                                                                        className="h-6 w-6 p-0"
-                                                                      >
-                                                                        <Edit2 className="w-3 h-3" />
-                                                                      </Button>
-                                                                      <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={(e) => {
-                                                                          e.stopPropagation();
-                                                                          handleDeleteTask(milestone._id, deliverable._id, task._id, task.name);
-                                                                        }}
-                                                                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                      >
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                      </Button>
-                                                                    </div>
-                                                                  </div>
-                                                                ))}
-                                                              </div>
-                                                            ) : (
-                                                              <div className="text-xs text-gray-400 italic text-center py-2 bg-white rounded border border-gray-100">
-                                                                No tasks yet. Click "Add Task" to create one.
-                                                              </div>
-                                                            )}
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                ) : (
-                                                  <div className="text-xs text-gray-400 italic text-center py-3 bg-white rounded border border-gray-100">
-                                                    No deliverables yet. Click "Add Deliverable" to create one.
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </motion.div>
-                                        )}
-                                      </AnimatePresence>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                    {/* Dependencies */}
+                    {selectedMilestone.dependencies && selectedMilestone.dependencies.length > 0 && (
+                      <div className="mb-6 pb-6 border-b border-gray-200">
+                        <div className="text-xs text-gray-500 uppercase tracking-wide mb-2">Dependencies</div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedMilestone.dependencies.map((dep, idx) => {
+                            const depName = typeof dep === 'object' ? dep.name : 
+                              milestones.find(m => m._id === dep)?.name || 'Unknown';
+                            return (
+                              <span key={idx} className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                                {depName}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
+
+                    {/* Deliverables Section */}
+                    <div className={selectedMilestone.dependencies && selectedMilestone.dependencies.length > 0 ? '' : 'pt-6 border-t border-gray-200'}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900">Deliverables</h3>
+                        <Button
+                          size="sm"
+                          onClick={() => handleCreateDeliverable(selectedMilestone)}
+                          className="gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Deliverable
+                        </Button>
+                      </div>
+                    {deliverables[selectedMilestone._id] && deliverables[selectedMilestone._id].length > 0 ? (
+                      <div className="space-y-2">
+                        {deliverables[selectedMilestone._id].map((deliverable) => (
+                          <button
+                            key={deliverable._id}
+                            onClick={() => selectDeliverable(deliverable)}
+                            className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                              selectedDeliverable?._id === deliverable._id
+                                ? 'border-blue-500 bg-blue-50'
+                                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-semibold text-gray-900">{deliverable.name}</h4>
+                                  <StatusBadge status={deliverable.status} small />
+                                </div>
+                                {deliverable.description && (
+                                  <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                                    {deliverable.description}
+                                  </p>
+                                )}
+                                {deliverable.startDate && deliverable.endDate && (
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>
+                                      {new Date(deliverable.startDate).toLocaleDateString()} → {new Date(deliverable.endDate).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditDeliverable(selectedMilestone, deliverable);
+                                  }}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteDeliverable(selectedMilestone._id, deliverable._id, deliverable.name);
+                                  }}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                                <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${
+                                  selectedDeliverable?._id === deliverable._id ? 'rotate-90' : ''
+                                }`} />
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-400">
+                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">No deliverables yet</p>
+                      </div>
+                    )}
+                    </div>
                   </CardContent>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Card>
-        </motion.div>
-      </motion.div>
+                </Card>
+
+                {/* Tasks Section - Only show when deliverable is selected */}
+                {selectedDeliverable && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg font-semibold">Tasks</CardTitle>
+                            <p className="text-sm text-gray-500 mt-1">{selectedDeliverable.name}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleCreateTask(selectedMilestone, selectedDeliverable)}
+                            className="gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Task
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {tasks[selectedDeliverable._id] && tasks[selectedDeliverable._id].length > 0 ? (
+                          <div className="space-y-2">
+                            {tasks[selectedDeliverable._id].map((task) => (
+                              <div
+                                key={task._id}
+                                className="p-4 rounded-lg border border-gray-200 bg-white hover:border-gray-300 transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h5 className="font-medium text-gray-900">{task.name}</h5>
+                                      <StatusBadge status={task.status} small />
+                                      {task.priority === 'critical' && (
+                                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium">
+                                          Critical
+                                        </span>
+                                      )}
+                                      {task.priority === 'high' && (
+                                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded font-medium">
+                                          High
+                                        </span>
+                                      )}
+                                    </div>
+                                    {task.description && (
+                                      <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                                      {task.assignedTo && (
+                                        <div className="flex items-center gap-1">
+                                          <Users className="w-3 h-3" />
+                                          <span>{task.assignedTo}</span>
+                                        </div>
+                                      )}
+                                      {task.estimatedHours > 0 && (
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="w-3 h-3" />
+                                          <span>{task.estimatedHours}h</span>
+                                        </div>
+                                      )}
+                                      {task.dueDate && (
+                                        <div className="flex items-center gap-1">
+                                          <Calendar className="w-3 h-3" />
+                                          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditTask(selectedMilestone, selectedDeliverable, task)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteTask(selectedMilestone._id, selectedDeliverable._id, task._id, task.name)}
+                                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-gray-400">
+                            <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p className="text-sm">No tasks yet</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Empty State when no milestone selected */}
+            {!selectedMilestone && milestones.length > 0 && (
+              <Card>
+                <CardContent className="py-16 text-center text-gray-400">
+                  <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium mb-2">Select a milestone to view details</p>
+                  <p className="text-sm">Click on a milestone from the sidebar to see deliverables and tasks</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty State when no milestones */}
+            {!loadingMilestones && milestones.length === 0 && (
+              <Card>
+                <CardContent className="py-16 text-center text-gray-400">
+                  <TrendingUp className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium mb-2">No milestones yet</p>
+                  <p className="text-sm mb-6">Create your first milestone to start planning</p>
+                  <Button onClick={handleCreateMilestone} className="gap-2">
+                    <Plus className="w-4 h-4" />
+                    Create Milestone
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Create New Client Dialog */}
       <AnimatePresence>
