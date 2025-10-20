@@ -639,11 +639,11 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
                 </g>
               )}
 
-              {/* Code inside circle */}
-              {milestone.code && (
+              {/* Code inside circle - centered */}
+              {(milestone.code || isProjectStart) && (
                 <text
                   x={pos.x}
-                  y={pos.y + 6}
+                  y={pos.y + 5}
                   textAnchor="middle"
                   fill="#fff"
                   fontSize="18"
@@ -652,41 +652,42 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
                   className="pointer-events-none"
                   style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }}
                 >
-                  {milestone.code}
+                  {isProjectStart ? 'START' : milestone.code.substring(0, 5)}
                 </text>
               )}
 
-              {/* Milestone name below node */}
-              <text
-                x={pos.x}
-                y={pos.y + 70}
-                textAnchor="middle"
-                fill="#1f2937"
-                fontSize="13"
-                fontWeight="600"
-                className="pointer-events-none"
-              >
-                {milestone.name.length > 25 
-                  ? milestone.name.substring(0, 25) + '...' 
-                  : milestone.name}
-              </text>
-
-              {/* Duration/Slack info below name */}
-              <text
-                x={pos.x}
-                y={pos.y + 88}
-                textAnchor="middle"
-                fill="#6b7280"
-                fontSize="11"
-                fontWeight="500"
-              >
-                {isProjectStart && milestone.startDate 
-                  ? new Date(milestone.startDate).toLocaleDateString()
-                  : milestone.duration 
+              {/* Duration/Slack info inside circle - below code */}
+              {!isProjectStart && (
+                <text
+                  x={pos.x}
+                  y={pos.y + 22}
+                  textAnchor="middle"
+                  fill="#fff"
+                  fontSize="10"
+                  fontWeight="500"
+                  className="pointer-events-none"
+                  style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }}
+                >
+                  {milestone.duration 
                     ? `${milestone.duration}d` 
                     : 'Fixed'}
-                {!isProjectStart && milestone.slack > 0 && ` (${milestone.slack}d slack)`}
-              </text>
+                  {milestone.slack > 0 && ` (${milestone.slack}d)`}
+                </text>
+              )}
+              
+              {/* Project start date below node */}
+              {isProjectStart && milestone.startDate && (
+                <text
+                  x={pos.x}
+                  y={pos.y + 70}
+                  textAnchor="middle"
+                  fill="#6b7280"
+                  fontSize="11"
+                  fontWeight="500"
+                >
+                  {new Date(milestone.startDate).toLocaleDateString()}
+                </text>
+              )}
             </g>
           );
         })}

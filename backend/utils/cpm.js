@@ -82,7 +82,18 @@ export function calculateCriticalPath(milestones, projectStartDate = null) {
           }
         }
       });
-      current.earliestStart = maxFinish || new Date();
+      
+      // Check for custom start date or offset
+      if (current.customStartDate) {
+        // Use custom start date if specified
+        current.earliestStart = new Date(current.customStartDate);
+      } else if (maxFinish) {
+        // Apply offset to dependency completion
+        const offset = current.startDateOffset || 0;
+        current.earliestStart = addDays(maxFinish, offset);
+      } else {
+        current.earliestStart = new Date();
+      }
     }
 
     // Calculate Earliest Finish

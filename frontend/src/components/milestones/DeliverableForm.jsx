@@ -121,10 +121,10 @@ function DeliverableForm({
             {deliverable 
               ? 'Update deliverable details' 
               : `Add a new deliverable to ${milestone?.name || 'this milestone'}`}
-            <div className="mt-2 text-xs text-gray-500">
-              Milestone date range: {milestoneDateRange}
-            </div>
           </DialogDescription>
+          <div className="mt-2 text-xs text-gray-500">
+            Milestone date range: {milestoneDateRange}
+          </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>

@@ -18,7 +18,7 @@ const milestoneSchema = new mongoose.Schema(
       type: String,
       trim: true,
       uppercase: true,
-      maxlength: [10, 'Code cannot exceed 10 characters'],
+      maxlength: [5, 'Code cannot exceed 5 characters'],
       match: [/^[A-Z0-9]*$/, 'Code can only contain uppercase letters and numbers']
     },
     description: {
@@ -40,6 +40,18 @@ const milestoneSchema = new mongoose.Schema(
       type: Number,
       required: false,
       min: [0, 'Duration cannot be negative'],
+      default: 0
+    },
+    // For duration-based milestones: custom start date override
+    customStartDate: {
+      type: Date,
+      required: false
+    },
+    // For duration-based milestones: days to wait after dependency completion
+    startDateOffset: {
+      type: Number,
+      required: false,
+      min: [0, 'Start date offset cannot be negative'],
       default: 0
     },
     // Array of milestone IDs this milestone depends on
@@ -94,21 +106,20 @@ milestoneSchema.index({ projectId: 1, order: 1 });
 milestoneSchema.index({ projectId: 1, isCritical: 1 });
 milestoneSchema.index({ startDate: 1, endDate: 1 });
 
-// Validation: Milestone must have either fixed dates OR duration with dependencies
+// Validation: Milestone must have either fixed dates OR duration (with or without dependencies)
 milestoneSchema.pre('validate', function(next) {
   const hasFixedDates = this.startDate && this.endDate;
   const hasDuration = this.duration !== undefined && this.duration > 0;
   const hasDependencies = this.dependencies && this.dependencies.length > 0;
 
-  // Standalone milestone must have dates
-  if (!hasDependencies && !hasFixedDates) {
-    this.invalidate('startDate', 'Standalone milestones must have start and end dates');
+  // Must have either fixed dates OR duration
+  if (!hasFixedDates && !hasDuration) {
+    this.invalidate('duration', 'Milestone must have either fixed dates or a duration');
   }
 
-  // Dependent milestone must have duration
-  if (hasDependencies && !hasDuration && !hasFixedDates) {
-    this.invalidate('duration', 'Dependent milestones must have either duration or fixed dates');
-  }
+  // If it has dependencies, it should have duration (not fixed dates)
+  // But we allow both for flexibility
+  // No additional validation needed here
 
   // Validate end date is after start date
   if (this.startDate && this.endDate && this.endDate < this.startDate) {
