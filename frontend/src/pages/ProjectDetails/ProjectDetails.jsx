@@ -9,10 +9,11 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
-import { clientService, assignmentService, milestoneService } from '../../services';
+import { clientService, assignmentService, milestoneService, deliverableService } from '../../services';
 import TimelineGrid from '../../components/milestones/TimelineGrid';
 import MilestoneNetworkGraph from '../../components/milestones/MilestoneNetworkGraph';
 import MilestoneForm from '../../components/milestones/MilestoneForm';
+import DeliverableForm from '../../components/milestones/DeliverableForm';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -32,6 +33,12 @@ function ProjectDetails() {
   const [viewMode, setViewMode] = useState('network'); // 'network' or 'timeline'
   const [isMilestoneDetailsCollapsed, setIsMilestoneDetailsCollapsed] = useState(true);
   const [expandedMilestones, setExpandedMilestones] = useState(new Set()); // Track expanded milestone cards
+
+  // Deliverable state
+  const [deliverables, setDeliverables] = useState({}); // Map of milestoneId -> deliverables array
+  const [isDeliverableFormOpen, setIsDeliverableFormOpen] = useState(false);
+  const [editingDeliverable, setEditingDeliverable] = useState(null);
+  const [currentMilestone, setCurrentMilestone] = useState(null); // For creating/editing deliverables
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -232,15 +239,90 @@ function ProjectDetails() {
   };
 
   const toggleMilestoneCard = (milestoneId) => {
+    console.log('🔄 Toggling milestone card:', milestoneId);
     setExpandedMilestones(prev => {
       const newSet = new Set(prev);
       if (newSet.has(milestoneId)) {
+        console.log('📥 Collapsing milestone:', milestoneId);
         newSet.delete(milestoneId);
       } else {
+        console.log('📤 Expanding milestone:', milestoneId);
         newSet.add(milestoneId);
+        // Fetch deliverables when expanding
+        fetchDeliverables(milestoneId);
       }
       return newSet;
     });
+  };
+
+  // Deliverable handlers
+  const fetchDeliverables = async (milestoneId) => {
+    try {
+      console.log('🔍 Fetching deliverables for milestone:', milestoneId, 'project:', id);
+      const data = await deliverableService.getDeliverables(id, milestoneId);
+      console.log('✅ Fetched deliverables:', data);
+      setDeliverables(prev => ({ ...prev, [milestoneId]: data }));
+    } catch (error) {
+      console.error('❌ Failed to fetch deliverables:', error);
+    }
+  };
+
+  const handleCreateDeliverable = (milestone) => {
+    setCurrentMilestone(milestone);
+    setEditingDeliverable(null);
+    setIsDeliverableFormOpen(true);
+  };
+
+  const handleEditDeliverable = (milestone, deliverable) => {
+    setCurrentMilestone(milestone);
+    setEditingDeliverable(deliverable);
+    setIsDeliverableFormOpen(true);
+  };
+
+  const handleSaveDeliverable = async (deliverableData) => {
+    try {
+      if (editingDeliverable) {
+        await deliverableService.updateDeliverable(
+          id, 
+          currentMilestone._id, 
+          editingDeliverable._id, 
+          deliverableData
+        );
+      } else {
+        await deliverableService.createDeliverable(
+          id, 
+          currentMilestone._id, 
+          deliverableData
+        );
+      }
+      
+      // Ensure milestone is expanded to show the new/updated deliverable
+      setExpandedMilestones(prev => {
+        const newSet = new Set(prev);
+        newSet.add(currentMilestone._id);
+        return newSet;
+      });
+      
+      await fetchDeliverables(currentMilestone._id);
+      setIsDeliverableFormOpen(false);
+      setEditingDeliverable(null);
+      setCurrentMilestone(null);
+    } catch (error) {
+      console.error('Failed to save deliverable:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteDeliverable = async (milestoneId, deliverableId, deliverableName) => {
+    if (window.confirm(`Delete deliverable "${deliverableName}"? This action cannot be undone.`)) {
+      try {
+        await deliverableService.deleteDeliverable(id, milestoneId, deliverableId);
+        await fetchDeliverables(milestoneId);
+      } catch (error) {
+        console.error('Failed to delete deliverable:', error);
+        alert(`Failed to delete deliverable: ${error.message || 'Unknown error'}`);
+      }
+    }
   };
 
   const handleSaveMilestone = async (milestoneData) => {
@@ -967,11 +1049,92 @@ function ProjectDetails() {
                                                 </div>
                                               )}
 
-                                              {/* Placeholder for future content */}
-                                              <div className="pt-2 border-t border-gray-300">
-                                                <div className="text-xs text-gray-400 italic">
-                                                  Additional details will appear here
+                                              {/* Deliverables Section */}
+                                              <div className="pt-3 border-t border-gray-300">
+                                                <div className="flex items-center justify-between mb-2">
+                                                  <div className="text-xs font-semibold text-gray-700">Deliverables</div>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleCreateDeliverable(milestone);
+                                                    }}
+                                                    className="h-7 text-xs"
+                                                  >
+                                                    <Plus className="w-3 h-3 mr-1" />
+                                                    Add Deliverable
+                                                  </Button>
                                                 </div>
+
+                                                {(() => {
+                                                  console.log('🎨 Rendering deliverables for milestone:', milestone._id, 
+                                                    'Has data?', !!deliverables[milestone._id],
+                                                    'Count:', deliverables[milestone._id]?.length || 0,
+                                                    'Data:', deliverables[milestone._id]);
+                                                  return null;
+                                                })()}
+
+                                                {deliverables[milestone._id] && deliverables[milestone._id].length > 0 ? (
+                                                  <div className="space-y-2">
+                                                    {deliverables[milestone._id].map((deliverable) => (
+                                                      <div
+                                                        key={deliverable._id}
+                                                        className="flex items-center justify-between p-2 bg-white rounded border border-gray-200 hover:border-gray-300 transition-colors"
+                                                      >
+                                                        <div className="flex-1 min-w-0">
+                                                          <div className="text-sm font-medium text-gray-900">{deliverable.name}</div>
+                                                          {deliverable.description && (
+                                                            <div className="text-xs text-gray-500 mt-0.5 truncate">
+                                                              {deliverable.description}
+                                                            </div>
+                                                          )}
+                                                          {deliverable.startDate && deliverable.endDate && (
+                                                            <div className="text-xs text-gray-500 mt-1">
+                                                              {new Date(deliverable.startDate).toLocaleDateString()} - {new Date(deliverable.endDate).toLocaleDateString()}
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 ml-3">
+                                                          <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                                            deliverable.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                            deliverable.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                                            deliverable.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
+                                                            'bg-gray-200 text-gray-700'
+                                                          }`}>
+                                                            {deliverable.status.replace('-', ' ')}
+                                                          </div>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              handleEditDeliverable(milestone, deliverable);
+                                                            }}
+                                                            className="h-7 w-7 p-0"
+                                                          >
+                                                            <Edit2 className="w-3 h-3" />
+                                                          </Button>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              handleDeleteDeliverable(milestone._id, deliverable._id, deliverable.name);
+                                                            }}
+                                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                          >
+                                                            <Trash2 className="w-3 h-3" />
+                                                          </Button>
+                                                        </div>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                ) : (
+                                                  <div className="text-xs text-gray-400 italic text-center py-3 bg-white rounded border border-gray-100">
+                                                    No deliverables yet. Click "Add Deliverable" to create one.
+                                                  </div>
+                                                )}
                                               </div>
                                             </div>
                                           </motion.div>
@@ -1187,6 +1350,20 @@ function ProjectDetails() {
           setEditingMilestone(null);
         }}
         isOpen={isMilestoneFormOpen}
+      />
+
+      {/* Deliverable Form Dialog */}
+      <DeliverableForm
+        deliverable={editingDeliverable}
+        milestone={currentMilestone}
+        projectId={id}
+        onSave={handleSaveDeliverable}
+        onCancel={() => {
+          setIsDeliverableFormOpen(false);
+          setEditingDeliverable(null);
+          setCurrentMilestone(null);
+        }}
+        isOpen={isDeliverableFormOpen}
       />
     </div>
   );

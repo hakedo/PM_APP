@@ -3,11 +3,13 @@ import Project from './Project.js';
 import Template from './Template.js';
 import ClientProjectAssignment from './ClientProjectAssignment.js';
 import Milestone from './Milestone.js';
+import Deliverable from './Deliverable.js';
 
 export {
   Client,
   Project,
   Template,
   ClientProjectAssignment,
-  Milestone
+  Milestone,
+  Deliverable
 };

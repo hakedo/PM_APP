@@ -7,6 +7,7 @@ import templateRoutes from './routes/templates.js';
 import clientRoutes from './routes/clients.js';
 import clientProjectAssignmentRoutes from './routes/clientProjectAssignments.js';
 import milestoneRoutes from './routes/milestones.js';
+import deliverableRoutes from './routes/deliverables.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -15,7 +16,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: config.corsOrigin,
+  origin: [config.corsOrigin, 'http://localhost:5174'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -43,6 +44,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/projects', projectRoutes);
 app.use('/projects', milestoneRoutes);
+app.use('/projects', deliverableRoutes);
 app.use('/templates', templateRoutes);
 app.use('/clients', clientRoutes);
 app.use('/assignments', clientProjectAssignmentRoutes);

@@ -4,11 +4,13 @@ import templateRoutes from './templates.js';
 import clientRoutes from './clients.js';
 import assignmentRoutes from './clientProjectAssignments.js';
 import milestoneRoutes from './milestones.js';
+import deliverableRoutes from './deliverables.js';
 
 const router = express.Router();
 
 router.use('/projects', projectRoutes);
 router.use('/projects', milestoneRoutes);
+router.use('/', deliverableRoutes);
 router.use('/templates', templateRoutes);
 router.use('/clients', clientRoutes);
 router.use('/assignments', assignmentRoutes);
