@@ -375,7 +375,16 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
             fill={color}
             stroke="#fff"
             strokeWidth="1"
-            className="hover:opacity-80 transition-opacity cursor-pointer"
+            className="transition-all duration-200 cursor-pointer"
+            style={{ opacity: 0.95 }}
+            onMouseEnter={(e) => {
+              e.target.style.opacity = '1';
+              e.target.style.filter = 'brightness(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.opacity = '0.95';
+              e.target.style.filter = 'brightness(1)';
+            }}
           >
             <title>{deliverable.name} - {deliverable.status}</title>
           </path>
