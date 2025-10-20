@@ -2,3 +2,4 @@ export { default as apiClient, APIError } from './api';
 export { default as projectService } from './projectService';
 export { default as templateService } from './templateService';
 export { default as clientService } from './clientService';
+export { default as assignmentService } from './assignmentService';

@@ -1,11 +1,17 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, Loader2, Mail, Phone, MapPin, Building2 } from 'lucide-react';
+import { Plus, Users, Loader2, Mail, Phone, MapPin, Building2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu';
 import { useClients } from '../../hooks';
 
 // Format phone number to (XXX) XXX-XXXX
@@ -51,8 +57,10 @@ const itemVariants = {
 };
 
 function Clients() {
-  const { clients, loading, createClient } = useClients();
+  const { clients, loading, createClient, updateClient, deleteClient } = useClients();
   const [isAddingClient, setIsAddingClient] = useState(false);
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newClient, setNewClient] = useState({
     company: '',
@@ -74,6 +82,8 @@ function Clients() {
 
   const handleCloseModal = () => {
     setIsAddingClient(false);
+    setIsEditingClient(false);
+    setEditingClient(null);
     setNewClient({
       company: '',
       firstName: '',
@@ -111,13 +121,48 @@ function Clients() {
     
     setIsSubmitting(true);
     try {
-      await createClient(newClient);
+      if (isEditingClient) {
+        await updateClient(editingClient._id, newClient);
+        setIsEditingClient(false);
+        setEditingClient(null);
+      } else {
+        await createClient(newClient);
+      }
       handleCloseModal();
     } catch (error) {
-      console.error('Failed to create client:', error);
-      alert(`Failed to create client: ${error.message || 'Unknown error'}`);
+      console.error('Failed to save client:', error);
+      alert(`Failed to save client: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleEditClient = (client) => {
+    setEditingClient(client);
+    setNewClient({
+      company: client.company || '',
+      firstName: client.firstName,
+      middleInitial: client.middleInitial || '',
+      lastName: client.lastName,
+      phone: client.phone,
+      email: client.email,
+      address: client.address,
+      unit: client.unit || '',
+      city: client.city,
+      state: client.state,
+      zip: client.zip
+    });
+    setIsEditingClient(true);
+  };
+
+  const handleDeleteClient = async (clientId, clientName) => {
+    if (window.confirm(`Are you sure you want to delete ${clientName}?`)) {
+      try {
+        await deleteClient(clientId);
+      } catch (error) {
+        console.error('Failed to delete client:', error);
+        alert(`Failed to delete client: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -199,6 +244,31 @@ function Clients() {
                           </div>
                         )}
                       </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                            <Edit2 className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClient(client._id, client.fullName)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -225,15 +295,22 @@ function Clients() {
         )}
       </motion.div>
 
-      {/* Add Client Dialog */}
+      {/* Add/Edit Client Dialog */}
       <AnimatePresence>
-        {isAddingClient && (
-          <Dialog open={isAddingClient} onOpenChange={setIsAddingClient}>
-            <DialogContent className="sm:max-w-[500px]">
+        {(isAddingClient || isEditingClient) && (
+          <Dialog open={isAddingClient || isEditingClient} onOpenChange={(open) => {
+            if (!open) {
+              handleCloseModal();
+            }
+          }}>
+            <DialogContent className="sm:max-w-[500px]" onClose={handleCloseModal}>
               <DialogHeader>
-                <DialogTitle>Add New Client</DialogTitle>
+                <DialogTitle>{isEditingClient ? 'Edit Client' : 'Add New Client'}</DialogTitle>
                 <DialogDescription>
-                  Enter the client's information. Fields marked with * are required.
+                  {isEditingClient 
+                    ? 'Update the client\'s information. Fields marked with * are required.'
+                    : 'Enter the client\'s information. Fields marked with * are required.'
+                  }
                 </DialogDescription>
               </DialogHeader>
 
@@ -387,10 +464,10 @@ function Clients() {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
+                        {isEditingClient ? 'Updating...' : 'Creating...'}
                       </>
                     ) : (
-                      'Create Client'
+                      isEditingClient ? 'Update Client' : 'Create Client'
                     )}
                   </Button>
                 </DialogFooter>

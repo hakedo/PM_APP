@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
+import { clientService, assignmentService } from '../../services';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -16,6 +17,87 @@ function ProjectDetails() {
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Client assignment state
+  const [assignedClients, setAssignedClients] = useState([]);
+  const [allClients, setAllClients] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showClientSearch, setShowClientSearch] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // Fetch assigned clients
+  useEffect(() => {
+    if (id) {
+      fetchAssignedClients();
+    }
+  }, [id]);
+
+  // Fetch all clients when search is opened
+  useEffect(() => {
+    if (showClientSearch && allClients.length === 0) {
+      fetchAllClients();
+    }
+  }, [showClientSearch]);
+
+  const fetchAssignedClients = async () => {
+    try {
+      const clients = await assignmentService.getClientsForProject(id);
+      setAssignedClients(clients);
+    } catch (error) {
+      console.error('Failed to fetch assigned clients:', error);
+    }
+  };
+
+  const fetchAllClients = async () => {
+    try {
+      setLoadingClients(true);
+      const clients = await clientService.getAll();
+      setAllClients(clients);
+    } catch (error) {
+      console.error('Failed to fetch clients:', error);
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  const handleAssignClient = async (client) => {
+    try {
+      await assignmentService.assignClientToProject({
+        clientId: client._id,
+        projectId: id
+      });
+      await fetchAssignedClients();
+      setSearchQuery('');
+      setShowClientSearch(false);
+    } catch (error) {
+      console.error('Failed to assign client:', error);
+      alert(`Failed to assign client: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleRemoveClient = async (assignmentId, clientName) => {
+    if (window.confirm(`Remove ${clientName} from this project?`)) {
+      try {
+        await assignmentService.removeAssignment(assignmentId);
+        await fetchAssignedClients();
+      } catch (error) {
+        console.error('Failed to remove client:', error);
+        alert(`Failed to remove client: ${error.message || 'Unknown error'}`);
+      }
+    }
+  };
+
+  const filteredClients = allClients.filter(client => {
+    const isAlreadyAssigned = assignedClients.some(ac => ac._id === client._id);
+    if (isAlreadyAssigned) return false;
+
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      client.fullName?.toLowerCase().includes(searchLower) ||
+      client.email?.toLowerCase().includes(searchLower) ||
+      client.company?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleEdit = () => {
     setEditedProject({
@@ -278,6 +360,121 @@ function ProjectDetails() {
                     </p>
                   )}
                 </div>
+              </div>
+
+              {/* Assigned Clients Section */}
+              <div className="mt-8 pt-8 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Assigned Clients
+                    <span className="text-sm font-normal text-gray-500">
+                      ({assignedClients.length})
+                    </span>
+                  </h3>
+                  <Button
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowClientSearch(!showClientSearch);
+                    }}
+                    className="gap-2"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Assign Client
+                  </Button>
+                </div>
+
+                {/* Client Search Box */}
+                <AnimatePresence>
+                  {showClientSearch && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-4"
+                    >
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Search clients by name, email, or company..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      
+                      {/* Search Results */}
+                      {searchQuery && (
+                        <div className="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+                          {loadingClients ? (
+                            <div className="p-4 text-center text-gray-500">
+                              <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                            </div>
+                          ) : filteredClients.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500">
+                              No clients found
+                            </div>
+                          ) : (
+                            filteredClients.map(client => (
+                              <button
+                                key={client._id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAssignClient(client);
+                                }}
+                                className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-medium text-gray-900">{client.fullName}</div>
+                                {client.company && (
+                                  <div className="text-sm text-gray-500">{client.company}</div>
+                                )}
+                                <div className="text-sm text-gray-400">{client.email}</div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Assigned Clients List */}
+                {assignedClients.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500">
+                    <Users className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                    <p className="text-sm">No clients assigned yet</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {assignedClients.map(client => (
+                      <motion.div
+                        key={client._id}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors group"
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900 text-sm">{client.fullName}</span>
+                          {client.company && (
+                            <span className="text-xs text-gray-500">{client.company}</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveClient(client.assignmentId, client.fullName);
+                          }}
+                          className="text-gray-400 hover:text-red-600 transition-colors ml-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
                 </motion.div>
