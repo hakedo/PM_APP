@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import connectDB from './config/database.js';
-import { projectRoutes, templateRoutes } from './routes/index.js';
+import { projectRoutes, templateRoutes, clientRoutes } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -41,6 +41,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/projects', projectRoutes);
 app.use('/templates', templateRoutes);
+app.use('/clients', clientRoutes);
 
 // Error handlers (must be last)
 app.use(notFoundHandler);
