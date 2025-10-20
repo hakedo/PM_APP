@@ -6,8 +6,9 @@ import PropTypes from 'prop-types';
 /**
  * MilestoneNetworkGraph Component
  * Displays milestones as a network graph with nodes and dependency arrows
+ * with deliverable pie rings around nodes
  */
-function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStartDate }) {
+function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStartDate, deliverables = {} }) {
   const svgRef = useRef(null);
   const [positions, setPositions] = useState({});
   const [dimensions, setDimensions] = useState({ width: 1000, height: 600 });
@@ -167,12 +168,13 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
     const dy = to.y - from.y;
     const angle = Math.atan2(dy, dx);
     
-    // Shorten line to account for node radius
+    // Shorten line to account for node radius + pie ring
     const nodeRadius = 50;
-    const fromX = from.x + Math.cos(angle) * nodeRadius;
-    const fromY = from.y + Math.sin(angle) * nodeRadius;
-    const toX = to.x - Math.cos(angle) * nodeRadius;
-    const toY = to.y - Math.sin(angle) * nodeRadius;
+    const pieRingRadius = 70; // Outer radius including deliverable ring
+    const fromX = from.x + Math.cos(angle) * pieRingRadius;
+    const fromY = from.y + Math.sin(angle) * pieRingRadius;
+    const toX = to.x - Math.cos(angle) * pieRingRadius;
+    const toY = to.y - Math.sin(angle) * pieRingRadius;
 
     // Arrow head
     const arrowLength = 12;
@@ -205,6 +207,76 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
         />
       </g>
     );
+  }
+
+  // Create deliverable pie ring segments
+  function createDeliverablePieRing(milestoneId, centerX, centerY) {
+    const milestoneDeliverables = deliverables[milestoneId] || [];
+    
+    if (milestoneDeliverables.length === 0) {
+      return null;
+    }
+
+    const innerRadius = 55;
+    const outerRadius = 70;
+    const gapAngle = 2; // Gap between segments in degrees
+    
+    // Status colors matching deliverable status
+    const statusColors = {
+      'completed': '#10b981',
+      'in-progress': '#3b82f6',
+      'blocked': '#f97316',
+      'not-started': '#d1d5db'
+    };
+
+    // Calculate angle for each segment
+    const segmentAngle = (360 / milestoneDeliverables.length) - gapAngle;
+    
+    return milestoneDeliverables.map((deliverable, index) => {
+      const startAngle = (index * (segmentAngle + gapAngle)) - 90; // Start from top
+      const endAngle = startAngle + segmentAngle;
+      
+      // Convert to radians
+      const startRad = (startAngle * Math.PI) / 180;
+      const endRad = (endAngle * Math.PI) / 180;
+      
+      // Calculate arc path
+      const x1 = centerX + innerRadius * Math.cos(startRad);
+      const y1 = centerY + innerRadius * Math.sin(startRad);
+      const x2 = centerX + outerRadius * Math.cos(startRad);
+      const y2 = centerY + outerRadius * Math.sin(startRad);
+      const x3 = centerX + outerRadius * Math.cos(endRad);
+      const y3 = centerY + outerRadius * Math.sin(endRad);
+      const x4 = centerX + innerRadius * Math.cos(endRad);
+      const y4 = centerY + innerRadius * Math.sin(endRad);
+      
+      const largeArcFlag = segmentAngle > 180 ? 1 : 0;
+      
+      const pathData = [
+        `M ${x1} ${y1}`,
+        `L ${x2} ${y2}`,
+        `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${x3} ${y3}`,
+        `L ${x4} ${y4}`,
+        `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x1} ${y1}`,
+        'Z'
+      ].join(' ');
+      
+      const color = statusColors[deliverable.status] || statusColors['not-started'];
+      
+      return (
+        <g key={`deliverable-${deliverable._id}`}>
+          <path
+            d={pathData}
+            fill={color}
+            stroke="#fff"
+            strokeWidth="1"
+            className="hover:opacity-80 transition-opacity cursor-pointer"
+          >
+            <title>{deliverable.name} - {deliverable.status}</title>
+          </path>
+        </g>
+      );
+    });
   }
 
   if (milestones.length === 0 && !projectStartDate) {
@@ -284,6 +356,9 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
           
           return (
             <g key={milestone._id}>
+              {/* Deliverable pie ring - drawn first so it appears behind the node */}
+              {!isProjectStart && createDeliverablePieRing(milestone._id, pos.x, pos.y)}
+              
               {/* Node circle - make project start slightly larger */}
               <motion.circle
                 initial={{ scale: 0, opacity: 0 }}
@@ -364,46 +439,87 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
       {/* Legend */}
       <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
         <div className="text-sm font-semibold text-gray-700 mb-3">Legend</div>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-purple-600 rounded-full border-2 border-purple-800"></div>
-            <span>Project Start</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-red-800"></div>
-            <span>Critical Path</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white"></div>
-            <span>In Progress</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-orange-500 rounded-full border-2 border-white"></div>
-            <span>Blocked</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-gray-400 rounded-full border-2 border-white"></div>
-            <span>Not Started</span>
+        
+        {/* Milestone Status */}
+        <div className="mb-4">
+          <div className="text-xs font-medium text-gray-600 mb-2">Milestone Status</div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-purple-600 rounded-full border-2 border-purple-800"></div>
+              <span>Project Start</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-red-500 rounded-full border-2 border-red-800"></div>
+              <span>Critical Path</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-500 rounded-full border-2 border-white"></div>
+              <span>In Progress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+              <span>Completed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-orange-500 rounded-full border-2 border-white"></div>
+              <span>Blocked</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-gray-400 rounded-full border-2 border-white"></div>
+              <span>Not Started</span>
+            </div>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-300 flex items-center gap-4 text-xs text-gray-600">
-          <div className="flex items-center gap-2">
-            <svg width="30" height="10">
-              <line x1="0" y1="5" x2="25" y2="5" stroke="#ef4444" strokeWidth="3" />
-              <polygon points="25,5 20,2 20,8" fill="#ef4444" />
-            </svg>
-            <span>Critical dependency</span>
+
+        {/* Deliverable Rings */}
+        <div className="mb-4">
+          <div className="text-xs font-medium text-gray-600 mb-2">Deliverable Ring Status</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <svg width="24" height="24">
+                <circle cx="12" cy="12" r="8" fill="none" stroke="#10b981" strokeWidth="4" />
+              </svg>
+              <span>Completed</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="24">
+                <circle cx="12" cy="12" r="8" fill="none" stroke="#3b82f6" strokeWidth="4" />
+              </svg>
+              <span>In Progress</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="24">
+                <circle cx="12" cy="12" r="8" fill="none" stroke="#f97316" strokeWidth="4" />
+              </svg>
+              <span>Blocked</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="24" height="24">
+                <circle cx="12" cy="12" r="8" fill="none" stroke="#d1d5db" strokeWidth="4" />
+              </svg>
+              <span>Not Started</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <svg width="30" height="10">
-              <line x1="0" y1="5" x2="25" y2="5" stroke="#6b7280" strokeWidth="2" />
-              <polygon points="25,5 20,2 20,8" fill="#6b7280" />
-            </svg>
-            <span>Dependency</span>
+        </div>
+
+        {/* Dependencies */}
+        <div className="pt-3 border-t border-gray-300">
+          <div className="text-xs font-medium text-gray-600 mb-2">Dependencies</div>
+          <div className="flex items-center gap-4 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <svg width="30" height="10">
+                <line x1="0" y1="5" x2="25" y2="5" stroke="#ef4444" strokeWidth="3" />
+                <polygon points="25,5 20,2 20,8" fill="#ef4444" />
+              </svg>
+              <span>Critical dependency</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="30" height="10">
+                <line x1="0" y1="5" x2="25" y2="5" stroke="#6b7280" strokeWidth="2" />
+                <polygon points="25,5 20,2 20,8" fill="#6b7280" />
+              </svg>
+              <span>Dependency</span>
+            </div>
           </div>
         </div>
       </div>
@@ -419,13 +535,15 @@ function MilestoneNetworkGraph({ milestones = [], onMilestoneClick, projectStart
 MilestoneNetworkGraph.propTypes = {
   milestones: PropTypes.array,
   onMilestoneClick: PropTypes.func,
-  projectStartDate: PropTypes.string
+  projectStartDate: PropTypes.string,
+  deliverables: PropTypes.object
 };
 
 MilestoneNetworkGraph.defaultProps = {
   milestones: [],
   onMilestoneClick: null,
-  projectStartDate: null
+  projectStartDate: null,
+  deliverables: {}
 };
 
 export default MilestoneNetworkGraph;

@@ -92,11 +92,40 @@ function ProjectDetails() {
       console.log('Fetched milestones:', data);
       setMilestones(data);
       console.log('Milestones state updated, count:', data?.length || 0);
+      
+      // Fetch deliverables for all milestones for network graph
+      if (data && data.length > 0) {
+        fetchAllDeliverables(data);
+      }
     } catch (error) {
       console.error('Failed to fetch milestones:', error);
       console.error('Error details:', error.response?.data || error.message);
     } finally {
       setLoadingMilestones(false);
+    }
+  };
+
+  // Fetch deliverables for all milestones at once
+  const fetchAllDeliverables = async (milestoneList) => {
+    try {
+      const promises = milestoneList.map(milestone => 
+        deliverableService.getDeliverables(id, milestone._id)
+          .then(data => ({ milestoneId: milestone._id, data }))
+          .catch(error => {
+            console.error(`Failed to fetch deliverables for milestone ${milestone._id}:`, error);
+            return { milestoneId: milestone._id, data: [] };
+          })
+      );
+      
+      const results = await Promise.all(promises);
+      const deliverablesMap = {};
+      results.forEach(({ milestoneId, data }) => {
+        deliverablesMap[milestoneId] = data;
+      });
+      
+      setDeliverables(deliverablesMap);
+    } catch (error) {
+      console.error('Failed to fetch deliverables:', error);
     }
   };
 
@@ -1011,6 +1040,7 @@ function ProjectDetails() {
                       milestones={milestones}
                       onMilestoneClick={selectMilestone}
                       projectStartDate={project?.startDate}
+                      deliverables={deliverables}
                     />
                   ) : (
                     <TimelineGrid
