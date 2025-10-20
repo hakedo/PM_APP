@@ -31,6 +31,7 @@ function ProjectDetails() {
   const [editingMilestone, setEditingMilestone] = useState(null);
   const [viewMode, setViewMode] = useState('network'); // 'network' or 'timeline'
   const [isMilestoneDetailsCollapsed, setIsMilestoneDetailsCollapsed] = useState(true);
+  const [expandedMilestones, setExpandedMilestones] = useState(new Set()); // Track expanded milestone cards
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -228,6 +229,18 @@ function ProjectDetails() {
   const handleEditMilestone = (milestone) => {
     setEditingMilestone(milestone);
     setIsMilestoneFormOpen(true);
+  };
+
+  const toggleMilestoneCard = (milestoneId) => {
+    setExpandedMilestones(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(milestoneId)) {
+        newSet.delete(milestoneId);
+      } else {
+        newSet.add(milestoneId);
+      }
+      return newSet;
+    });
   };
 
   const handleSaveMilestone = async (milestoneData) => {
@@ -822,65 +835,151 @@ function ProjectDetails() {
                               transition={{ duration: 0.2 }}
                               className="overflow-hidden"
                             >
-                              <div className="space-y-2">
-                                {milestones.map((milestone) => (
-                                  <div
-                                    key={milestone._id}
-                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                                  >
-                                    <div className="flex items-center gap-3 flex-1">
-                                      {milestone.isCritical && (
-                                        <TrendingUp className="w-5 h-5 text-red-500 flex-shrink-0" />
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium text-gray-900">{milestone.name}</div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                          {milestone.earliestStart && milestone.earliestFinish && (
-                                            <>
-                                              {new Date(milestone.earliestStart).toLocaleDateString()} - 
-                                              {new Date(milestone.earliestFinish).toLocaleDateString()}
-                                            </>
+                              <div className="space-y-3">
+                                {milestones.map((milestone) => {
+                                  const isExpanded = expandedMilestones.has(milestone._id);
+                                  return (
+                                    <div
+                                      key={milestone._id}
+                                      className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden"
+                                    >
+                                      {/* Card Header - Always Visible */}
+                                      <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        onClick={() => toggleMilestoneCard(milestone._id)}
+                                      >
+                                        <div className="flex items-center gap-3 flex-1">
+                                          {milestone.isCritical && (
+                                            <TrendingUp className="w-5 h-5 text-red-500 flex-shrink-0" />
                                           )}
-                                          {milestone.dependencies && milestone.dependencies.length > 0 && (
-                                            <span className="ml-2">
-                                              • {milestone.dependencies.length} {milestone.dependencies.length === 1 ? 'dependency' : 'dependencies'}
-                                            </span>
-                                          )}
-                                          {milestone.slack > 0 && (
-                                            <span className="ml-2 text-green-600">
-                                              • {milestone.slack}d slack
-                                            </span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="font-medium text-gray-900">{milestone.name}</div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                              {milestone.earliestStart && milestone.earliestFinish && (
+                                                <>
+                                                  {new Date(milestone.earliestStart).toLocaleDateString()} - 
+                                                  {new Date(milestone.earliestFinish).toLocaleDateString()}
+                                                </>
+                                              )}
+                                              {milestone.dependencies && milestone.dependencies.length > 0 && (
+                                                <span className="ml-2">
+                                                  • {milestone.dependencies.length} {milestone.dependencies.length === 1 ? 'dependency' : 'dependencies'}
+                                                </span>
+                                              )}
+                                              {milestone.slack > 0 && (
+                                                <span className="ml-2 text-green-600">
+                                                  • {milestone.slack}d slack
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                            milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                            milestone.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                            milestone.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
+                                            'bg-gray-200 text-gray-700'
+                                          }`}>
+                                            {milestone.status.replace('-', ' ')}
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-4">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditMilestone(milestone);
+                                            }}
+                                          >
+                                            <Edit2 className="w-4 h-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteMilestone(milestone._id, milestone.name);
+                                            }}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                          {isExpanded ? (
+                                            <ChevronUp className="w-5 h-5 text-gray-400 ml-2" />
+                                          ) : (
+                                            <ChevronDown className="w-5 h-5 text-gray-400 ml-2" />
                                           )}
                                         </div>
                                       </div>
-                                      <div className={`px-2 py-1 rounded text-xs font-medium ${
-                                        milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                        milestone.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                        milestone.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
-                                        'bg-gray-200 text-gray-700'
-                                      }`}>
-                                        {milestone.status.replace('-', ' ')}
-                                      </div>
+
+                                      {/* Card Body - Collapsible Content */}
+                                      <AnimatePresence>
+                                        {isExpanded && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="overflow-hidden border-t border-gray-200"
+                                          >
+                                            <div className="p-4 bg-gray-50 space-y-3">
+                                              {/* Description */}
+                                              {milestone.description && (
+                                                <div>
+                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Description</div>
+                                                  <div className="text-sm text-gray-600">{milestone.description}</div>
+                                                </div>
+                                              )}
+
+                                              {/* Duration */}
+                                              {milestone.duration && (
+                                                <div>
+                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Duration</div>
+                                                  <div className="text-sm text-gray-600">{milestone.duration} days</div>
+                                                </div>
+                                              )}
+
+                                              {/* Dependencies */}
+                                              {milestone.dependencies && milestone.dependencies.length > 0 && (
+                                                <div>
+                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Dependencies</div>
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {milestone.dependencies.map((dep, idx) => {
+                                                      const depName = typeof dep === 'object' ? dep.name : 
+                                                        milestones.find(m => m._id === dep)?.name || 'Unknown';
+                                                      return (
+                                                        <span key={idx} className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                                                          {depName}
+                                                        </span>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Critical Path Info */}
+                                              {milestone.isCritical && (
+                                                <div>
+                                                  <div className="text-xs font-semibold text-gray-700 mb-1">Critical Path</div>
+                                                  <div className="text-sm text-red-600 flex items-center gap-1">
+                                                    <TrendingUp className="w-4 h-4" />
+                                                    This milestone is on the critical path
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Placeholder for future content */}
+                                              <div className="pt-2 border-t border-gray-300">
+                                                <div className="text-xs text-gray-400 italic">
+                                                  Additional details will appear here
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
                                     </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditMilestone(milestone)}
-                                      >
-                                        <Edit2 className="w-4 h-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteMilestone(milestone._id, milestone.name)}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </motion.div>
                           )}
