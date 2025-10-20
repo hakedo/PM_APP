@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Users, Loader2, Mail, Phone, MapPin, Building2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -57,6 +58,7 @@ const itemVariants = {
 };
 
 function Clients() {
+  const navigate = useNavigate();
   const { clients, loading, createClient, updateClient, deleteClient } = useClients();
   const [isAddingClient, setIsAddingClient] = useState(false);
   const [isEditingClient, setIsEditingClient] = useState(false);
@@ -226,6 +228,8 @@ function Clients() {
                 key={client._id}
                 variants={itemVariants}
                 whileHover={{ y: -4 }}
+                onClick={() => navigate(`/clients/${client._id}`)}
+                className="cursor-pointer"
               >
                 <Card className="h-full hover:shadow-xl transition-all duration-300 border-gray-200">
                   <CardHeader>
@@ -256,12 +260,18 @@ function Clients() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditClient(client);
+                          }}>
                             <Edit2 className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
-                            onClick={() => handleDeleteClient(client._id, client.fullName)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClient(client._id, client.fullName);
+                            }}
                             className="text-red-600"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
