@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Trash2, TrendingUp, BarChart3, Network } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -9,7 +9,10 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
-import { clientService, assignmentService } from '../../services';
+import { clientService, assignmentService, milestoneService } from '../../services';
+import TimelineGrid from '../../components/milestones/TimelineGrid';
+import MilestoneNetworkGraph from '../../components/milestones/MilestoneNetworkGraph';
+import MilestoneForm from '../../components/milestones/MilestoneForm';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -20,6 +23,13 @@ function ProjectDetails() {
   const [saving, setSaving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isDeliverablesCollapsed, setIsDeliverablesCollapsed] = useState(false);
+
+  // Milestone state
+  const [milestones, setMilestones] = useState([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(false);
+  const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState(null);
+  const [viewMode, setViewMode] = useState('network'); // 'network' or 'timeline'
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -45,12 +55,29 @@ function ProjectDetails() {
     zip: ''
   });
 
-  // Fetch assigned clients
+  // Fetch assigned clients and milestones
   useEffect(() => {
     if (id) {
       fetchAssignedClients();
+      fetchMilestones();
     }
   }, [id]);
+
+  const fetchMilestones = async () => {
+    try {
+      setLoadingMilestones(true);
+      console.log('Fetching milestones for project:', id);
+      const data = await milestoneService.getProjectMilestones(id);
+      console.log('Fetched milestones:', data);
+      setMilestones(data);
+      console.log('Milestones state updated, count:', data?.length || 0);
+    } catch (error) {
+      console.error('Failed to fetch milestones:', error);
+      console.error('Error details:', error.response?.data || error.message);
+    } finally {
+      setLoadingMilestones(false);
+    }
+  };
 
   // Fetch all clients when search is opened
   useEffect(() => {
@@ -189,6 +216,55 @@ function ProjectDetails() {
       state: '',
       zip: ''
     });
+  };
+
+  // Milestone handlers
+  const handleCreateMilestone = () => {
+    setEditingMilestone(null);
+    setIsMilestoneFormOpen(true);
+  };
+
+  const handleEditMilestone = (milestone) => {
+    setEditingMilestone(milestone);
+    setIsMilestoneFormOpen(true);
+  };
+
+  const handleSaveMilestone = async (milestoneData) => {
+    try {
+      console.log('Saving milestone:', milestoneData);
+      let result;
+      if (editingMilestone) {
+        console.log('Updating existing milestone:', editingMilestone._id);
+        result = await milestoneService.updateMilestone(id, editingMilestone._id, milestoneData);
+      } else {
+        console.log('Creating new milestone for project:', id);
+        result = await milestoneService.createMilestone(id, milestoneData);
+      }
+      console.log('Save result:', result);
+      
+      console.log('Fetching updated milestones...');
+      await fetchMilestones();
+      
+      setIsMilestoneFormOpen(false);
+      setEditingMilestone(null);
+      console.log('Milestone save complete');
+    } catch (error) {
+      console.error('Failed to save milestone:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      throw error;
+    }
+  };
+
+  const handleDeleteMilestone = async (milestoneId, milestoneName) => {
+    if (window.confirm(`Delete milestone "${milestoneName}"? This action cannot be undone.`)) {
+      try {
+        await milestoneService.deleteMilestone(id, milestoneId);
+        await fetchMilestones();
+      } catch (error) {
+        console.error('Failed to delete milestone:', error);
+        alert(`Failed to delete milestone: ${error.message || 'Unknown error'}`);
+      }
+    }
   };
 
   const filteredClients = allClients.filter(client => {
@@ -618,7 +694,7 @@ function ProjectDetails() {
                   <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
                     <Package className="w-7 h-7 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900">Deliverables</h2>
+                  <span className="text-3xl font-bold text-gray-900">Deliverables</span>
                 </CardTitle>
 
                 <Button
@@ -655,10 +731,138 @@ function ProjectDetails() {
                   style={{ overflow: 'hidden' }}
                 >
                   <CardContent className="pt-0">
-                    <div className="text-center py-12 text-gray-500">
-                      <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">No deliverables yet</p>
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">Project Milestones</h3>
+                        {milestones && milestones.length > 0 && milestones.some(m => m.isCritical) && (
+                          <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-700 rounded-full text-sm">
+                            <TrendingUp className="w-4 h-4" />
+                            <span className="font-medium">Critical Path Active</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* View Toggle */}
+                        {milestones && milestones.length > 0 && (
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                            <button
+                              onClick={() => setViewMode('network')}
+                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                                viewMode === 'network'
+                                  ? 'bg-white text-gray-900 shadow-sm'
+                                  : 'text-gray-600 hover:text-gray-900'
+                              }`}
+                            >
+                              <Network className="w-4 h-4" />
+                              Network
+                            </button>
+                            <button
+                              onClick={() => setViewMode('timeline')}
+                              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                                viewMode === 'timeline'
+                                  ? 'bg-white text-gray-900 shadow-sm'
+                                  : 'text-gray-600 hover:text-gray-900'
+                              }`}
+                            >
+                              <BarChart3 className="w-4 h-4" />
+                              Timeline
+                            </button>
+                          </div>
+                        )}
+                        <Button onClick={handleCreateMilestone} className="gap-2">
+                          <Plus className="w-4 h-4" />
+                          Add Milestone
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Milestone Visualization */}
+                    {loadingMilestones ? (
+                      <div className="text-center py-12">
+                        <Loader2 className="w-8 h-8 mx-auto mb-3 animate-spin text-gray-400" />
+                        <p className="text-sm text-gray-500">Loading milestones...</p>
+                      </div>
+                    ) : viewMode === 'network' ? (
+                      <MilestoneNetworkGraph
+                        milestones={milestones || []}
+                        onMilestoneClick={handleEditMilestone}
+                      />
+                    ) : (
+                      <TimelineGrid
+                        milestones={milestones || []}
+                        projectStartDate={project?.startDate}
+                        projectEndDate={project?.endDate}
+                        onMilestoneClick={handleEditMilestone}
+                      />
+                    )}
+
+                    {/* Milestone List (below timeline) */}
+                    {milestones && milestones.length > 0 && (
+                      <div className="mt-8 border-t pt-6">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Milestone Details</h4>
+                        <div className="space-y-2">
+                          {milestones.map((milestone) => (
+                            <div
+                              key={milestone._id}
+                              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 flex-1">
+                                {milestone.isCritical && (
+                                  <TrendingUp className="w-5 h-5 text-red-500 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900">{milestone.name}</div>
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    {milestone.earliestStart && milestone.earliestFinish && (
+                                      <>
+                                        {new Date(milestone.earliestStart).toLocaleDateString()} - 
+                                        {new Date(milestone.earliestFinish).toLocaleDateString()}
+                                      </>
+                                    )}
+                                    {milestone.dependencies && milestone.dependencies.length > 0 && (
+                                      <span className="ml-2">
+                                        • {milestone.dependencies.length} {milestone.dependencies.length === 1 ? 'dependency' : 'dependencies'}
+                                      </span>
+                                    )}
+                                    {milestone.slack > 0 && (
+                                      <span className="ml-2 text-green-600">
+                                        • {milestone.slack}d slack
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                  milestone.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  milestone.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                  milestone.status === 'blocked' ? 'bg-orange-100 text-orange-700' :
+                                  'bg-gray-200 text-gray-700'
+                                }`}>
+                                  {milestone.status.replace('-', ' ')}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 ml-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditMilestone(milestone)}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteMilestone(milestone._id, milestone.name)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </motion.div>
               )}
@@ -848,6 +1052,19 @@ function ProjectDetails() {
           </Dialog>
         )}
       </AnimatePresence>
+
+      {/* Milestone Form Dialog */}
+      <MilestoneForm
+        milestone={editingMilestone}
+        projectId={id}
+        allMilestones={milestones}
+        onSave={handleSaveMilestone}
+        onCancel={() => {
+          setIsMilestoneFormOpen(false);
+          setEditingMilestone(null);
+        }}
+        isOpen={isMilestoneFormOpen}
+      />
     </div>
   );
 }

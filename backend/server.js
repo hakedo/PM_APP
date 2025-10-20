@@ -2,7 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import connectDB from './config/database.js';
-import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes } from './routes/index.js';
+import projectRoutes from './routes/projects.js';
+import templateRoutes from './routes/templates.js';
+import clientRoutes from './routes/clients.js';
+import clientProjectAssignmentRoutes from './routes/clientProjectAssignments.js';
+import milestoneRoutes from './routes/milestones.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -16,8 +20,6 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(requestLogger);
-
 app.use(requestLogger);
 
 // Health check route
@@ -40,6 +42,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/projects', projectRoutes);
+app.use('/projects', milestoneRoutes);
 app.use('/templates', templateRoutes);
 app.use('/clients', clientRoutes);
 app.use('/assignments', clientProjectAssignmentRoutes);

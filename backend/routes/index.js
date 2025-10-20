@@ -1,6 +1,16 @@
+import express from 'express';
 import projectRoutes from './projects.js';
 import templateRoutes from './templates.js';
 import clientRoutes from './clients.js';
-import clientProjectAssignmentRoutes from './clientProjectAssignments.js';
+import assignmentRoutes from './clientProjectAssignments.js';
+import milestoneRoutes from './milestones.js';
 
-export { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes };
+const router = express.Router();
+
+router.use('/projects', projectRoutes);
+router.use('/projects', milestoneRoutes);
+router.use('/templates', templateRoutes);
+router.use('/clients', clientRoutes);
+router.use('/assignments', assignmentRoutes);
+
+export default router;
