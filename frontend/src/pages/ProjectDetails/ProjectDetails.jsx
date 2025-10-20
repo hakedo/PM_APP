@@ -9,7 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
-import { clientService, assignmentService, milestoneService, deliverableService, taskService } from '../../services';
+import { clientService, assignmentService, milestoneService, deliverableService, taskService, projectService } from '../../services';
 import TimelineGrid from '../../components/milestones/TimelineGrid';
 import MilestoneNetworkGraph from '../../components/milestones/MilestoneNetworkGraph';
 import MilestoneForm from '../../components/milestones/MilestoneForm';
@@ -24,6 +24,8 @@ function ProjectDetails() {
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showProjectDetails, setShowProjectDetails] = useState(false); // Toggle for project details section
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Milestone state
   const [milestones, setMilestones] = useState([]);
@@ -557,6 +559,20 @@ function ProjectDetails() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    try {
+      setIsDeleting(true);
+      await projectService.delete(id);
+      setShowDeleteDialog(false);
+      navigate('/projects');
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      alert('Failed to delete project. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -678,15 +694,26 @@ function ProjectDetails() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEdit}
-                  className="gap-2"
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEdit}
+                    className="gap-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -1686,6 +1713,49 @@ function ProjectDetails() {
               disabled={dependencyConflict?.requiresUserChoice && !selectedReassignment && selectedReassignment !== null}
             >
               Delete Milestone
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Project Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Delete Project
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{project?.title}</strong>? This action will permanently delete the project and all associated milestones, deliverables, tasks, and client assignments. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProject}
+              disabled={isDeleting}
+              className="gap-2"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Delete Project
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
