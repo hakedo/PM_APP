@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
 import { clientService, assignmentService } from '../../services';
@@ -24,6 +26,23 @@ function ProjectDetails() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showClientSearch, setShowClientSearch] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
+
+  // New client creation state
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [creatingClient, setCreatingClient] = useState(false);
+  const [newClient, setNewClient] = useState({
+    company: '',
+    firstName: '',
+    middleInitial: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    address: '',
+    unit: '',
+    city: '',
+    state: '',
+    zip: ''
+  });
 
   // Fetch assigned clients
   useEffect(() => {
@@ -85,6 +104,90 @@ function ProjectDetails() {
         alert(`Failed to remove client: ${error.message || 'Unknown error'}`);
       }
     }
+  };
+
+  // Format phone number to (XXX) XXX-XXXX
+  const formatPhoneNumber = (value) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/\D/g, '');
+    const limitedNumber = phoneNumber.slice(0, 10);
+    if (limitedNumber.length < 4) return limitedNumber;
+    else if (limitedNumber.length < 7) return `(${limitedNumber.slice(0, 3)}) ${limitedNumber.slice(3)}`;
+    else return `(${limitedNumber.slice(0, 3)}) ${limitedNumber.slice(3, 6)}-${limitedNumber.slice(6)}`;
+  };
+
+  const handleNewClientInputChange = (e) => {
+    const { name, value } = e.target;
+    let newValue = value;
+    
+    if (name === 'state') {
+      newValue = value.toUpperCase();
+    } else if (name === 'phone') {
+      newValue = formatPhoneNumber(value);
+    }
+    
+    setNewClient(prev => ({
+      ...prev,
+      [name]: newValue
+    }));
+  };
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (creatingClient) return;
+    
+    setCreatingClient(true);
+    try {
+      const createdClient = await clientService.create(newClient);
+      
+      // Assign the newly created client to the project
+      await assignmentService.assignClientToProject({
+        clientId: createdClient._id,
+        projectId: id
+      });
+      
+      // Refresh data
+      await fetchAssignedClients();
+      await fetchAllClients();
+      
+      // Reset form and close dialog
+      setNewClient({
+        company: '',
+        firstName: '',
+        middleInitial: '',
+        lastName: '',
+        phone: '',
+        email: '',
+        address: '',
+        unit: '',
+        city: '',
+        state: '',
+        zip: ''
+      });
+      setIsCreatingClient(false);
+    } catch (error) {
+      console.error('Failed to create client:', error);
+      alert(`Failed to create client: ${error.message || 'Unknown error'}`);
+    } finally {
+      setCreatingClient(false);
+    }
+  };
+
+  const handleCloseNewClientDialog = () => {
+    setIsCreatingClient(false);
+    setNewClient({
+      company: '',
+      firstName: '',
+      middleInitial: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      address: '',
+      unit: '',
+      city: '',
+      state: '',
+      zip: ''
+    });
   };
 
   const filteredClients = allClients.filter(client => {
@@ -372,17 +475,31 @@ function ProjectDetails() {
                       ({assignedClients.length})
                     </span>
                   </h3>
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowClientSearch(!showClientSearch);
-                    }}
-                    className="gap-2"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Assign Client
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCreatingClient(true);
+                      }}
+                      className="gap-2"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      New Client
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowClientSearch(!showClientSearch);
+                      }}
+                      className="gap-2"
+                    >
+                      <Search className="w-4 h-4" />
+                      Assign Existing
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Client Search Box */}
@@ -483,6 +600,188 @@ function ProjectDetails() {
           </Card>
         </motion.div>
       </motion.div>
+
+      {/* Create New Client Dialog */}
+      <AnimatePresence>
+        {isCreatingClient && (
+          <Dialog open={isCreatingClient} onOpenChange={setIsCreatingClient}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" onClose={handleCloseNewClientDialog}>
+              <DialogHeader>
+                <DialogTitle>Create New Client</DialogTitle>
+                <DialogDescription>
+                  Add a new client and automatically assign them to this project
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreateClient}>
+                <div className="grid gap-4 py-4">
+                  {/* Company */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="company">Company</Label>
+                    <Input
+                      id="company"
+                      name="company"
+                      value={newClient.company}
+                      onChange={handleNewClientInputChange}
+                      placeholder="Company name (optional)"
+                    />
+                  </div>
+
+                  {/* Name Fields */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-5">
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        name="firstName"
+                        value={newClient.firstName}
+                        onChange={handleNewClientInputChange}
+                        placeholder="First name"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="middleInitial">M.I.</Label>
+                      <Input
+                        id="middleInitial"
+                        name="middleInitial"
+                        value={newClient.middleInitial}
+                        onChange={handleNewClientInputChange}
+                        placeholder="M"
+                        maxLength={1}
+                      />
+                    </div>
+                    <div className="col-span-5">
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        name="lastName"
+                        value={newClient.lastName}
+                        onChange={handleNewClientInputChange}
+                        placeholder="Last name"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={newClient.email}
+                        onChange={handleNewClientInputChange}
+                        placeholder="email@example.com"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="phone">Phone *</Label>
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={newClient.phone}
+                        onChange={handleNewClientInputChange}
+                        placeholder="(555) 123-4567"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="address">Street Address *</Label>
+                    <Input
+                      id="address"
+                      name="address"
+                      value={newClient.address}
+                      onChange={handleNewClientInputChange}
+                      placeholder="123 Main St"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="unit">Unit/Suite</Label>
+                    <Input
+                      id="unit"
+                      name="unit"
+                      value={newClient.unit}
+                      onChange={handleNewClientInputChange}
+                      placeholder="Apt 4B, Suite 200, etc."
+                    />
+                  </div>
+
+                  {/* City, State, ZIP */}
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-6">
+                      <Label htmlFor="city">City *</Label>
+                      <Input
+                        id="city"
+                        name="city"
+                        value={newClient.city}
+                        onChange={handleNewClientInputChange}
+                        placeholder="City"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="state">State *</Label>
+                      <Input
+                        id="state"
+                        name="state"
+                        value={newClient.state}
+                        onChange={handleNewClientInputChange}
+                        placeholder="CA"
+                        maxLength={2}
+                        className="uppercase"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Label htmlFor="zip">ZIP Code *</Label>
+                      <Input
+                        id="zip"
+                        name="zip"
+                        value={newClient.zip}
+                        onChange={handleNewClientInputChange}
+                        placeholder="12345"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCloseNewClientDialog}
+                    disabled={creatingClient}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={creatingClient}>
+                    {creatingClient ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Create & Assign
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
