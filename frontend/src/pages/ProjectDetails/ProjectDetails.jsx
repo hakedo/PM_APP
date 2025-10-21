@@ -63,6 +63,7 @@ function ProjectDetails() {
     durationDays: 7,
     durationType: 'business', // 'business' or 'calendar'
     daysAfterPrevious: 0,
+    gapType: 'business', // 'business' or 'calendar' for daysAfterPrevious
     startDate: '',
     endDate: ''
   });
@@ -324,7 +325,9 @@ function ProjectDetails() {
         dateMode: 'auto',
         endDateMode: 'duration',
         durationDays: 7,
+        durationType: 'business',
         daysAfterPrevious: 0,
+        gapType: 'business',
         startDate: '',
         endDate: ''
       });
@@ -360,6 +363,7 @@ function ProjectDetails() {
       durationDays: milestone.durationDays,
       durationType: milestone.durationType || 'business',
       daysAfterPrevious: milestone.daysAfterPrevious,
+      gapType: milestone.gapType || 'business',
       startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
       endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : ''
     });
@@ -1118,14 +1122,27 @@ function ProjectDetails() {
                               </select>
                               
                               {newMilestone.dateMode === 'auto' ? (
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={newMilestone.daysAfterPrevious}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
-                                  placeholder="Gap days"
-                                  className="h-8 text-xs border-gray-200"
-                                />
+                                <>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={newMilestone.daysAfterPrevious}
+                                      onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
+                                      placeholder="Gap days"
+                                      className="h-8 text-xs border-gray-200 flex-1"
+                                    />
+                                    <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
+                                  </div>
+                                  <select
+                                    value={newMilestone.gapType}
+                                    onChange={(e) => setNewMilestone({ ...newMilestone, gapType: e.target.value })}
+                                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                  >
+                                    <option value="business">Business Days</option>
+                                    <option value="calendar">Calendar Days</option>
+                                  </select>
+                                </>
                               ) : (
                                 <Input
                                   type="date"
@@ -1204,6 +1221,7 @@ function ProjectDetails() {
                                 durationDays: 7,
                                 durationType: 'business',
                                 daysAfterPrevious: 0,
+                                gapType: 'business',
                                 startDate: '',
                                 endDate: ''
                               });
@@ -1339,6 +1357,20 @@ function ProjectDetails() {
                                   )}
                                 </div>
                               </div>
+
+                              {editedMilestone.dateMode === 'auto' && (
+                                <div>
+                                  <Label className="text-xs">Gap Type</Label>
+                                  <select
+                                    value={editedMilestone.gapType || 'business'}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, gapType: e.target.value })}
+                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                  >
+                                    <option value="business">Business Days</option>
+                                    <option value="calendar">Calendar Days</option>
+                                  </select>
+                                </div>
+                              )}
 
                               <div className="flex gap-2">
                                 <div className="flex-1">

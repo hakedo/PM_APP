@@ -78,6 +78,12 @@ const milestoneSchema = new mongoose.Schema(
       min: [0, 'Days after previous milestone cannot be negative'],
       default: 0
     },
+    // Gap type: 'business' or 'calendar' for daysAfterPrevious
+    gapType: {
+      type: String,
+      enum: ['business', 'calendar'],
+      default: 'business'
+    },
     // Calculated dates (computed based on mode and settings)
     calculatedStartDate: {
       type: Date,

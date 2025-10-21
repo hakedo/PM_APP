@@ -53,10 +53,15 @@ export const getDaysDifference = (startDate, endDate) => {
  * Calculate milestone start date based on previous milestone or project start
  * @param {Date} previousEndDate - End date of previous milestone (or project start date)
  * @param {Number} daysAfterPrevious - Gap days after previous milestone
+ * @param {String} gapType - 'business' or 'calendar' (defaults to 'business')
  * @returns {Date} Calculated start date
  */
-export const calculateMilestoneStartDate = (previousEndDate, daysAfterPrevious = 0) => {
-  return addDays(previousEndDate, daysAfterPrevious);
+export const calculateMilestoneStartDate = (previousEndDate, daysAfterPrevious = 0, gapType = 'business') => {
+  if (gapType === 'business') {
+    return addBusinessDays(previousEndDate, daysAfterPrevious);
+  } else {
+    return addDays(previousEndDate, daysAfterPrevious);
+  }
 };
 
 /**
@@ -93,7 +98,8 @@ export const recalculateMilestoneDates = (milestones, projectStartDate) => {
     } else {
       // Auto mode: start after previous milestone
       const gap = milestone.daysAfterPrevious || 0;
-      startDate = calculateMilestoneStartDate(previousEndDate, gap);
+      const gapType = milestone.gapType || 'business';
+      startDate = calculateMilestoneStartDate(previousEndDate, gap, gapType);
     }
 
     // Calculate end date

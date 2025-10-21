@@ -211,7 +211,8 @@ router.post('/:id/milestones', async (req, res, next) => {
       endDateMode: req.body.endDateMode || 'duration',
       durationDays: req.body.durationDays || 1,
       durationType: req.body.durationType || 'business',
-      daysAfterPrevious: req.body.daysAfterPrevious || 0
+      daysAfterPrevious: req.body.daysAfterPrevious || 0,
+      gapType: req.body.gapType || 'business'
     };
 
     // Add manual dates if provided
@@ -306,6 +307,7 @@ router.put('/:id/milestones/:milestoneId', async (req, res, next) => {
     if (req.body.durationDays !== undefined) milestone.durationDays = req.body.durationDays;
     if (req.body.durationType !== undefined) milestone.durationType = req.body.durationType;
     if (req.body.daysAfterPrevious !== undefined) milestone.daysAfterPrevious = req.body.daysAfterPrevious;
+    if (req.body.gapType !== undefined) milestone.gapType = req.body.gapType;
     if (req.body.startDate !== undefined) milestone.startDate = req.body.startDate;
     if (req.body.endDate !== undefined) milestone.endDate = req.body.endDate;
 
