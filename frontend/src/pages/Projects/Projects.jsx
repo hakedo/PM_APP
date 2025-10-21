@@ -290,7 +290,7 @@ function Projects() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endDate">End Date</Label>
+                    <Label htmlFor="endDate">End Date (optional)</Label>
                     <Input
                       type="date"
                       id="endDate"
