@@ -61,6 +61,7 @@ function ProjectDetails() {
     dateMode: 'auto',
     endDateMode: 'duration',
     durationDays: 7,
+    durationType: 'business', // 'business' or 'calendar'
     daysAfterPrevious: 0,
     startDate: '',
     endDate: ''
@@ -73,6 +74,29 @@ function ProjectDetails() {
   const [newTask, setNewTask] = useState({ title: '', description: '', startDate: '', endDate: '' });
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
+
+  // Helper function to add business days to a date
+  const addBusinessDays = (startDate, days) => {
+    let currentDate = new Date(startDate);
+    let addedDays = 0;
+    
+    while (addedDays < days) {
+      currentDate.setDate(currentDate.getDate() + 1);
+      // Skip weekends (0 = Sunday, 6 = Saturday)
+      if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+        addedDays++;
+      }
+    }
+    
+    return currentDate;
+  };
+
+  // Helper function to add calendar days to a date
+  const addCalendarDays = (startDate, days) => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + days);
+    return date;
+  };
 
   // Fetch assigned clients
   useEffect(() => {
@@ -334,6 +358,7 @@ function ProjectDetails() {
       dateMode: milestone.dateMode,
       endDateMode: milestone.endDateMode,
       durationDays: milestone.durationDays,
+      durationType: milestone.durationType || 'business',
       daysAfterPrevious: milestone.daysAfterPrevious,
       startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
       endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : ''
@@ -1128,14 +1153,27 @@ function ProjectDetails() {
                               </select>
                               
                               {newMilestone.endDateMode === 'duration' ? (
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  value={newMilestone.durationDays}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
-                                  placeholder="Duration"
-                                  className="h-8 text-xs border-gray-200"
-                                />
+                                <>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={newMilestone.durationDays}
+                                      onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
+                                      placeholder="Duration"
+                                      className="h-8 text-xs border-gray-200 flex-1"
+                                    />
+                                    <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
+                                  </div>
+                                  <select
+                                    value={newMilestone.durationType}
+                                    onChange={(e) => setNewMilestone({ ...newMilestone, durationType: e.target.value })}
+                                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                  >
+                                    <option value="business">Business Days</option>
+                                    <option value="calendar">Calendar Days</option>
+                                  </select>
+                                </>
                               ) : (
                                 <Input
                                   type="date"
@@ -1164,6 +1202,7 @@ function ProjectDetails() {
                                 dateMode: 'auto',
                                 endDateMode: 'duration',
                                 durationDays: 7,
+                                durationType: 'business',
                                 daysAfterPrevious: 0,
                                 startDate: '',
                                 endDate: ''
@@ -1338,6 +1377,20 @@ function ProjectDetails() {
                                   )}
                                 </div>
                               </div>
+
+                              {editedMilestone.endDateMode === 'duration' && (
+                                <div>
+                                  <Label className="text-xs">Duration Type</Label>
+                                  <select
+                                    value={editedMilestone.durationType || 'business'}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, durationType: e.target.value })}
+                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                  >
+                                    <option value="business">Business Days</option>
+                                    <option value="calendar">Calendar Days</option>
+                                  </select>
+                                </div>
+                              )}
 
                               {/* Action Buttons */}
                               <div className="flex gap-2 pt-2">

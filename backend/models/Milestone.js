@@ -66,6 +66,12 @@ const milestoneSchema = new mongoose.Schema(
       min: [1, 'Duration must be at least 1 day'],
       default: 1
     },
+    // Duration type: 'business' or 'calendar'
+    durationType: {
+      type: String,
+      enum: ['business', 'calendar'],
+      default: 'business'
+    },
     // Gap after previous milestone in days (used when dateMode is 'auto')
     daysAfterPrevious: {
       type: Number,

@@ -3,7 +3,7 @@
  */
 
 /**
- * Add days to a date
+ * Add calendar days to a date
  * @param {Date} date - Starting date
  * @param {Number} days - Number of days to add
  * @returns {Date} New date
@@ -12,6 +12,27 @@ export const addDays = (date, days) => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
+};
+
+/**
+ * Add business days to a date (excluding weekends)
+ * @param {Date} date - Starting date
+ * @param {Number} days - Number of business days to add
+ * @returns {Date} New date
+ */
+export const addBusinessDays = (date, days) => {
+  let currentDate = new Date(date);
+  let addedDays = 0;
+  
+  while (addedDays < days) {
+    currentDate.setDate(currentDate.getDate() + 1);
+    // Skip weekends (0 = Sunday, 6 = Saturday)
+    if (currentDate.getDay() !== 0 && currentDate.getDay() !== 6) {
+      addedDays++;
+    }
+  }
+  
+  return currentDate;
 };
 
 /**
@@ -42,10 +63,15 @@ export const calculateMilestoneStartDate = (previousEndDate, daysAfterPrevious =
  * Calculate milestone end date based on start date and duration
  * @param {Date} startDate - Milestone start date
  * @param {Number} durationDays - Duration in days
+ * @param {String} durationType - 'business' or 'calendar' (defaults to 'business')
  * @returns {Date} Calculated end date
  */
-export const calculateMilestoneEndDate = (startDate, durationDays) => {
-  return addDays(startDate, durationDays);
+export const calculateMilestoneEndDate = (startDate, durationDays, durationType = 'business') => {
+  if (durationType === 'business') {
+    return addBusinessDays(startDate, durationDays);
+  } else {
+    return addDays(startDate, durationDays);
+  }
 };
 
 /**
@@ -74,9 +100,10 @@ export const recalculateMilestoneDates = (milestones, projectStartDate) => {
     if (milestone.endDateMode === 'manual' && milestone.endDate) {
       endDate = new Date(milestone.endDate);
     } else {
-      // Duration mode: calculate based on duration
+      // Duration mode: calculate based on duration and type
       const duration = milestone.durationDays || 1;
-      endDate = calculateMilestoneEndDate(startDate, duration);
+      const durationType = milestone.durationType || 'business';
+      endDate = calculateMilestoneEndDate(startDate, duration, durationType);
     }
 
     // Update previous end date for next iteration
