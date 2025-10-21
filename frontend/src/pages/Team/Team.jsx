@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Users, Loader2, Mail, Phone, Briefcase, Building2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Users, Loader2, Mail, Phone, Briefcase, Building2, MoreVertical, Edit2, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -108,6 +108,11 @@ function Team() {
       setLoadingRoles(false);
     }
   };
+
+  // Fetch team roles on component mount to get role order
+  useEffect(() => {
+    fetchTeamRoles();
+  }, []);
 
   // Fetch team roles when managing roles dialog opens
   useEffect(() => {
@@ -274,6 +279,67 @@ function Team() {
     }
   };
 
+  // Role reordering handlers
+  const handleMoveRoleUp = async (index) => {
+    if (index === 0) return; // Already at top
+    
+    const newRoles = [...teamRoles];
+    // Swap with previous role
+    [newRoles[index - 1], newRoles[index]] = [newRoles[index], newRoles[index - 1]];
+    
+    // Update the order property for each role
+    const rolesWithUpdatedOrder = newRoles.map((role, idx) => ({
+      ...role,
+      order: idx
+    }));
+    
+    // Update local state immediately for smooth UX
+    setTeamRoles(rolesWithUpdatedOrder);
+    
+    // Save new order to backend
+    try {
+      const rolesWithOrder = rolesWithUpdatedOrder.map((role, idx) => ({
+        id: role._id,
+        order: idx
+      }));
+      await teamRoleService.reorder(rolesWithOrder);
+    } catch (error) {
+      console.error('Failed to reorder roles:', error);
+      // Revert on error
+      await fetchTeamRoles();
+    }
+  };
+
+  const handleMoveRoleDown = async (index) => {
+    if (index === teamRoles.length - 1) return; // Already at bottom
+    
+    const newRoles = [...teamRoles];
+    // Swap with next role
+    [newRoles[index], newRoles[index + 1]] = [newRoles[index + 1], newRoles[index]];
+    
+    // Update the order property for each role
+    const rolesWithUpdatedOrder = newRoles.map((role, idx) => ({
+      ...role,
+      order: idx
+    }));
+    
+    // Update local state immediately for smooth UX
+    setTeamRoles(rolesWithUpdatedOrder);
+    
+    // Save new order to backend
+    try {
+      const rolesWithOrder = rolesWithUpdatedOrder.map((role, idx) => ({
+        id: role._id,
+        order: idx
+      }));
+      await teamRoleService.reorder(rolesWithOrder);
+    } catch (error) {
+      console.error('Failed to reorder roles:', error);
+      // Revert on error
+      await fetchTeamRoles();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -344,8 +410,28 @@ function Team() {
                 return acc;
               }, {});
 
-              // Get unique roles that have members
-              return Object.entries(membersByRole).map(([role, members], roleIndex) => (
+              // Create a map of role name -> order for sorting
+              const roleOrderMap = teamRoles.reduce((acc, role) => {
+                acc[role.name] = role.order !== undefined ? role.order : 999;
+                return acc;
+              }, {});
+              
+              // Unassigned should be last
+              roleOrderMap['Unassigned'] = 9999;
+
+              console.log('Team Roles:', teamRoles);
+              console.log('Role Order Map:', roleOrderMap);
+              console.log('Members by Role:', Object.keys(membersByRole));
+
+              // Sort roles by their order
+              const sortedRoles = Object.entries(membersByRole).sort(([roleA], [roleB]) => {
+                const orderA = roleOrderMap[roleA] !== undefined ? roleOrderMap[roleA] : 999;
+                const orderB = roleOrderMap[roleB] !== undefined ? roleOrderMap[roleB] : 999;
+                console.log(`Comparing ${roleA} (${orderA}) with ${roleB} (${orderB})`);
+                return orderA - orderB;
+              });
+
+              return sortedRoles.map(([role, members], roleIndex) => (
                 <motion.div
                   key={role}
                   initial={{ opacity: 0, y: 20 }}
@@ -642,11 +728,35 @@ function Team() {
               </div>
             ) : (
               <div className="space-y-2 overflow-y-auto pr-2">
-                {teamRoles.map((role) => (
+                {teamRoles.map((role, index) => (
                   <div
                     key={role._id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
+                    {/* Reorder buttons */}
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleMoveRoleUp(index)}
+                        disabled={index === 0}
+                        className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                          index === 0 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                        title="Move up"
+                      >
+                        <ChevronUp className="w-4 h-4 text-gray-600" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveRoleDown(index)}
+                        disabled={index === teamRoles.length - 1}
+                        className={`p-1 rounded hover:bg-gray-200 transition-colors ${
+                          index === teamRoles.length - 1 ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                        title="Move down"
+                      >
+                        <ChevronDown className="w-4 h-4 text-gray-600" />
+                      </button>
+                    </div>
+                    
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-gray-900">{role.name}</h3>

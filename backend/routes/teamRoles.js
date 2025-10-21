@@ -13,11 +13,34 @@ router.get('/', async (req, res) => {
       filter.isActive = isActive === 'true';
     }
     
-    const roles = await TeamRole.find(filter).sort({ name: 1 });
+    const roles = await TeamRole.find(filter).sort({ order: 1, name: 1 });
     res.json(roles);
   } catch (error) {
     console.error('Error fetching team roles:', error);
     res.status(500).json({ message: 'Failed to fetch team roles', error: error.message });
+  }
+});
+
+// Update order of multiple roles (must be before /:id route)
+router.patch('/reorder', async (req, res) => {
+  try {
+    const { roles } = req.body; // Array of { id, order }
+    
+    if (!Array.isArray(roles)) {
+      return res.status(400).json({ message: 'roles must be an array' });
+    }
+    
+    // Update each role's order
+    const updatePromises = roles.map(({ id, order }) => 
+      TeamRole.findByIdAndUpdate(id, { order }, { new: true })
+    );
+    
+    await Promise.all(updatePromises);
+    
+    res.json({ message: 'Roles reordered successfully' });
+  } catch (error) {
+    console.error('Error reordering team roles:', error);
+    res.status(500).json({ message: 'Failed to reorder team roles', error: error.message });
   }
 });
 

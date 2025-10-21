@@ -17,7 +17,10 @@ const teamRoleService = {
   update: (id, roleData) => apiClient.patch(`/team-roles/${id}`, roleData),
 
   // Delete team role
-  delete: (id) => apiClient.delete(`/team-roles/${id}`)
+  delete: (id) => apiClient.delete(`/team-roles/${id}`),
+
+  // Reorder team roles
+  reorder: (roles) => apiClient.patch('/team-roles/reorder', { roles })
 };
 
 export default teamRoleService;
