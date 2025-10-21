@@ -1,5 +1,5 @@
 import express from 'express';
-import { Project, ClientProjectAssignment } from '../models/index.js';
+import { Project, ClientProjectAssignment, Milestone, Deliverable, Task } from '../models/index.js';
 
 const router = express.Router();
 
@@ -24,8 +24,43 @@ router.get('/:id', async (req, res, next) => {
         message: `No project found with id: ${req.params.id}`
       });
     }
+
+    // Fetch milestones for this project
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
     
-    res.json(project);
+    // Fetch deliverables for all milestones
+    const milestoneIds = milestones.map(m => m._id);
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestoneIds } }).sort({ order: 1 });
+    
+    // Fetch tasks for all deliverables
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+    
+    // Build the nested structure
+    const milestonesWithData = milestones.map(milestone => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === milestone._id.toString())
+        .map(deliverable => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === deliverable._id.toString());
+          return {
+            ...deliverable.toObject(),
+            tasks: deliverableTasks
+          };
+        });
+      
+      return {
+        ...milestone.toObject(),
+        deliverables: milestoneDeliverables
+      };
+    });
+    
+    // Add milestones to project response
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+    
+    res.json(projectWithMilestones);
   } catch (error) {
     if (error.name === 'CastError') {
       return res.status(400).json({ 
@@ -104,6 +139,23 @@ router.delete('/:id', async (req, res, next) => {
 
     // Remove all client assignments for this project
     await ClientProjectAssignment.deleteMany({ projectId: req.params.id });
+
+    // Find all milestones for this project
+    const milestones = await Milestone.find({ projectId: req.params.id });
+    const milestoneIds = milestones.map(m => m._id);
+
+    // Find all deliverables for these milestones
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestoneIds } });
+    const deliverableIds = deliverables.map(d => d._id);
+
+    // Delete all tasks for these deliverables
+    await Task.deleteMany({ deliverableId: { $in: deliverableIds } });
+
+    // Delete all deliverables for these milestones
+    await Deliverable.deleteMany({ milestoneId: { $in: milestoneIds } });
+
+    // Delete all milestones for this project
+    await Milestone.deleteMany({ projectId: req.params.id });
     
     res.json({ 
       message: 'Project deleted successfully',
@@ -116,6 +168,598 @@ router.delete('/:id', async (req, res, next) => {
         message: 'The provided project ID is not valid'
       });
     }
+    next(error);
+  }
+});
+
+// ====== MILESTONE ROUTES ======
+
+// Add a milestone to a project
+router.post('/:id/milestones', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    // Get the count of existing milestones to set the order
+    const milestoneCount = await Milestone.countDocuments({ projectId: req.params.id });
+
+    const milestone = new Milestone({
+      name: req.body.name,
+      description: req.body.description,
+      projectId: req.params.id,
+      order: milestoneCount
+    });
+
+    await milestone.save();
+
+    // Return the project with all milestones populated
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestones.map(m => ({ ...m.toObject(), deliverables: [] }))
+    };
+
+    res.status(201).json(projectWithMilestones);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: error.message
+      });
+    }
+    next(error);
+  }
+});
+
+// Update a milestone
+router.put('/:id/milestones/:milestoneId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    if (req.body.name !== undefined) milestone.name = req.body.name;
+    if (req.body.description !== undefined) milestone.description = req.body.description;
+    if (req.body.order !== undefined) milestone.order = req.body.order;
+
+    await milestone.save();
+
+    // Return the project with all milestones populated
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete a milestone
+router.delete('/:id/milestones/:milestoneId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    // Find all deliverables for this milestone
+    const deliverables = await Deliverable.find({ milestoneId: req.params.milestoneId });
+    const deliverableIds = deliverables.map(d => d._id);
+
+    // Delete all tasks for these deliverables
+    await Task.deleteMany({ deliverableId: { $in: deliverableIds } });
+
+    // Delete all deliverables for this milestone
+    await Deliverable.deleteMany({ milestoneId: req.params.milestoneId });
+
+    // Delete the milestone
+    await Milestone.findByIdAndDelete(req.params.milestoneId);
+
+    // Return the project with remaining milestones
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestones.map(m => ({ ...m.toObject(), deliverables: [] }))
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ====== DELIVERABLE ROUTES ======
+
+// Add a deliverable to a milestone
+router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    // Get the count of existing deliverables to set the order
+    const deliverableCount = await Deliverable.countDocuments({ milestoneId: req.params.milestoneId });
+
+    const deliverable = new Deliverable({
+      title: req.body.title,
+      description: req.body.description,
+      milestoneId: req.params.milestoneId,
+      completed: false,
+      order: deliverableCount
+    });
+
+    await deliverable.save();
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.status(201).json(projectWithMilestones);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: error.message
+      });
+    }
+    next(error);
+  }
+});
+
+// Update a deliverable
+router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    const deliverable = await Deliverable.findOne({ 
+      _id: req.params.deliverableId, 
+      milestoneId: req.params.milestoneId 
+    });
+
+    if (!deliverable) {
+      return res.status(404).json({ 
+        error: 'Deliverable not found'
+      });
+    }
+
+    if (req.body.title !== undefined) deliverable.title = req.body.title;
+    if (req.body.description !== undefined) deliverable.description = req.body.description;
+    if (req.body.completed !== undefined) deliverable.completed = req.body.completed;
+    if (req.body.order !== undefined) deliverable.order = req.body.order;
+
+    await deliverable.save();
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete a deliverable
+router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    const deliverable = await Deliverable.findOne({ 
+      _id: req.params.deliverableId, 
+      milestoneId: req.params.milestoneId 
+    });
+
+    if (!deliverable) {
+      return res.status(404).json({ 
+        error: 'Deliverable not found'
+      });
+    }
+
+    // Delete all tasks for this deliverable
+    await Task.deleteMany({ deliverableId: req.params.deliverableId });
+
+    // Delete the deliverable
+    await Deliverable.findByIdAndDelete(req.params.deliverableId);
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ====== TASK ROUTES ======
+
+// Add a task to a deliverable
+router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    const deliverable = await Deliverable.findOne({ 
+      _id: req.params.deliverableId, 
+      milestoneId: req.params.milestoneId 
+    });
+
+    if (!deliverable) {
+      return res.status(404).json({ 
+        error: 'Deliverable not found'
+      });
+    }
+
+    // Get the count of existing tasks to set the order
+    const taskCount = await Task.countDocuments({ deliverableId: req.params.deliverableId });
+
+    const task = new Task({
+      title: req.body.title,
+      description: req.body.description,
+      deliverableId: req.params.deliverableId,
+      completed: false,
+      order: taskCount
+    });
+
+    await task.save();
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.status(201).json(projectWithMilestones);
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        message: error.message
+      });
+    }
+    next(error);
+  }
+});
+
+// Update a task
+router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:taskId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    const deliverable = await Deliverable.findOne({ 
+      _id: req.params.deliverableId, 
+      milestoneId: req.params.milestoneId 
+    });
+
+    if (!deliverable) {
+      return res.status(404).json({ 
+        error: 'Deliverable not found'
+      });
+    }
+
+    const task = await Task.findOne({ 
+      _id: req.params.taskId, 
+      deliverableId: req.params.deliverableId 
+    });
+
+    if (!task) {
+      return res.status(404).json({ 
+        error: 'Task not found'
+      });
+    }
+
+    if (req.body.title !== undefined) task.title = req.body.title;
+    if (req.body.description !== undefined) task.description = req.body.description;
+    if (req.body.completed !== undefined) task.completed = req.body.completed;
+    if (req.body.order !== undefined) task.order = req.body.order;
+
+    await task.save();
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete a task
+router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:taskId', async (req, res, next) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    
+    if (!project) {
+      return res.status(404).json({ 
+        error: 'Project not found',
+        message: `No project found with id: ${req.params.id}`
+      });
+    }
+
+    const milestone = await Milestone.findOne({ 
+      _id: req.params.milestoneId, 
+      projectId: req.params.id 
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        error: 'Milestone not found'
+      });
+    }
+
+    const deliverable = await Deliverable.findOne({ 
+      _id: req.params.deliverableId, 
+      milestoneId: req.params.milestoneId 
+    });
+
+    if (!deliverable) {
+      return res.status(404).json({ 
+        error: 'Deliverable not found'
+      });
+    }
+
+    const task = await Task.findOne({ 
+      _id: req.params.taskId, 
+      deliverableId: req.params.deliverableId 
+    });
+
+    if (!task) {
+      return res.status(404).json({ 
+        error: 'Task not found'
+      });
+    }
+
+    // Delete the task
+    await Task.findByIdAndDelete(req.params.taskId);
+
+    // Return the full project structure
+    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
+    const deliverableIds = deliverables.map(d => d._id);
+    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
+
+    const milestonesWithData = milestones.map(m => {
+      const milestoneDeliverables = deliverables
+        .filter(d => d.milestoneId.toString() === m._id.toString())
+        .map(d => {
+          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
+          return { ...d.toObject(), tasks: deliverableTasks };
+        });
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
+    });
+
+    const projectWithMilestones = {
+      ...project.toObject(),
+      milestones: milestonesWithData
+    };
+
+    res.json(projectWithMilestones);
+  } catch (error) {
     next(error);
   }
 });

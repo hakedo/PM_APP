@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, FolderKanban, Loader2 } from 'lucide-react';
+import { Plus, Calendar, FolderKanban, Loader2, Trash2, MoreVertical } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useProjects } from '../../hooks';
 
 const containerVariants = {
@@ -34,7 +35,7 @@ const itemVariants = {
 
 function Projects() {
   const navigate = useNavigate();
-  const { projects, loading, createProject } = useProjects();
+  const { projects, loading, createProject, deleteProject } = useProjects();
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -73,6 +74,17 @@ function Projects() {
       console.error('Failed to create project:', error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId, projectTitle) => {
+    if (window.confirm(`Are you sure you want to delete "${projectTitle}"?\n\nThis will permanently delete the project and all its milestones, deliverables, and tasks. This action cannot be undone.`)) {
+      try {
+        await deleteProject(projectId);
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        alert('Failed to delete project. Please try again.');
+      }
     }
   };
 
@@ -136,21 +148,55 @@ function Projects() {
                 key={project._id}
                 variants={itemVariants}
                 whileHover={{ y: -4 }}
-                onClick={() => navigate(`/projects/${project._id}`)}
               >
-                <Card className="h-full cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200">
+                <Card className="h-full hover:shadow-xl transition-all duration-300 border-gray-200">
                   <CardHeader>
-                    <CardTitle className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <FolderKanban className="w-5 h-5 text-white" />
-                      </div>
-                      <span className="line-clamp-2">{project.title}</span>
-                    </CardTitle>
-                    <CardDescription className="line-clamp-3 text-base mt-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle 
+                        className="flex items-start gap-3 flex-1 cursor-pointer"
+                        onClick={() => navigate(`/projects/${project._id}`)}
+                      >
+                        <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <FolderKanban className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="line-clamp-2">{project.title}</span>
+                      </CardTitle>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteProject(project._id, project.title);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Project
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <CardDescription 
+                      className="line-clamp-3 text-base mt-2 cursor-pointer"
+                      onClick={() => navigate(`/projects/${project._id}`)}
+                    >
                       {project.description}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent 
+                    className="cursor-pointer"
+                    onClick={() => navigate(`/projects/${project._id}`)}
+                  >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4" />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -9,12 +9,12 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { useProject } from '../../hooks';
-import { clientService, assignmentService } from '../../services';
+import { clientService, assignmentService, milestoneService, projectService } from '../../services';
 
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { project, loading, updateProject } = useProject(id);
+  const { project, loading, updateProject, refetch } = useProject(id);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -45,12 +45,29 @@ function ProjectDetails() {
     zip: ''
   });
 
+  // Milestone state
+  const [milestones, setMilestones] = useState([]);
+  const [expandedMilestones, setExpandedMilestones] = useState({});
+  const [isAddingMilestone, setIsAddingMilestone] = useState(false);
+  const [newMilestone, setNewMilestone] = useState({ name: '', description: '' });
+  const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
+  const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '' });
+  const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '' });
+
   // Fetch assigned clients
   useEffect(() => {
     if (id) {
       fetchAssignedClients();
     }
   }, [id]);
+
+  // Update milestones when project changes
+  useEffect(() => {
+    if (project?.milestones) {
+      setMilestones(project.milestones);
+    }
+  }, [project]);
 
   // Fetch all clients when search is opened
   useEffect(() => {
@@ -236,6 +253,137 @@ function ProjectDetails() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (window.confirm(`Are you sure you want to delete "${project.title}"?\n\nThis will permanently delete the project and all its milestones, deliverables, and tasks. This action cannot be undone.`)) {
+      try {
+        await projectService.delete(id);
+        navigate('/projects');
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        alert('Failed to delete project. Please try again.');
+      }
+    }
+  };
+
+  // Milestone handlers
+  const handleAddMilestone = async () => {
+    if (!newMilestone.name.trim()) return;
+    
+    try {
+      await milestoneService.createMilestone(id, newMilestone);
+      await refetch();
+      setNewMilestone({ name: '', description: '' });
+      setIsAddingMilestone(false);
+    } catch (error) {
+      console.error('Failed to add milestone:', error);
+      alert('Failed to add milestone');
+    }
+  };
+
+  const handleDeleteMilestone = async (milestoneId) => {
+    if (!window.confirm('Delete this milestone and all its deliverables?')) return;
+    
+    try {
+      await milestoneService.deleteMilestone(id, milestoneId);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to delete milestone:', error);
+      alert('Failed to delete milestone');
+    }
+  };
+
+  const toggleMilestone = (milestoneId) => {
+    setExpandedMilestones(prev => ({
+      ...prev,
+      [milestoneId]: !prev[milestoneId]
+    }));
+  };
+
+  // Deliverable handlers
+  const handleAddDeliverable = async (milestoneId) => {
+    if (!newDeliverable.title.trim()) return;
+    
+    try {
+      await milestoneService.createDeliverable(id, milestoneId, newDeliverable);
+      await refetch();
+      setNewDeliverable({ title: '', description: '' });
+      setAddingDeliverableToMilestone(null);
+    } catch (error) {
+      console.error('Failed to add deliverable:', error);
+      alert('Failed to add deliverable');
+    }
+  };
+
+  const handleToggleDeliverable = async (milestoneId, deliverableId, currentState) => {
+    try {
+      await milestoneService.updateDeliverable(
+        id, 
+        milestoneId, 
+        deliverableId, 
+        { completed: !currentState }
+      );
+      await refetch();
+    } catch (error) {
+      console.error('Failed to update deliverable:', error);
+      alert('Failed to update deliverable');
+    }
+  };
+
+  const handleDeleteDeliverable = async (milestoneId, deliverableId) => {
+    if (!window.confirm('Delete this deliverable and all its tasks?')) return;
+    
+    try {
+      await milestoneService.deleteDeliverable(id, milestoneId, deliverableId);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to delete deliverable:', error);
+      alert('Failed to delete deliverable');
+    }
+  };
+
+  // Task handlers
+  const handleAddTask = async (milestoneId, deliverableId) => {
+    if (!newTask.title.trim()) return;
+    
+    try {
+      await milestoneService.createTask(id, milestoneId, deliverableId, newTask);
+      await refetch();
+      setNewTask({ title: '', description: '' });
+      setAddingTaskToDeliverable(null);
+    } catch (error) {
+      console.error('Failed to add task:', error);
+      alert('Failed to add task');
+    }
+  };
+
+  const handleToggleTask = async (milestoneId, deliverableId, taskId, currentState) => {
+    try {
+      await milestoneService.updateTask(
+        id, 
+        milestoneId, 
+        deliverableId, 
+        taskId, 
+        { completed: !currentState }
+      );
+      await refetch();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      alert('Failed to update task');
+    }
+  };
+
+  const handleDeleteTask = async (milestoneId, deliverableId, taskId) => {
+    if (!window.confirm('Delete this task?')) return;
+    
+    try {
+      await milestoneService.deleteTask(id, milestoneId, deliverableId, taskId);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      alert('Failed to delete task');
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -377,18 +525,32 @@ function ProjectDetails() {
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit();
-                      }}
-                      className="gap-2"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit();
+                        }}
+                        className="gap-2"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject();
+                        }}
+                        className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -601,7 +763,7 @@ function ProjectDetails() {
           </Card>
         </motion.div>
 
-        {/* Deliverables Card */}
+        {/* Milestones Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -618,30 +780,45 @@ function ProjectDetails() {
                   <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
                     <Package className="w-7 h-7 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900">Deliverables</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">Milestones</h2>
                 </CardTitle>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsDeliverablesCollapsed(!isDeliverablesCollapsed);
-                  }}
-                  className="gap-2"
-                >
-                  {isDeliverablesCollapsed ? (
-                    <>
-                      <ChevronDown className="w-4 h-4" />
-                      Expand
-                    </>
-                  ) : (
-                    <>
-                      <ChevronUp className="w-4 h-4" />
-                      Collapse
-                    </>
+                <div className="flex gap-2">
+                  {!isDeliverablesCollapsed && (
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAddingMilestone(true);
+                      }}
+                      className="gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Milestone
+                    </Button>
                   )}
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsDeliverablesCollapsed(!isDeliverablesCollapsed);
+                    }}
+                    className="gap-2"
+                  >
+                    {isDeliverablesCollapsed ? (
+                      <>
+                        <ChevronDown className="w-4 h-4" />
+                        Expand
+                      </>
+                    ) : (
+                      <>
+                        <ChevronUp className="w-4 h-4" />
+                        Collapse
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
 
@@ -654,11 +831,305 @@ function ProjectDetails() {
                   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <CardContent className="pt-0">
-                    <div className="text-center py-12 text-gray-500">
-                      <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">No deliverables yet</p>
-                    </div>
+                  <CardContent className="pt-0 space-y-4">
+                    {milestones.length === 0 && !isAddingMilestone && (
+                      <div className="text-center py-12 text-gray-500">
+                        <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-sm mb-4">No milestones yet</p>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsAddingMilestone(true)}
+                          className="gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Your First Milestone
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Add Milestone Form */}
+                    {isAddingMilestone && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 border border-gray-200 rounded-lg bg-gray-50"
+                      >
+                        <h4 className="font-semibold mb-3">New Milestone</h4>
+                        <div className="space-y-3">
+                          <Input
+                            placeholder="Milestone name"
+                            value={newMilestone.name}
+                            onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newMilestone.name.trim()) {
+                                handleAddMilestone();
+                              }
+                            }}
+                          />
+                          <Textarea
+                            placeholder="Description (optional)"
+                            value={newMilestone.description}
+                            onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
+                            className="min-h-[60px] resize-none"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={handleAddMilestone}
+                              disabled={!newMilestone.name.trim()}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Milestone
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setIsAddingMilestone(false);
+                                setNewMilestone({ name: '', description: '' });
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Milestones List */}
+                    {milestones.map((milestone, mIndex) => (
+                      <motion.div
+                        key={milestone._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border border-gray-200 rounded-lg overflow-hidden bg-white"
+                      >
+                        {/* Milestone Header */}
+                        <div 
+                          className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                          onClick={() => toggleMilestone(milestone._id)}
+                        >
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                              {String.fromCharCode(65 + mIndex)}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-lg">{milestone.name}</h3>
+                              {milestone.description && (
+                                <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteMilestone(milestone._id);
+                              }}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            {expandedMilestones[milestone._id] ? (
+                              <ChevronUp className="w-5 h-5 text-gray-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-gray-400" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Milestone Content */}
+                        <AnimatePresence>
+                          {expandedMilestones[milestone._id] && (
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: 'auto' }}
+                              exit={{ height: 0 }}
+                              transition={{ duration: 0.2 }}
+                              style={{ overflow: 'hidden' }}
+                            >
+                              <div className="p-4 space-y-3">
+                                {/* Deliverables */}
+                                {milestone.deliverables?.map((deliverable, dIndex) => (
+                                  <div key={deliverable._id} className="ml-4 border-l-2 border-gray-200 pl-4">
+                                    <div className="bg-gray-50 rounded-lg p-3">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <div className="flex items-start gap-2 flex-1">
+                                          <button
+                                            onClick={() => handleToggleDeliverable(milestone._id, deliverable._id, deliverable.completed)}
+                                            className="mt-0.5"
+                                          >
+                                            {deliverable.completed ? (
+                                              <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                            ) : (
+                                              <Circle className="w-5 h-5 text-gray-400" />
+                                            )}
+                                          </button>
+                                          <div className="flex-1">
+                                            <h4 className={`font-medium ${deliverable.completed ? 'line-through text-gray-500' : ''}`}>
+                                              Deliverable {dIndex + 1}: {deliverable.title}
+                                            </h4>
+                                            {deliverable.description && (
+                                              <p className="text-sm text-gray-600 mt-1">{deliverable.description}</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => handleDeleteDeliverable(milestone._id, deliverable._id)}
+                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 -mt-1"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+
+                                      {/* Tasks */}
+                                      {deliverable.tasks?.length > 0 && (
+                                        <div className="ml-7 space-y-2 mt-3">
+                                          {deliverable.tasks.map((task, tIndex) => (
+                                            <div key={task._id} className="flex items-start gap-2 text-sm">
+                                              <button
+                                                onClick={() => handleToggleTask(milestone._id, deliverable._id, task._id, task.completed)}
+                                                className="mt-0.5"
+                                              >
+                                                {task.completed ? (
+                                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                ) : (
+                                                  <Circle className="w-4 h-4 text-gray-400" />
+                                                )}
+                                              </button>
+                                              <div className="flex-1">
+                                                <span className={task.completed ? 'line-through text-gray-500' : ''}>
+                                                  Task {tIndex + 1}: {task.title}
+                                                </span>
+                                                {task.description && (
+                                                  <p className="text-xs text-gray-500 mt-1">{task.description}</p>
+                                                )}
+                                              </div>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleDeleteTask(milestone._id, deliverable._id, task._id)}
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* Add Task Form */}
+                                      {addingTaskToDeliverable === deliverable._id ? (
+                                        <div className="ml-7 mt-3 space-y-2">
+                                          <Input
+                                            placeholder="Task title"
+                                            value={newTask.title}
+                                            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && newTask.title.trim()) {
+                                                handleAddTask(milestone._id, deliverable._id);
+                                              }
+                                            }}
+                                            className="text-sm"
+                                          />
+                                          <div className="flex gap-2">
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleAddTask(milestone._id, deliverable._id)}
+                                              disabled={!newTask.title.trim()}
+                                            >
+                                              Add
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setAddingTaskToDeliverable(null);
+                                                setNewTask({ title: '', description: '' });
+                                              }}
+                                            >
+                                              Cancel
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => setAddingTaskToDeliverable(deliverable._id)}
+                                          className="ml-7 mt-2 text-xs"
+                                        >
+                                          <Plus className="w-3 h-3 mr-1" />
+                                          Add Task
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {/* Add Deliverable Form */}
+                                {addingDeliverableToMilestone === milestone._id ? (
+                                  <div className="ml-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                    <h5 className="font-medium text-sm mb-2">New Deliverable</h5>
+                                    <div className="space-y-2">
+                                      <Input
+                                        placeholder="Deliverable title"
+                                        value={newDeliverable.title}
+                                        onChange={(e) => setNewDeliverable({ ...newDeliverable, title: e.target.value })}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && newDeliverable.title.trim()) {
+                                            handleAddDeliverable(milestone._id);
+                                          }
+                                        }}
+                                      />
+                                      <Textarea
+                                        placeholder="Description (optional)"
+                                        value={newDeliverable.description}
+                                        onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })}
+                                        className="min-h-[50px] resize-none text-sm"
+                                      />
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleAddDeliverable(milestone._id)}
+                                          disabled={!newDeliverable.title.trim()}
+                                        >
+                                          Add
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setAddingDeliverableToMilestone(null);
+                                            setNewDeliverable({ title: '', description: '' });
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setAddingDeliverableToMilestone(milestone._id)}
+                                    className="ml-4 gap-2"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                    Add Deliverable
+                                  </Button>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ))}
                   </CardContent>
                 </motion.div>
               )}
