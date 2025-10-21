@@ -25,7 +25,7 @@ function ClientDetails() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedClient, setEditedClient] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Assigned projects state
   const [assignedProjects, setAssignedProjects] = useState([]);
