@@ -98,6 +98,23 @@ function ProjectDetails() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
 
+  // Milestone task state (standalone tasks)
+  const [addingMilestoneTaskTo, setAddingMilestoneTaskTo] = useState(null);
+  const [newMilestoneTask, setNewMilestoneTask] = useState({ 
+    title: '', 
+    description: '', 
+    startDateMode: 'manual',
+    startDate: '', 
+    startDateOffset: 0,
+    startDateOffsetType: 'business',
+    endDateMode: 'manual',
+    endDate: '',
+    endDateOffset: 0,
+    endDateOffsetType: 'business'
+  });
+  const [editingMilestoneTaskId, setEditingMilestoneTaskId] = useState(null);
+  const [editedMilestoneTask, setEditedMilestoneTask] = useState(null);
+
   // Helper function to add business days to a date
   const addBusinessDays = (startDate, days) => {
     let currentDate = new Date(startDate);
@@ -572,6 +589,89 @@ function ProjectDetails() {
     } catch (error) {
       console.error('Failed to delete task:', error);
       alert('Failed to delete task');
+    }
+  };
+
+  // Milestone Task Handlers
+  const handleAddMilestoneTask = async (milestoneId) => {
+    try {
+      await milestoneService.addMilestoneTask(id, milestoneId, newMilestoneTask);
+      setAddingMilestoneTaskTo(null);
+      setNewMilestoneTask({ 
+        title: '', 
+        description: '', 
+        startDateMode: 'manual',
+        startDate: '', 
+        startDateOffset: 0,
+        startDateOffsetType: 'business',
+        endDateMode: 'manual',
+        endDate: '',
+        endDateOffset: 0,
+        endDateOffsetType: 'business'
+      });
+      await refetch();
+    } catch (error) {
+      console.error('Failed to add milestone task:', error);
+      alert(error.response?.data?.message || 'Failed to add milestone task');
+    }
+  };
+
+  const handleToggleMilestoneTask = async (milestoneId, taskId, currentState) => {
+    try {
+      await milestoneService.updateMilestoneTask(id, milestoneId, taskId, { completed: !currentState });
+      await refetch();
+    } catch (error) {
+      console.error('Failed to toggle milestone task:', error);
+      alert('Failed to update task status');
+    }
+  };
+
+  const handleEditMilestoneTask = (task) => {
+    setEditingMilestoneTaskId(task._id);
+    setEditedMilestoneTask({
+      title: task.title,
+      description: task.description || '',
+      startDateMode: task.startDateMode || 'manual',
+      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
+      startDateOffset: task.startDateOffset || 0,
+      startDateOffsetType: task.startDateOffsetType || 'business',
+      endDateMode: task.endDateMode || 'manual',
+      endDate: task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : '',
+      endDateOffset: task.endDateOffset || 0,
+      endDateOffsetType: task.endDateOffsetType || 'business'
+    });
+  };
+
+  const handleSaveEditedMilestoneTask = async () => {
+    try {
+      const milestoneId = project.milestones.find(m => 
+        m.milestoneTasks?.some(t => t._id === editingMilestoneTaskId)
+      )?._id;
+      
+      await milestoneService.updateMilestoneTask(id, milestoneId, editingMilestoneTaskId, editedMilestoneTask);
+      setEditingMilestoneTaskId(null);
+      setEditedMilestoneTask(null);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to update milestone task:', error);
+      alert('Failed to update milestone task');
+    }
+  };
+
+  const handleCancelEditMilestoneTask = () => {
+    setEditingMilestoneTaskId(null);
+    setEditedMilestoneTask(null);
+  };
+
+  const handleDeleteMilestoneTask = async (milestoneId, taskId) => {
+    if (!window.confirm('Delete this task?')) return;
+    
+    try {
+      await milestoneService.deleteMilestoneTask(id, milestoneId, taskId);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to delete milestone task:', error);
+      alert('Failed to delete milestone task');
     }
   };
 
@@ -1769,16 +1869,6 @@ function ProjectDetails() {
                                     <div className="bg-gray-50 rounded-lg p-3">
                                       <div className="flex items-start justify-between mb-2">
                                         <div className="flex items-start gap-2 flex-1">
-                                          <button
-                                            onClick={() => handleToggleDeliverable(milestone._id, deliverable._id, deliverable.completed)}
-                                            className="mt-0.5"
-                                          >
-                                            {deliverable.completed ? (
-                                              <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                            ) : (
-                                              <Circle className="w-5 h-5 text-gray-400" />
-                                            )}
-                                          </button>
                                           <div className="flex-1">
                                             <h4 className={`font-medium ${deliverable.completed ? 'line-through text-gray-500' : ''}`}>
                                               Deliverable {dIndex + 1}: {deliverable.title}
@@ -2308,6 +2398,158 @@ function ProjectDetails() {
                                   </div>
                                 ))}
 
+                                {/* Milestone Tasks (Standalone Tasks) */}
+                                {milestone.milestoneTasks && milestone.milestoneTasks.length > 0 && (
+                                  <div className="ml-4 mt-4 space-y-2">
+                                    <h5 className="text-sm font-semibold text-gray-700">Milestone Tasks</h5>
+                                    {milestone.milestoneTasks.map((task, tIndex) => (
+                                      <div key={task._id} className="pl-4 border-l-2 border-gray-200">
+                                        {editingMilestoneTaskId === task._id ? (
+                                          <div className="p-2 bg-white border border-gray-200 rounded-lg">
+                                            <div className="space-y-2">
+                                              <Input
+                                                placeholder="Task title"
+                                                value={editedMilestoneTask.title}
+                                                onChange={(e) => setEditedMilestoneTask({ ...editedMilestoneTask, title: e.target.value })}
+                                                className="text-sm"
+                                              />
+                                              <Textarea
+                                                placeholder="Description (optional)"
+                                                value={editedMilestoneTask.description}
+                                                onChange={(e) => setEditedMilestoneTask({ ...editedMilestoneTask, description: e.target.value })}
+                                                className="min-h-[50px] resize-none text-xs"
+                                              />
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  size="sm"
+                                                  onClick={handleSaveEditedMilestoneTask}
+                                                  disabled={!editedMilestoneTask.title.trim()}
+                                                >
+                                                  Save
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={handleCancelEditMilestoneTask}
+                                                >
+                                                  Cancel
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-start justify-between">
+                                            <div className="flex items-start gap-2 flex-1">
+                                              <button
+                                                onClick={() => handleToggleMilestoneTask(milestone._id, task._id, task.completed)}
+                                                className="mt-0.5"
+                                              >
+                                                {task.completed ? (
+                                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                ) : (
+                                                  <Circle className="w-4 h-4 text-gray-400" />
+                                                )}
+                                              </button>
+                                              <div className="flex-1">
+                                                <p className={`text-sm ${task.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                                                  {task.title}
+                                                </p>
+                                                {task.description && (
+                                                  <p className="text-xs text-gray-500 mt-1">{task.description}</p>
+                                                )}
+                                                {(task.calculatedStartDate || task.calculatedEndDate || task.startDate || task.endDate) && (
+                                                  <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                                                    {(task.calculatedStartDate || task.startDate) && (
+                                                      <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        <span>Start: {formatDate(task.calculatedStartDate || task.startDate)}</span>
+                                                      </div>
+                                                    )}
+                                                    {(task.calculatedEndDate || task.endDate) && (
+                                                      <div className="flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        <span>End: {formatDate(task.calculatedEndDate || task.endDate)}</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                            <DropdownMenu modal={false}>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="h-6 w-6 p-0"
+                                                >
+                                                  <MoreVertical className="w-4 h-4" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleEditMilestoneTask(task)}>
+                                                  <Edit2 className="w-4 h-4 mr-2" />
+                                                  Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                  onClick={() => handleDeleteMilestoneTask(milestone._id, task._id)}
+                                                  className="text-red-600"
+                                                >
+                                                  <Trash2 className="w-4 h-4 mr-2" />
+                                                  Delete
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Add Milestone Task Form */}
+                                {addingMilestoneTaskTo === milestone._id && (
+                                  <div className="ml-4 mt-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                                    <h5 className="font-medium text-sm mb-2">New Milestone Task</h5>
+                                    <div className="space-y-2">
+                                      <Input
+                                        placeholder="Task title"
+                                        value={newMilestoneTask.title}
+                                        onChange={(e) => setNewMilestoneTask({ ...newMilestoneTask, title: e.target.value })}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && newMilestoneTask.title.trim()) {
+                                            handleAddMilestoneTask(milestone._id);
+                                          }
+                                        }}
+                                      />
+                                      <Textarea
+                                        placeholder="Description (optional)"
+                                        value={newMilestoneTask.description}
+                                        onChange={(e) => setNewMilestoneTask({ ...newMilestoneTask, description: e.target.value })}
+                                        className="min-h-[50px] resize-none text-sm"
+                                      />
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleAddMilestoneTask(milestone._id)}
+                                          disabled={!newMilestoneTask.title.trim()}
+                                        >
+                                          Add
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setAddingMilestoneTaskTo(null);
+                                            setNewMilestoneTask({ title: '', description: '' });
+                                          }}
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
                                 {/* Add Deliverable Form */}
                                 {addingDeliverableToMilestone === milestone._id ? (
                                   <div className="ml-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
@@ -2514,15 +2756,26 @@ function ProjectDetails() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setAddingDeliverableToMilestone(milestone._id)}
-                                    className="ml-4 gap-2"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                    Add Deliverable
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setAddingDeliverableToMilestone(milestone._id)}
+                                      className="gap-2"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Add Deliverable
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setAddingMilestoneTaskTo(milestone._id)}
+                                      className="gap-2"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                      Add Task
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </motion.div>
