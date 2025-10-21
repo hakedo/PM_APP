@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2, Clock, User, UserCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -49,7 +49,19 @@ function ProjectDetails() {
   const [milestones, setMilestones] = useState([]);
   const [expandedMilestones, setExpandedMilestones] = useState({});
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
-  const [newMilestone, setNewMilestone] = useState({ name: '', description: '' });
+  const [newMilestone, setNewMilestone] = useState({ 
+    name: '',
+    abbreviation: '',
+    description: '',
+    teamMember: '',
+    supervisor: '',
+    dateMode: 'auto',
+    endDateMode: 'duration',
+    durationDays: 7,
+    daysAfterPrevious: 0,
+    startDate: '',
+    endDate: ''
+  });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
   const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '' });
   const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
@@ -272,7 +284,19 @@ function ProjectDetails() {
     try {
       await milestoneService.createMilestone(id, newMilestone);
       await refetch();
-      setNewMilestone({ name: '', description: '' });
+      setNewMilestone({ 
+        name: '',
+        abbreviation: '',
+        description: '',
+        teamMember: '',
+        supervisor: '',
+        dateMode: 'auto',
+        endDateMode: 'duration',
+        durationDays: 7,
+        daysAfterPrevious: 0,
+        startDate: '',
+        endDate: ''
+      });
       setIsAddingMilestone(false);
     } catch (error) {
       console.error('Failed to add milestone:', error);
@@ -784,17 +808,17 @@ function ProjectDetails() {
                 </CardTitle>
 
                 <div className="flex gap-2">
-                  {!isDeliverablesCollapsed && (
+                  {!isDeliverablesCollapsed && milestones.length > 0 && (
                     <Button
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsAddingMilestone(true);
                       }}
-                      className="gap-2"
+                      className="gap-1.5 h-8 text-xs font-medium"
                     >
-                      <Plus className="w-4 h-4" />
-                      Add Milestone
+                      <Plus className="w-3.5 h-3.5" />
+                      New
                     </Button>
                   )}
                   <Button
@@ -804,16 +828,16 @@ function ProjectDetails() {
                       e.stopPropagation();
                       setIsDeliverablesCollapsed(!isDeliverablesCollapsed);
                     }}
-                    className="gap-2"
+                    className="gap-1.5 h-8 text-xs"
                   >
                     {isDeliverablesCollapsed ? (
                       <>
-                        <ChevronDown className="w-4 h-4" />
+                        <ChevronDown className="w-3.5 h-3.5" />
                         Expand
                       </>
                     ) : (
                       <>
-                        <ChevronUp className="w-4 h-4" />
+                        <ChevronUp className="w-3.5 h-3.5" />
                         Collapse
                       </>
                     )}
@@ -831,18 +855,20 @@ function ProjectDetails() {
                   transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                   style={{ overflow: 'hidden' }}
                 >
-                  <CardContent className="pt-0 space-y-4">
+                  <CardContent className="pt-0 space-y-3">
                     {milestones.length === 0 && !isAddingMilestone && (
-                      <div className="text-center py-12 text-gray-500">
-                        <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                        <p className="text-sm mb-4">No milestones yet</p>
+                      <div className="text-center py-16 text-gray-500">
+                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">No milestones yet</p>
+                        <p className="text-xs text-gray-400 mb-6">Get started by creating your first milestone</p>
                         <Button
-                          variant="outline"
                           onClick={() => setIsAddingMilestone(true)}
-                          className="gap-2"
+                          className="gap-2 h-9 text-sm"
                         >
                           <Plus className="w-4 h-4" />
-                          Add Your First Milestone
+                          Create Milestone
                         </Button>
                       </div>
                     )}
@@ -852,52 +878,211 @@ function ProjectDetails() {
                       <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-4 border border-gray-200 rounded-lg bg-gray-50"
+                        className="border border-gray-200 rounded-lg bg-white hover:shadow-sm transition-shadow"
                       >
-                        <h4 className="font-semibold mb-3">New Milestone</h4>
-                        <div className="space-y-3">
-                          <Input
-                            placeholder="Milestone name"
-                            value={newMilestone.name}
-                            onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newMilestone.name.trim()) {
-                                handleAddMilestone();
-                              }
-                            }}
-                          />
-                          <Textarea
-                            placeholder="Description (optional)"
-                            value={newMilestone.description}
-                            onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
-                            className="min-h-[60px] resize-none"
-                          />
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={handleAddMilestone}
-                              disabled={!newMilestone.name.trim()}
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Add Milestone
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setIsAddingMilestone(false);
-                                setNewMilestone({ name: '', description: '' });
-                              }}
-                            >
-                              Cancel
-                            </Button>
+                        {/* Header */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <h4 className="text-sm font-medium text-gray-900">New Milestone</h4>
+                        </div>
+                        
+                        {/* Form Content - Two Column Layout */}
+                        <div className="p-4 flex gap-4">
+                          {/* Left Column - Name & Description */}
+                          <div className="flex-1 space-y-3">
+                            {/* Name and Abbreviation Row */}
+                            <div className="flex gap-3">
+                              <div className="flex-1 space-y-1.5">
+                                <Label htmlFor="milestone-name" className="text-xs font-medium text-gray-600">
+                                  Name
+                                </Label>
+                                <Input
+                                  id="milestone-name"
+                                  placeholder="Enter milestone name"
+                                  value={newMilestone.name}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, name: e.target.value })}
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="w-24 space-y-1.5">
+                                <Label htmlFor="milestone-abbr" className="text-xs font-medium text-gray-600">
+                                  Abbr.
+                                </Label>
+                                <Input
+                                  id="milestone-abbr"
+                                  placeholder="ABC"
+                                  maxLength={5}
+                                  value={newMilestone.abbreviation}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, abbreviation: e.target.value.toUpperCase() })}
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 uppercase text-center font-mono"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Description - Shorter */}
+                            <div className="space-y-1.5">
+                              <Label htmlFor="milestone-description" className="text-xs font-medium text-gray-600">
+                                Description <span className="text-gray-400 font-normal">(optional)</span>
+                              </Label>
+                              <Textarea
+                                id="milestone-description"
+                                placeholder="Add a description..."
+                                value={newMilestone.description}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
+                                className="min-h-[60px] resize-none border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* Team Assignment Row */}
+                            <div className="flex gap-3">
+                              <div className="flex-1 space-y-1.5">
+                                <Label htmlFor="team-member" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                                  <User className="w-3 h-3" />
+                                  Team Member
+                                </Label>
+                                <Input
+                                  id="team-member"
+                                  placeholder="Assign team member"
+                                  value={newMilestone.teamMember}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, teamMember: e.target.value })}
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                <Label htmlFor="supervisor" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                                  <UserCheck className="w-3 h-3" />
+                                  Supervisor
+                                </Label>
+                                <Input
+                                  id="supervisor"
+                                  placeholder="Assign supervisor"
+                                  value={newMilestone.supervisor}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, supervisor: e.target.value })}
+                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Right Column - Date Configuration */}
+                          <div className="w-64 space-y-3">
+                            {/* Start Date Card */}
+                            <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                                <span className="text-xs font-medium text-gray-700">Start Date</span>
+                              </div>
+                              
+                              <select
+                                value={newMilestone.dateMode}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, dateMode: e.target.value })}
+                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              >
+                                <option value="auto">Auto</option>
+                                <option value="manual">Manual</option>
+                              </select>
+                              
+                              {newMilestone.dateMode === 'auto' ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={newMilestone.daysAfterPrevious}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
+                                  placeholder="Gap days"
+                                  className="h-8 text-xs border-gray-200"
+                                />
+                              ) : (
+                                <Input
+                                  type="date"
+                                  value={newMilestone.startDate}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, startDate: e.target.value })}
+                                  className="h-8 text-xs border-gray-200"
+                                />
+                              )}
+                            </div>
+
+                            {/* End Date Card */}
+                            <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Clock className="w-3.5 h-3.5 text-gray-500" />
+                                <span className="text-xs font-medium text-gray-700">End Date</span>
+                              </div>
+                              
+                              <select
+                                value={newMilestone.endDateMode}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, endDateMode: e.target.value })}
+                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              >
+                                <option value="duration">Duration</option>
+                                <option value="manual">Manual</option>
+                              </select>
+                              
+                              {newMilestone.endDateMode === 'duration' ? (
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={newMilestone.durationDays}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
+                                  placeholder="Duration"
+                                  className="h-8 text-xs border-gray-200"
+                                />
+                              ) : (
+                                <Input
+                                  type="date"
+                                  value={newMilestone.endDate}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, endDate: e.target.value })}
+                                  className="h-8 text-xs border-gray-200"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex gap-2 justify-end rounded-b-lg">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddingMilestone(false);
+                              setNewMilestone({ 
+                                name: '',
+                                abbreviation: '',
+                                description: '',
+                                teamMember: '',
+                                supervisor: '',
+                                dateMode: 'auto',
+                                endDateMode: 'duration',
+                                durationDays: 7,
+                                daysAfterPrevious: 0,
+                                startDate: '',
+                                endDate: ''
+                              });
+                            }}
+                            className="h-8 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleAddMilestone}
+                            disabled={!newMilestone.name.trim()}
+                            className="h-8 text-xs gap-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Milestone
+                          </Button>
                         </div>
                       </motion.div>
                     )}
 
                     {/* Milestones List */}
-                    {milestones.map((milestone, mIndex) => (
+                    {milestones.map((milestone, mIndex) => {
+                      console.log('Milestone data:', { 
+                        name: milestone.name, 
+                        abbreviation: milestone.abbreviation,
+                        hasAbbr: !!milestone.abbreviation 
+                      });
+                      return (
                       <motion.div
                         key={milestone._id}
                         initial={{ opacity: 0, y: 10 }}
@@ -906,37 +1091,69 @@ function ProjectDetails() {
                       >
                         {/* Milestone Header */}
                         <div 
-                          className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors flex items-center justify-between"
+                          className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                           onClick={() => toggleMilestone(milestone._id)}
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                              {String.fromCharCode(65 + mIndex)}
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-lg">{milestone.name}</h3>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                                  {milestone.abbreviation || String.fromCharCode(65 + mIndex)}
+                                </span>
+                                <h3 className="font-semibold text-lg">{milestone.name}</h3>
+                              </div>
                               {milestone.description && (
                                 <p className="text-sm text-gray-600 mt-1">{milestone.description}</p>
                               )}
+                              {/* Date Info */}
+                              {(milestone.calculatedStartDate || milestone.calculatedEndDate) && (
+                                <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                                    {milestone.calculatedStartDate && (
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        <span>Start: {new Date(milestone.calculatedStartDate).toLocaleDateString()}</span>
+                                      </div>
+                                    )}
+                                    {milestone.calculatedEndDate && (
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="w-3 h-3" />
+                                        <span>End: {new Date(milestone.calculatedEndDate).toLocaleDateString()}</span>
+                                      </div>
+                                    )}
+                                    {milestone.calculatedStartDate && milestone.calculatedEndDate && (
+                                      <div className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>
+                                          {Math.ceil((new Date(milestone.calculatedEndDate) - new Date(milestone.calculatedStartDate)) / (1000 * 60 * 60 * 24))} days
+                                        </span>
+                                      </div>
+                                    )}
+                                    {milestone.daysAfterPrevious > 0 && (
+                                      <div className="flex items-center gap-1 text-amber-600">
+                                        <span>+{milestone.daysAfterPrevious} day gap</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteMilestone(milestone._id);
-                              }}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                            {expandedMilestones[milestone._id] ? (
-                              <ChevronUp className="w-5 h-5 text-gray-400" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5 text-gray-400" />
-                            )}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteMilestone(milestone._id);
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                              {expandedMilestones[milestone._id] ? (
+                                <ChevronUp className="w-5 h-5 text-gray-400" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-400" />
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -1129,7 +1346,8 @@ function ProjectDetails() {
                           )}
                         </AnimatePresence>
                       </motion.div>
-                    ))}
+                    );
+                    })}
                   </CardContent>
                 </motion.div>
               )}

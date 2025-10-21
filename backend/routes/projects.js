@@ -1,5 +1,6 @@
 import express from 'express';
 import { Project, ClientProjectAssignment, Milestone, Deliverable, Task } from '../models/index.js';
+import { recalculateMilestoneDates, validateMilestoneDates } from '../utils/milestoneUtils.js';
 
 const router = express.Router();
 
@@ -186,23 +187,73 @@ router.post('/:id/milestones', async (req, res, next) => {
       });
     }
 
-    // Get the count of existing milestones to set the order
-    const milestoneCount = await Milestone.countDocuments({ projectId: req.params.id });
+    // Get existing milestones to determine previous milestone's end date
+    const existingMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const milestoneCount = existingMilestones.length;
+    
+    // Determine previous end date (project start if first milestone, otherwise previous milestone's end)
+    let previousEndDate = project.startDate;
+    if (milestoneCount > 0) {
+      const lastMilestone = existingMilestones[milestoneCount - 1];
+      previousEndDate = lastMilestone.calculatedEndDate || lastMilestone.endDate || project.startDate;
+    }
 
-    const milestone = new Milestone({
+    // Create milestone with date fields
+    const milestoneData = {
       name: req.body.name,
+      abbreviation: req.body.abbreviation,
       description: req.body.description,
+      teamMember: req.body.teamMember,
+      supervisor: req.body.supervisor,
       projectId: req.params.id,
-      order: milestoneCount
-    });
+      order: milestoneCount,
+      dateMode: req.body.dateMode || 'auto',
+      endDateMode: req.body.endDateMode || 'duration',
+      durationDays: req.body.durationDays || 1,
+      daysAfterPrevious: req.body.daysAfterPrevious || 0
+    };
+
+    // Add manual dates if provided
+    if (req.body.startDate) milestoneData.startDate = req.body.startDate;
+    if (req.body.endDate) milestoneData.endDate = req.body.endDate;
+
+    // Validate dates
+    const validation = validateMilestoneDates(milestoneData, previousEndDate, project.endDate);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: validation.errors.join(', ')
+      });
+    }
+
+    const milestone = new Milestone(milestoneData);
+    
+    // Calculate dates before saving
+    const calculated = recalculateMilestoneDates([milestone.toObject()], previousEndDate);
+    milestone.calculatedStartDate = calculated[0].calculatedStartDate;
+    milestone.calculatedEndDate = calculated[0].calculatedEndDate;
 
     await milestone.save();
 
+    // Recalculate all subsequent milestones
+    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const recalculated = recalculateMilestoneDates(
+      allMilestones.map(m => m.toObject()), 
+      project.startDate
+    );
+
+    // Update all milestones with recalculated dates
+    for (let i = 0; i < allMilestones.length; i++) {
+      allMilestones[i].calculatedStartDate = recalculated[i].calculatedStartDate;
+      allMilestones[i].calculatedEndDate = recalculated[i].calculatedEndDate;
+      await allMilestones[i].save();
+    }
+
     // Return the project with all milestones populated
-    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const updatedMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
     const projectWithMilestones = {
       ...project.toObject(),
-      milestones: milestones.map(m => ({ ...m.toObject(), deliverables: [] }))
+      milestones: updatedMilestones.map(m => ({ ...m.toObject(), deliverables: [] }))
     };
 
     res.status(201).json(projectWithMilestones);
@@ -240,11 +291,37 @@ router.put('/:id/milestones/:milestoneId', async (req, res, next) => {
       });
     }
 
+    // Update basic fields
     if (req.body.name !== undefined) milestone.name = req.body.name;
+    if (req.body.abbreviation !== undefined) milestone.abbreviation = req.body.abbreviation;
     if (req.body.description !== undefined) milestone.description = req.body.description;
+    if (req.body.teamMember !== undefined) milestone.teamMember = req.body.teamMember;
+    if (req.body.supervisor !== undefined) milestone.supervisor = req.body.supervisor;
     if (req.body.order !== undefined) milestone.order = req.body.order;
+    
+    // Update date fields
+    if (req.body.dateMode !== undefined) milestone.dateMode = req.body.dateMode;
+    if (req.body.endDateMode !== undefined) milestone.endDateMode = req.body.endDateMode;
+    if (req.body.durationDays !== undefined) milestone.durationDays = req.body.durationDays;
+    if (req.body.daysAfterPrevious !== undefined) milestone.daysAfterPrevious = req.body.daysAfterPrevious;
+    if (req.body.startDate !== undefined) milestone.startDate = req.body.startDate;
+    if (req.body.endDate !== undefined) milestone.endDate = req.body.endDate;
 
     await milestone.save();
+
+    // Recalculate all milestones after any date change
+    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const recalculated = recalculateMilestoneDates(
+      allMilestones.map(m => m.toObject()), 
+      project.startDate
+    );
+
+    // Update all milestones with recalculated dates
+    for (let i = 0; i < allMilestones.length; i++) {
+      allMilestones[i].calculatedStartDate = recalculated[i].calculatedStartDate;
+      allMilestones[i].calculatedEndDate = recalculated[i].calculatedEndDate;
+      await allMilestones[i].save();
+    }
 
     // Return the project with all milestones populated
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
