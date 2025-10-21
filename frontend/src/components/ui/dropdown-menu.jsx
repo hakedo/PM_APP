@@ -1,14 +1,16 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "../../lib/utils";
 
 const DropdownMenu = ({ children }) => {
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef(null);
 
   return (
-    <div className="relative inline-block text-left z-50">
+    <div ref={triggerRef} className="relative inline-block text-left">
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
-          return React.cloneElement(child, { open, setOpen });
+          return React.cloneElement(child, { open, setOpen, triggerRef });
         }
         return child;
       })}
@@ -48,12 +50,34 @@ const DropdownMenuTrigger = React.forwardRef(
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
 const DropdownMenuContent = React.forwardRef(
-  ({ className, align = "start", children, open, setOpen, ...props }, ref) => {
+  ({ className, align = "start", children, open, setOpen, triggerRef, ...props }, ref) => {
     const contentRef = React.useRef(null);
+    const [position, setPosition] = React.useState({ top: 0, left: 0 });
+
+    React.useEffect(() => {
+      if (open && triggerRef?.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        let left = rect.left + scrollLeft;
+        const top = rect.bottom + scrollTop + 8; // 8px offset
+        
+        // Adjust horizontal position based on align
+        if (align === 'end') {
+          left = rect.right + scrollLeft;
+        } else if (align === 'center') {
+          left = rect.left + scrollLeft + rect.width / 2;
+        }
+        
+        setPosition({ top, left });
+      }
+    }, [open, triggerRef, align]);
 
     React.useEffect(() => {
       const handleClickOutside = (event) => {
-        if (contentRef.current && !contentRef.current.contains(event.target)) {
+        if (contentRef.current && !contentRef.current.contains(event.target) &&
+            triggerRef?.current && !triggerRef.current.contains(event.target)) {
           setOpen?.(false);
         }
       };
@@ -64,21 +88,27 @@ const DropdownMenuContent = React.forwardRef(
           document.removeEventListener("mousedown", handleClickOutside);
         };
       }
-    }, [open, setOpen]);
+    }, [open, setOpen, triggerRef]);
 
     if (!open) return null;
 
     const alignmentClasses = {
-      start: "left-0",
-      end: "right-0",
-      center: "left-1/2 -translate-x-1/2",
+      start: "",
+      end: "-translate-x-full",
+      center: "-translate-x-1/2",
     };
 
-    return (
+    const content = (
       <div
         ref={contentRef}
+        style={{
+          position: 'absolute',
+          top: `${position.top}px`,
+          left: `${position.left}px`,
+          zIndex: 9999,
+        }}
         className={cn(
-          "absolute z-[100] mt-2 min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white p-1 shadow-lg animate-in fade-in-0 zoom-in-95",
+          "min-w-[8rem] overflow-hidden rounded-md border border-gray-200 bg-white p-1 shadow-lg animate-in fade-in-0 zoom-in-95",
           alignmentClasses[align],
           className
         )}
@@ -92,6 +122,8 @@ const DropdownMenuContent = React.forwardRef(
         })}
       </div>
     );
+
+    return createPortal(content, document.body);
   }
 );
 DropdownMenuContent.displayName = "DropdownMenuContent";

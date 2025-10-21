@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2, Clock, User, UserCheck } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2, Clock, User, UserCheck, MoreVertical } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useProject } from '../../hooks';
 import { clientService, assignmentService, milestoneService, projectService } from '../../services';
 
@@ -49,6 +50,8 @@ function ProjectDetails() {
   const [milestones, setMilestones] = useState([]);
   const [expandedMilestones, setExpandedMilestones] = useState({});
   const [isAddingMilestone, setIsAddingMilestone] = useState(false);
+  const [editingMilestoneId, setEditingMilestoneId] = useState(null);
+  const [editedMilestone, setEditedMilestone] = useState(null);
   const [newMilestone, setNewMilestone] = useState({ 
     name: '',
     abbreviation: '',
@@ -314,6 +317,47 @@ function ProjectDetails() {
       console.error('Failed to delete milestone:', error);
       alert('Failed to delete milestone');
     }
+  };
+
+  const handleEditMilestone = (milestone) => {
+    setEditingMilestoneId(milestone._id);
+    setEditedMilestone({
+      name: milestone.name,
+      abbreviation: milestone.abbreviation || '',
+      description: milestone.description || '',
+      teamMember: milestone.teamMember || '',
+      supervisor: milestone.supervisor || '',
+      dateMode: milestone.dateMode,
+      endDateMode: milestone.endDateMode,
+      durationDays: milestone.durationDays,
+      daysAfterPrevious: milestone.daysAfterPrevious,
+      startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
+      endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : ''
+    });
+    // Expand the milestone being edited
+    setExpandedMilestones(prev => ({
+      ...prev,
+      [milestone._id]: true
+    }));
+  };
+
+  const handleSaveEditedMilestone = async () => {
+    if (!editedMilestone.name.trim()) return;
+    
+    try {
+      await milestoneService.updateMilestone(id, editingMilestoneId, editedMilestone);
+      await refetch();
+      setEditingMilestoneId(null);
+      setEditedMilestone(null);
+    } catch (error) {
+      console.error('Failed to update milestone:', error);
+      alert('Failed to update milestone');
+    }
+  };
+
+  const handleCancelEditMilestone = () => {
+    setEditingMilestoneId(null);
+    setEditedMilestone(null);
   };
 
   const toggleMilestone = (milestoneId) => {
@@ -1089,7 +1133,170 @@ function ProjectDetails() {
                         animate={{ opacity: 1, y: 0 }}
                         className="border border-gray-200 rounded-lg overflow-hidden bg-white"
                       >
-                        {/* Milestone Header */}
+                        {/* Milestone Header - Edit or View Mode */}
+                        {editingMilestoneId === milestone._id ? (
+                          // Edit Mode
+                          <div className="p-4 bg-blue-50 border-l-4 border-blue-500">
+                            <h4 className="text-sm font-medium text-gray-900 mb-3">Edit Milestone</h4>
+                            <div className="space-y-3 bg-white p-3 rounded-lg">
+                              {/* Name and Abbreviation */}
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Label htmlFor="edit-name" className="text-xs">Name</Label>
+                                  <Input
+                                    id="edit-name"
+                                    value={editedMilestone.name}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, name: e.target.value })}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div className="w-20">
+                                  <Label htmlFor="edit-abbr" className="text-xs">Abbr.</Label>
+                                  <Input
+                                    id="edit-abbr"
+                                    value={editedMilestone.abbreviation}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, abbreviation: e.target.value.toUpperCase() })}
+                                    maxLength={5}
+                                    className="h-8 text-sm text-center uppercase"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              <div>
+                                <Label htmlFor="edit-desc" className="text-xs">Description</Label>
+                                <Textarea
+                                  id="edit-desc"
+                                  value={editedMilestone.description}
+                                  onChange={(e) => setEditedMilestone({ ...editedMilestone, description: e.target.value })}
+                                  className="min-h-[50px] text-sm"
+                                />
+                              </div>
+
+                              {/* Team Members */}
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Label htmlFor="edit-team" className="text-xs">Team Member</Label>
+                                  <Input
+                                    id="edit-team"
+                                    value={editedMilestone.teamMember}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, teamMember: e.target.value })}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <Label htmlFor="edit-supervisor" className="text-xs">Supervisor</Label>
+                                  <Input
+                                    id="edit-supervisor"
+                                    value={editedMilestone.supervisor}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, supervisor: e.target.value })}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Date Configuration */}
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Label className="text-xs">Start Date Mode</Label>
+                                  <select
+                                    value={editedMilestone.dateMode}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, dateMode: e.target.value })}
+                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                  >
+                                    <option value="auto">Auto (from previous)</option>
+                                    <option value="manual">Manual</option>
+                                  </select>
+                                </div>
+                                <div className="flex-1">
+                                  {editedMilestone.dateMode === 'auto' ? (
+                                    <>
+                                      <Label className="text-xs">Days After Previous</Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={editedMilestone.daysAfterPrevious}
+                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
+                                        className="h-8 text-sm"
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Label className="text-xs">Start Date</Label>
+                                      <Input
+                                        type="date"
+                                        value={editedMilestone.startDate}
+                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, startDate: e.target.value })}
+                                        className="h-8 text-sm"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Label className="text-xs">End Date Mode</Label>
+                                  <select
+                                    value={editedMilestone.endDateMode}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, endDateMode: e.target.value })}
+                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                  >
+                                    <option value="duration">Duration</option>
+                                    <option value="manual">Manual</option>
+                                  </select>
+                                </div>
+                                <div className="flex-1">
+                                  {editedMilestone.endDateMode === 'duration' ? (
+                                    <>
+                                      <Label className="text-xs">Duration (days)</Label>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={editedMilestone.durationDays}
+                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, durationDays: parseInt(e.target.value) || 1 })}
+                                        className="h-8 text-sm"
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Label className="text-xs">End Date</Label>
+                                      <Input
+                                        type="date"
+                                        value={editedMilestone.endDate}
+                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, endDate: e.target.value })}
+                                        className="h-8 text-sm"
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-2 pt-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveEditedMilestone}
+                                  disabled={!editedMilestone.name.trim()}
+                                  className="flex-1"
+                                >
+                                  <Save className="w-3 h-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleCancelEditMilestone}
+                                  className="flex-1"
+                                >
+                                  <X className="w-3 h-3 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // View Mode
                         <div 
                           className="p-4 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
                           onClick={() => toggleMilestone(milestone._id)}
@@ -1148,17 +1355,46 @@ function ProjectDetails() {
                                 )}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteMilestone(milestone._id);
-                                }}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <DropdownMenu modal={false}>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="h-8 w-8 p-0 hover:bg-gray-200"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent 
+                                  align="end" 
+                                  side="bottom"
+                                  sideOffset={5}
+                                  className="w-32"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditMilestone(milestone);
+                                    }}
+                                    className="cursor-pointer"
+                                  >
+                                    <Edit2 className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteMilestone(milestone._id);
+                                    }}
+                                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               {expandedMilestones[milestone._id] ? (
                                 <ChevronUp className="w-5 h-5 text-gray-400" />
                               ) : (
@@ -1167,6 +1403,7 @@ function ProjectDetails() {
                             </div>
                           </div>
                         </div>
+                        )}
 
                         {/* Milestone Content */}
                         <AnimatePresence>
