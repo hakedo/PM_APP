@@ -432,8 +432,20 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
       description: req.body.description,
       milestoneId: req.params.milestoneId,
       completed: false,
-      order: deliverableCount
+      order: deliverableCount,
+      startDate: req.body.startDate,
+      endDate: req.body.endDate
     });
+
+    // Validate dates are within milestone bounds
+    try {
+      await deliverable.validateDatesWithinMilestone();
+    } catch (validationError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: validationError.message
+      });
+    }
 
     await deliverable.save();
 
@@ -508,6 +520,20 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (re
     if (req.body.description !== undefined) deliverable.description = req.body.description;
     if (req.body.completed !== undefined) deliverable.completed = req.body.completed;
     if (req.body.order !== undefined) deliverable.order = req.body.order;
+    if (req.body.startDate !== undefined) deliverable.startDate = req.body.startDate;
+    if (req.body.endDate !== undefined) deliverable.endDate = req.body.endDate;
+
+    // Validate dates are within milestone bounds if dates are being updated
+    if (req.body.startDate !== undefined || req.body.endDate !== undefined) {
+      try {
+        await deliverable.validateDatesWithinMilestone();
+      } catch (validationError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          message: validationError.message
+        });
+      }
+    }
 
     await deliverable.save();
 

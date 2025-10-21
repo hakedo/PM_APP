@@ -63,7 +63,7 @@ function ProjectDetails() {
     endDate: ''
   });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
-  const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '' });
+  const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '', startDate: '', endDate: '' });
   const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
 
@@ -330,11 +330,11 @@ function ProjectDetails() {
     try {
       await milestoneService.createDeliverable(id, milestoneId, newDeliverable);
       await refetch();
-      setNewDeliverable({ title: '', description: '' });
+      setNewDeliverable({ title: '', description: '', startDate: '', endDate: '' });
       setAddingDeliverableToMilestone(null);
     } catch (error) {
       console.error('Failed to add deliverable:', error);
-      alert('Failed to add deliverable');
+      alert(error.response?.data?.message || 'Failed to add deliverable');
     }
   };
 
@@ -1191,6 +1191,30 @@ function ProjectDetails() {
                                             {deliverable.description && (
                                               <p className="text-sm text-gray-600 mt-1">{deliverable.description}</p>
                                             )}
+                                            {(deliverable.startDate || deliverable.endDate) && (
+                                              <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                                                {deliverable.startDate && (
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" />
+                                                    <span>Start: {new Date(deliverable.startDate).toLocaleDateString()}</span>
+                                                  </div>
+                                                )}
+                                                {deliverable.endDate && (
+                                                  <div className="flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" />
+                                                    <span>End: {new Date(deliverable.endDate).toLocaleDateString()}</span>
+                                                  </div>
+                                                )}
+                                                {deliverable.startDate && deliverable.endDate && (
+                                                  <div className="flex items-center gap-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span>
+                                                      {Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))} days
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                         <Button
@@ -1309,6 +1333,48 @@ function ProjectDetails() {
                                         onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })}
                                         className="min-h-[50px] resize-none text-sm"
                                       />
+                                      
+                                      {/* Date Range */}
+                                      <div className="flex gap-2">
+                                        <div className="flex-1 space-y-1">
+                                          <Label htmlFor="deliverable-start" className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            Start Date <span className="text-gray-400 font-normal">(optional)</span>
+                                          </Label>
+                                          <Input
+                                            id="deliverable-start"
+                                            type="date"
+                                            value={newDeliverable.startDate}
+                                            onChange={(e) => setNewDeliverable({ ...newDeliverable, startDate: e.target.value })}
+                                            min={milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : ''}
+                                            max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
+                                            className="text-xs"
+                                          />
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                          <Label htmlFor="deliverable-end" className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            End Date <span className="text-gray-400 font-normal">(optional)</span>
+                                          </Label>
+                                          <Input
+                                            id="deliverable-end"
+                                            type="date"
+                                            value={newDeliverable.endDate}
+                                            onChange={(e) => setNewDeliverable({ ...newDeliverable, endDate: e.target.value })}
+                                            min={newDeliverable.startDate || (milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : '')}
+                                            max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
+                                            className="text-xs"
+                                          />
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Date Range Info */}
+                                      {milestone.calculatedStartDate && milestone.calculatedEndDate && (
+                                        <p className="text-xs text-gray-500 italic">
+                                          Dates must be within milestone range: {new Date(milestone.calculatedStartDate).toLocaleDateString()} - {new Date(milestone.calculatedEndDate).toLocaleDateString()}
+                                        </p>
+                                      )}
+                                      
                                       <div className="flex gap-2">
                                         <Button
                                           size="sm"
@@ -1322,7 +1388,7 @@ function ProjectDetails() {
                                           variant="outline"
                                           onClick={() => {
                                             setAddingDeliverableToMilestone(null);
-                                            setNewDeliverable({ title: '', description: '' });
+                                            setNewDeliverable({ title: '', description: '', startDate: '', endDate: '' });
                                           }}
                                         >
                                           Cancel
