@@ -6,5 +6,6 @@ import Milestone from './Milestone.js';
 import Deliverable from './Deliverable.js';
 import Task from './Task.js';
 import TeamMember from './TeamMember.js';
+import TeamRole from './TeamRole.js';
 
-export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember };
+export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole };

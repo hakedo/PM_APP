@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Users, Loader2, Mail, Phone, Briefcase, Building2, MoreVertical, Edit2, Trash2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { Textarea } from '../../components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu';
 import { useTeam } from '../../hooks';
+import { teamRoleService } from '../../services';
 
 // Format phone number to (XXX) XXX-XXXX
 const formatPhoneNumber = (value) => {
@@ -74,6 +76,45 @@ function Team() {
     department: '',
     status: 'active'
   });
+
+  // Role management state
+  const [isManagingRoles, setIsManagingRoles] = useState(false);
+  const [teamRoles, setTeamRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [isAddingRole, setIsAddingRole] = useState(false);
+  const [isEditingRole, setIsEditingRole] = useState(false);
+  const [editingRole, setEditingRole] = useState(null);
+  const [isSubmittingRole, setIsSubmittingRole] = useState(false);
+  const [newRole, setNewRole] = useState({
+    name: '',
+    description: '',
+    isActive: true
+  });
+
+  const fetchTeamRoles = async () => {
+    try {
+      setLoadingRoles(true);
+      console.log('Fetching team roles...');
+      const data = await teamRoleService.getAll();
+      console.log('Team roles received:', data);
+      console.log('Team roles type:', typeof data);
+      console.log('Is array?:', Array.isArray(data));
+      setTeamRoles(data || []);
+    } catch (error) {
+      console.error('Failed to fetch team roles:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      setTeamRoles([]);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
+  // Fetch team roles when managing roles dialog opens
+  useEffect(() => {
+    if (isManagingRoles) {
+      fetchTeamRoles();
+    }
+  }, [isManagingRoles]);
 
   const handleAddMember = () => {
     setIsAddingMember(true);
@@ -159,6 +200,73 @@ function Team() {
     }
   };
 
+  // Role management functions
+  const handleAddRole = () => {
+    setIsAddingRole(true);
+  };
+
+  const handleCloseRoleModal = () => {
+    setIsAddingRole(false);
+    setIsEditingRole(false);
+    setEditingRole(null);
+    setNewRole({
+      name: '',
+      description: '',
+      isActive: true
+    });
+  };
+
+  const handleRoleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewRole(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmitRole = async (e) => {
+    e.preventDefault();
+    if (isSubmittingRole) return;
+    
+    setIsSubmittingRole(true);
+    try {
+      if (isEditingRole) {
+        await teamRoleService.update(editingRole._id, newRole);
+      } else {
+        await teamRoleService.create(newRole);
+      }
+      handleCloseRoleModal();
+      await fetchTeamRoles();
+    } catch (error) {
+      console.error('Failed to save team role:', error);
+      alert(`Failed to save team role: ${error.response?.data?.message || error.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmittingRole(false);
+    }
+  };
+
+  const handleEditRole = (role) => {
+    setEditingRole(role);
+    setNewRole({
+      name: role.name,
+      description: role.description || '',
+      isActive: role.isActive
+    });
+    setIsEditingRole(true);
+  };
+
+  const handleDeleteRole = async (roleId, roleName) => {
+    if (window.confirm(`Are you sure you want to delete "${roleName}"?`)) {
+      try {
+        await teamRoleService.delete(roleId);
+        await fetchTeamRoles();
+      } catch (error) {
+        console.error('Failed to delete team role:', error);
+        alert(`Failed to delete team role: ${error.response?.data?.message || error.message || 'Unknown error'}`);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -181,12 +289,20 @@ function Team() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Team</h1>
             <p className="text-gray-600">Manage your team members</p>
           </div>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button onClick={handleAddMember} size="lg" className="gap-2">
-              <Plus className="w-4 h-4" />
-              New Member
-            </Button>
-          </motion.div>
+          <div className="flex gap-3">
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button onClick={() => setIsManagingRoles(true)} size="lg" variant="outline" className="gap-2">
+                <Briefcase className="w-4 h-4" />
+                Manage Roles
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <Button onClick={handleAddMember} size="lg" className="gap-2">
+                <Plus className="w-4 h-4" />
+                New Member
+              </Button>
+            </motion.div>
+          </div>
         </div>
 
         {/* Team Grid */}
@@ -437,6 +553,154 @@ function Team() {
                   </>
                 ) : (
                   isEditingMember ? 'Update Member' : 'Create Member'
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Roles Dialog */}
+      <Dialog open={isManagingRoles} onOpenChange={setIsManagingRoles}>
+        <DialogContent className="max-w-3xl h-[600px] flex flex-col" onClose={() => setIsManagingRoles(false)}>
+          <DialogHeader>
+            <DialogTitle>Manage Team Roles</DialogTitle>
+            <DialogDescription>
+              Create and manage role definitions for your team members
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 flex-1 flex flex-col overflow-hidden">
+            <div className="flex justify-end">
+              <Button onClick={handleAddRole} size="sm" className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Role
+              </Button>
+            </div>
+
+            {loadingRoles ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+              </div>
+            ) : teamRoles.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No team roles defined yet</p>
+                <p className="text-sm mt-1">Create your first role to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto pr-2">
+                {teamRoles.map((role) => (
+                  <div
+                    key={role._id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-gray-900">{role.name}</h3>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          role.isActive 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {role.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      {role.description && (
+                        <p className="text-sm text-gray-600 mt-1">{role.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditRole(role)}
+                        className="gap-2"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteRole(role._id, role.name)}
+                        className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Role Dialog */}
+      <Dialog open={isAddingRole || isEditingRole} onOpenChange={handleCloseRoleModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isEditingRole ? 'Edit Team Role' : 'Create New Team Role'}</DialogTitle>
+            <DialogDescription>
+              {isEditingRole ? 'Update the team role information below.' : 'Define a new role for your team members.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitRole} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="roleName">
+                Role Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="roleName"
+                name="name"
+                value={newRole.name}
+                onChange={handleRoleInputChange}
+                placeholder="e.g., Project Manager, Developer, Designer"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="roleDescription">Description</Label>
+              <Textarea
+                id="roleDescription"
+                name="description"
+                value={newRole.description}
+                onChange={handleRoleInputChange}
+                placeholder="Brief description of this role..."
+                rows={3}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="roleIsActive"
+                name="isActive"
+                checked={newRole.isActive}
+                onChange={handleRoleInputChange}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <Label htmlFor="roleIsActive" className="cursor-pointer">
+                Active role
+              </Label>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleCloseRoleModal}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmittingRole}>
+                {isSubmittingRole ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  isEditingRole ? 'Update Role' : 'Create Role'
                 )}
               </Button>
             </DialogFooter>
