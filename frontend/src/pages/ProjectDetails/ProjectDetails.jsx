@@ -70,7 +70,9 @@ function ProjectDetails() {
   const [editingDeliverableId, setEditingDeliverableId] = useState(null);
   const [editedDeliverable, setEditedDeliverable] = useState(null);
   const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', startDate: '', endDate: '' });
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editedTask, setEditedTask] = useState(null);
 
   // Fetch assigned clients
   useEffect(() => {
@@ -442,6 +444,38 @@ function ProjectDetails() {
     setEditedDeliverable(null);
   };
 
+  const handleEditTask = (milestoneId, deliverableId, task) => {
+    setEditingTaskId(task._id);
+    setEditedTask({
+      milestoneId: milestoneId,
+      deliverableId: deliverableId,
+      title: task.title,
+      description: task.description || '',
+      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
+      endDate: task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : ''
+    });
+  };
+
+  const handleSaveEditedTask = async () => {
+    if (!editedTask.title.trim()) return;
+    
+    try {
+      const { milestoneId, deliverableId, ...taskData } = editedTask;
+      await milestoneService.updateTask(id, milestoneId, deliverableId, editingTaskId, taskData);
+      await refetch();
+      setEditingTaskId(null);
+      setEditedTask(null);
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      alert(error.response?.data?.message || 'Failed to update task');
+    }
+  };
+
+  const handleCancelEditTask = () => {
+    setEditingTaskId(null);
+    setEditedTask(null);
+  };
+
   // Task handlers
   const handleAddTask = async (milestoneId, deliverableId) => {
     if (!newTask.title.trim()) return;
@@ -449,7 +483,7 @@ function ProjectDetails() {
     try {
       await milestoneService.createTask(id, milestoneId, deliverableId, newTask);
       await refetch();
-      setNewTask({ title: '', description: '' });
+      setNewTask({ title: '', description: '', startDate: '', endDate: '' });
       setAddingTaskToDeliverable(null);
     } catch (error) {
       console.error('Failed to add task:', error);
@@ -1605,33 +1639,144 @@ function ProjectDetails() {
                                       {deliverable.tasks?.length > 0 && (
                                         <div className="ml-7 space-y-2 mt-3">
                                           {deliverable.tasks.map((task, tIndex) => (
-                                            <div key={task._id} className="flex items-start gap-2 text-sm">
-                                              <button
-                                                onClick={() => handleToggleTask(milestone._id, deliverable._id, task._id, task.completed)}
-                                                className="mt-0.5"
-                                              >
-                                                {task.completed ? (
-                                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                                ) : (
-                                                  <Circle className="w-4 h-4 text-gray-400" />
-                                                )}
-                                              </button>
-                                              <div className="flex-1">
-                                                <span className={task.completed ? 'line-through text-gray-500' : ''}>
-                                                  Task {tIndex + 1}: {task.title}
-                                                </span>
-                                                {task.description && (
-                                                  <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                                                )}
-                                              </div>
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleDeleteTask(milestone._id, deliverable._id, task._id)}
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 h-6 w-6 p-0"
-                                              >
-                                                <Trash2 className="w-3 h-3" />
-                                              </Button>
+                                            <div key={task._id}>
+                                              {editingTaskId === task._id ? (
+                                                // Edit Task Form
+                                                <div className="p-3 border-2 border-blue-300 rounded-lg bg-blue-50">
+                                                  <div className="space-y-2">
+                                                    <div>
+                                                      <Label className="text-xs text-gray-700">Title</Label>
+                                                      <Input
+                                                        value={editedTask.title}
+                                                        onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })}
+                                                        className="text-sm"
+                                                      />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs text-gray-600">Start Date (optional)</Label>
+                                                        <Input
+                                                          type="date"
+                                                          value={editedTask.startDate}
+                                                          onChange={(e) => setEditedTask({ ...editedTask, startDate: e.target.value })}
+                                                          min={deliverable.startDate || undefined}
+                                                          max={deliverable.endDate || undefined}
+                                                          className="text-sm"
+                                                        />
+                                                      </div>
+                                                      <div>
+                                                        <Label className="text-xs text-gray-600">End Date (optional)</Label>
+                                                        <Input
+                                                          type="date"
+                                                          value={editedTask.endDate}
+                                                          onChange={(e) => setEditedTask({ ...editedTask, endDate: e.target.value })}
+                                                          min={editedTask.startDate || deliverable.startDate || undefined}
+                                                          max={deliverable.endDate || undefined}
+                                                          className="text-sm"
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex gap-2 pt-2">
+                                                      <Button
+                                                        size="sm"
+                                                        onClick={handleSaveEditedTask}
+                                                        disabled={!editedTask.title.trim()}
+                                                      >
+                                                        Save
+                                                      </Button>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={handleCancelEditTask}
+                                                      >
+                                                        Cancel
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                // Display Task
+                                                <div className="flex items-start gap-2 text-sm">
+                                                  <button
+                                                    onClick={() => handleToggleTask(milestone._id, deliverable._id, task._id, task.completed)}
+                                                    className="mt-0.5"
+                                                  >
+                                                    {task.completed ? (
+                                                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                    ) : (
+                                                      <Circle className="w-4 h-4 text-gray-400" />
+                                                    )}
+                                                  </button>
+                                                  <div className="flex-1">
+                                                    <span className={task.completed ? 'line-through text-gray-500' : ''}>
+                                                      Task {tIndex + 1}: {task.title}
+                                                    </span>
+                                                    {task.description && (
+                                                      <p className="text-xs text-gray-500 mt-1">{task.description}</p>
+                                                    )}
+                                                    {(task.startDate || task.endDate) && (
+                                                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                                        {task.startDate && (
+                                                          <div className="flex items-center gap-1">
+                                                            <Calendar className="w-3 h-3" />
+                                                            <span>{new Date(task.startDate).toLocaleDateString()}</span>
+                                                          </div>
+                                                        )}
+                                                        {task.endDate && (
+                                                          <div className="flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" />
+                                                            <span>{new Date(task.endDate).toLocaleDateString()}</span>
+                                                          </div>
+                                                        )}
+                                                        {task.startDate && task.endDate && (
+                                                          <span className="text-gray-400">
+                                                            ({Math.ceil((new Date(task.endDate) - new Date(task.startDate)) / (1000 * 60 * 60 * 24))} days)
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                                      <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-6 w-6 p-0 hover:bg-gray-100"
+                                                      >
+                                                        <MoreVertical className="w-4 h-4" />
+                                                      </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent 
+                                                      align="end" 
+                                                      side="bottom"
+                                                      sideOffset={5}
+                                                      className="w-32"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                      <DropdownMenuItem
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleEditTask(milestone._id, deliverable._id, task);
+                                                        }}
+                                                        className="cursor-pointer"
+                                                      >
+                                                        <Edit2 className="w-4 h-4 mr-2" />
+                                                        Edit
+                                                      </DropdownMenuItem>
+                                                      <DropdownMenuItem
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleDeleteTask(milestone._id, deliverable._id, task._id);
+                                                        }}
+                                                        className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                      >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Delete
+                                                      </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                  </DropdownMenu>
+                                                </div>
+                                              )}
                                             </div>
                                           ))}
                                         </div>
@@ -1651,6 +1796,30 @@ function ProjectDetails() {
                                             }}
                                             className="text-sm"
                                           />
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                              <Label className="text-xs text-gray-600">Start Date (optional)</Label>
+                                              <Input
+                                                type="date"
+                                                value={newTask.startDate}
+                                                onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
+                                                min={deliverable.startDate || undefined}
+                                                max={deliverable.endDate || undefined}
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                            <div>
+                                              <Label className="text-xs text-gray-600">End Date (optional)</Label>
+                                              <Input
+                                                type="date"
+                                                value={newTask.endDate}
+                                                onChange={(e) => setNewTask({ ...newTask, endDate: e.target.value })}
+                                                min={newTask.startDate || deliverable.startDate || undefined}
+                                                max={deliverable.endDate || undefined}
+                                                className="text-sm"
+                                              />
+                                            </div>
+                                          </div>
                                           <div className="flex gap-2">
                                             <Button
                                               size="sm"
@@ -1664,7 +1833,7 @@ function ProjectDetails() {
                                               variant="outline"
                                               onClick={() => {
                                                 setAddingTaskToDeliverable(null);
-                                                setNewTask({ title: '', description: '' });
+                                                setNewTask({ title: '', description: '', startDate: '', endDate: '' });
                                               }}
                                             >
                                               Cancel

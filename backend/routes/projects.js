@@ -675,8 +675,20 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
       description: req.body.description,
       deliverableId: req.params.deliverableId,
       completed: false,
-      order: taskCount
+      order: taskCount,
+      startDate: req.body.startDate,
+      endDate: req.body.endDate
     });
+
+    // Validate dates are within deliverable bounds
+    try {
+      await task.validateDatesWithinDeliverable();
+    } catch (validationError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: validationError.message
+      });
+    }
 
     await task.save();
 
@@ -762,6 +774,20 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
     if (req.body.description !== undefined) task.description = req.body.description;
     if (req.body.completed !== undefined) task.completed = req.body.completed;
     if (req.body.order !== undefined) task.order = req.body.order;
+    if (req.body.startDate !== undefined) task.startDate = req.body.startDate;
+    if (req.body.endDate !== undefined) task.endDate = req.body.endDate;
+
+    // Validate dates are within deliverable bounds if dates are being updated
+    if (req.body.startDate !== undefined || req.body.endDate !== undefined) {
+      try {
+        await task.validateDatesWithinDeliverable();
+      } catch (validationError) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          message: validationError.message
+        });
+      }
+    }
 
     await task.save();
 

@@ -21,6 +21,14 @@ const taskSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    startDate: {
+      type: Date,
+      required: false
+    },
+    endDate: {
+      type: Date,
+      required: false
+    },
     deliverableId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Deliverable',
@@ -36,6 +44,61 @@ const taskSchema = new mongoose.Schema(
 // Indexes for better query performance
 taskSchema.index({ deliverableId: 1, order: 1 });
 taskSchema.index({ completed: 1 });
+
+// Validation method to check if task dates are within deliverable bounds
+taskSchema.methods.validateDatesWithinDeliverable = async function() {
+  const Deliverable = mongoose.model('Deliverable');
+  const deliverable = await Deliverable.findById(this.deliverableId);
+  
+  if (!deliverable) {
+    throw new Error('Associated deliverable not found');
+  }
+
+  const errors = [];
+  
+  // Only validate if deliverable has dates set
+  if (!deliverable.startDate && !deliverable.endDate) {
+    // If deliverable has no dates, task dates are not restricted
+    if (this.startDate && this.endDate && this.startDate > this.endDate) {
+      errors.push('Task start date must be before or equal to end date');
+    }
+    if (errors.length > 0) {
+      throw new Error(errors.join('; '));
+    }
+    return true;
+  }
+
+  // Validate start date if provided
+  if (this.startDate) {
+    if (deliverable.startDate && this.startDate < deliverable.startDate) {
+      errors.push(`Task start date cannot be before deliverable start date (${deliverable.startDate.toISOString().split('T')[0]})`);
+    }
+    if (deliverable.endDate && this.startDate > deliverable.endDate) {
+      errors.push(`Task start date cannot be after deliverable end date (${deliverable.endDate.toISOString().split('T')[0]})`);
+    }
+  }
+
+  // Validate end date if provided
+  if (this.endDate) {
+    if (deliverable.startDate && this.endDate < deliverable.startDate) {
+      errors.push(`Task end date cannot be before deliverable start date (${deliverable.startDate.toISOString().split('T')[0]})`);
+    }
+    if (deliverable.endDate && this.endDate > deliverable.endDate) {
+      errors.push(`Task end date cannot be after deliverable end date (${deliverable.endDate.toISOString().split('T')[0]})`);
+    }
+  }
+
+  // Validate start date is before end date
+  if (this.startDate && this.endDate && this.startDate > this.endDate) {
+    errors.push('Task start date must be before or equal to end date');
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join('; '));
+  }
+
+  return true;
+};
 
 const Task = mongoose.model('Task', taskSchema);
 
