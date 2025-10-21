@@ -116,6 +116,13 @@ function Team() {
     }
   }, [isManagingRoles]);
 
+  // Fetch team roles when add/edit member dialog opens
+  useEffect(() => {
+    if (isAddingMember || isEditingMember) {
+      fetchTeamRoles();
+    }
+  }, [isAddingMember, isEditingMember]);
+
   const handleAddMember = () => {
     setIsAddingMember(true);
   };
@@ -504,14 +511,24 @@ function Team() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="role">Role *</Label>
-                <Input
+                <select
                   id="role"
                   name="role"
                   value={newMember.role}
                   onChange={handleInputChange}
-                  placeholder="Senior Developer"
                   required
-                />
+                  className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-gray-400"
+                >
+                  <option value="">Select a role...</option>
+                  {teamRoles
+                    .filter(role => role.isActive)
+                    .map(role => (
+                      <option key={role._id} value={role.name}>
+                        {role.name}
+                      </option>
+                    ))
+                  }
+                </select>
               </div>
 
               <div className="space-y-2">
