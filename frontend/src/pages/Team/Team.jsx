@@ -312,7 +312,7 @@ function Team() {
           </div>
         </div>
 
-        {/* Team Grid */}
+        {/* Team Categories */}
         {teamMembers.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
@@ -331,13 +331,44 @@ function Team() {
             </Button>
           </motion.div>
         ) : (
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {teamMembers.map(member => (
+          <div className="space-y-8">
+            {/* Group members by role */}
+            {(() => {
+              // Create a map of role -> members
+              const membersByRole = teamMembers.reduce((acc, member) => {
+                const role = member.role || 'Unassigned';
+                if (!acc[role]) {
+                  acc[role] = [];
+                }
+                acc[role].push(member);
+                return acc;
+              }, {});
+
+              // Get unique roles that have members
+              return Object.entries(membersByRole).map(([role, members], roleIndex) => (
+                <motion.div
+                  key={role}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: roleIndex * 0.1 }}
+                >
+                  {/* Role Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Briefcase className="w-5 h-5 text-gray-700" />
+                      <h2 className="text-2xl font-bold text-gray-900">{role}</h2>
+                    </div>
+                    <span className="text-sm text-gray-500">({members.length})</span>
+                  </div>
+
+                  {/* Members Grid for this role */}
+                  <motion.div
+                    variants={containerVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  >
+                    {members.map(member => (
               <motion.div
                 key={member._id}
                 variants={itemVariants}
@@ -424,7 +455,11 @@ function Team() {
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
+                  </motion.div>
+                </motion.div>
+              ));
+            })()}
+          </div>
         )}
       </motion.div>
 
