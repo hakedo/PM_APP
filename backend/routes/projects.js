@@ -1,6 +1,7 @@
 import express from 'express';
 import { Project, ClientProjectAssignment, Milestone, Deliverable, Task } from '../models/index.js';
 import { recalculateMilestoneDates, validateMilestoneDates } from '../utils/milestoneUtils.js';
+import { recalculateDeliverableDates, recalculateTaskDates } from '../utils/dateCalculations.js';
 
 const router = express.Router();
 
@@ -29,6 +30,12 @@ router.get('/:id', async (req, res, next) => {
     // Fetch milestones for this project
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
     
+    // Recalculate milestone dates
+    const milestonesWithCalculatedDates = recalculateMilestoneDates(
+      milestones.map(m => m.toObject()),
+      project.startDate
+    );
+    
     // Fetch deliverables for all milestones
     const milestoneIds = milestones.map(m => m._id);
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestoneIds } }).sort({ order: 1 });
@@ -37,20 +44,33 @@ router.get('/:id', async (req, res, next) => {
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
     
-    // Build the nested structure
-    const milestonesWithData = milestones.map(milestone => {
+    // Build the nested structure with calculated dates
+    const milestonesWithData = milestonesWithCalculatedDates.map((milestone, index) => {
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === milestone._id.toString())
         .map(deliverable => {
-          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === deliverable._id.toString());
+          // Calculate deliverable dates based on milestone start date
+          const deliverableWithDates = recalculateDeliverableDates(
+            deliverable.toObject(),
+            milestone.calculatedStartDate
+          );
+          
+          // Calculate task dates based on deliverable start date
+          const deliverableTasks = tasks
+            .filter(t => t.deliverableId.toString() === deliverable._id.toString())
+            .map(task => {
+              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
+              return recalculateTaskDates(task.toObject(), taskStartDate);
+            });
+          
           return {
-            ...deliverable.toObject(),
+            ...deliverableWithDates,
             tasks: deliverableTasks
           };
         });
       
       return {
-        ...milestone.toObject(),
+        ...milestone,
         deliverables: milestoneDeliverables
       };
     });
@@ -496,9 +516,23 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
       milestoneId: req.params.milestoneId,
       completed: false,
       order: deliverableCount,
+      startDateMode: req.body.startDateMode || 'manual',
       startDate: req.body.startDate,
-      endDate: req.body.endDate
+      startDateOffset: req.body.startDateOffset || 0,
+      startDateOffsetType: req.body.startDateOffsetType || 'business',
+      endDateMode: req.body.endDateMode || 'manual',
+      endDate: req.body.endDate,
+      endDateOffset: req.body.endDateOffset || 0,
+      endDateOffsetType: req.body.endDateOffsetType || 'business'
     });
+
+    // Calculate dates if in relative mode
+    const milestoneStartDate = milestone.calculatedStartDate || milestone.startDate;
+    if (milestoneStartDate) {
+      const deliverableWithDates = recalculateDeliverableDates(deliverable.toObject(), milestoneStartDate);
+      deliverable.calculatedStartDate = deliverableWithDates.calculatedStartDate;
+      deliverable.calculatedEndDate = deliverableWithDates.calculatedEndDate;
+    }
 
     // Validate dates are within milestone bounds
     try {
@@ -512,20 +546,37 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
 
     await deliverable.save();
 
-    // Return the full project structure
+    // Return the full project structure with calculated dates
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    
+    // Recalculate milestone dates
+    const milestonesWithCalculatedDates = recalculateMilestoneDates(
+      milestones.map(m => m.toObject()),
+      project.startDate
+    );
+    
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
 
-    const milestonesWithData = milestones.map(m => {
+    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === m._id.toString())
         .map(d => {
-          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
-          return { ...d.toObject(), tasks: deliverableTasks };
+          // Calculate deliverable dates
+          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
+          
+          // Calculate task dates
+          const deliverableTasks = tasks
+            .filter(t => t.deliverableId.toString() === d._id.toString())
+            .map(task => {
+              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
+              return recalculateTaskDates(task.toObject(), taskStartDate);
+            });
+          
+          return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      return { ...m.toObject(), deliverables: milestoneDeliverables };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -583,11 +634,25 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (re
     if (req.body.description !== undefined) deliverable.description = req.body.description;
     if (req.body.completed !== undefined) deliverable.completed = req.body.completed;
     if (req.body.order !== undefined) deliverable.order = req.body.order;
+    if (req.body.startDateMode !== undefined) deliverable.startDateMode = req.body.startDateMode;
     if (req.body.startDate !== undefined) deliverable.startDate = req.body.startDate;
+    if (req.body.startDateOffset !== undefined) deliverable.startDateOffset = req.body.startDateOffset;
+    if (req.body.startDateOffsetType !== undefined) deliverable.startDateOffsetType = req.body.startDateOffsetType;
+    if (req.body.endDateMode !== undefined) deliverable.endDateMode = req.body.endDateMode;
     if (req.body.endDate !== undefined) deliverable.endDate = req.body.endDate;
+    if (req.body.endDateOffset !== undefined) deliverable.endDateOffset = req.body.endDateOffset;
+    if (req.body.endDateOffsetType !== undefined) deliverable.endDateOffsetType = req.body.endDateOffsetType;
+
+    // Recalculate dates if in relative mode
+    const milestoneStartDate = milestone.calculatedStartDate || milestone.startDate;
+    if (milestoneStartDate) {
+      const deliverableWithDates = recalculateDeliverableDates(deliverable.toObject(), milestoneStartDate);
+      deliverable.calculatedStartDate = deliverableWithDates.calculatedStartDate;
+      deliverable.calculatedEndDate = deliverableWithDates.calculatedEndDate;
+    }
 
     // Validate dates are within milestone bounds if dates are being updated
-    if (req.body.startDate !== undefined || req.body.endDate !== undefined) {
+    if (req.body.startDate !== undefined || req.body.endDate !== undefined || req.body.startDateMode !== undefined || req.body.endDateMode !== undefined) {
       try {
         await deliverable.validateDatesWithinMilestone();
       } catch (validationError) {
@@ -600,20 +665,37 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (re
 
     await deliverable.save();
 
-    // Return the full project structure
+    // Return the full project structure with calculated dates
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    
+    // Recalculate milestone dates
+    const milestonesWithCalculatedDates = recalculateMilestoneDates(
+      milestones.map(m => m.toObject()),
+      project.startDate
+    );
+    
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
 
-    const milestonesWithData = milestones.map(m => {
+    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === m._id.toString())
         .map(d => {
-          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
-          return { ...d.toObject(), tasks: deliverableTasks };
+          // Calculate deliverable dates
+          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
+          
+          // Calculate task dates
+          const deliverableTasks = tasks
+            .filter(t => t.deliverableId.toString() === d._id.toString())
+            .map(task => {
+              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
+              return recalculateTaskDates(task.toObject(), taskStartDate);
+            });
+          
+          return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      return { ...m.toObject(), deliverables: milestoneDeliverables };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -739,9 +821,23 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
       deliverableId: req.params.deliverableId,
       completed: false,
       order: taskCount,
+      startDateMode: req.body.startDateMode || 'manual',
       startDate: req.body.startDate,
-      endDate: req.body.endDate
+      startDateOffset: req.body.startDateOffset || 0,
+      startDateOffsetType: req.body.startDateOffsetType || 'business',
+      endDateMode: req.body.endDateMode || 'manual',
+      endDate: req.body.endDate,
+      endDateOffset: req.body.endDateOffset || 0,
+      endDateOffsetType: req.body.endDateOffsetType || 'business'
     });
+
+    // Calculate dates if in relative mode
+    const deliverableStartDate = deliverable.calculatedStartDate || deliverable.startDate;
+    if (deliverableStartDate) {
+      const taskWithDates = recalculateTaskDates(task.toObject(), deliverableStartDate);
+      task.calculatedStartDate = taskWithDates.calculatedStartDate;
+      task.calculatedEndDate = taskWithDates.calculatedEndDate;
+    }
 
     // Validate dates are within deliverable bounds
     try {
@@ -755,20 +851,37 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
 
     await task.save();
 
-    // Return the full project structure
+    // Return the full project structure with calculated dates
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    
+    // Recalculate milestone dates
+    const milestonesWithCalculatedDates = recalculateMilestoneDates(
+      milestones.map(m => m.toObject()),
+      project.startDate
+    );
+    
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
 
-    const milestonesWithData = milestones.map(m => {
+    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === m._id.toString())
         .map(d => {
-          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
-          return { ...d.toObject(), tasks: deliverableTasks };
+          // Calculate deliverable dates
+          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
+          
+          // Calculate task dates
+          const deliverableTasks = tasks
+            .filter(t => t.deliverableId.toString() === d._id.toString())
+            .map(task => {
+              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
+              return recalculateTaskDates(task.toObject(), taskStartDate);
+            });
+          
+          return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      return { ...m.toObject(), deliverables: milestoneDeliverables };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -837,11 +950,25 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
     if (req.body.description !== undefined) task.description = req.body.description;
     if (req.body.completed !== undefined) task.completed = req.body.completed;
     if (req.body.order !== undefined) task.order = req.body.order;
+    if (req.body.startDateMode !== undefined) task.startDateMode = req.body.startDateMode;
     if (req.body.startDate !== undefined) task.startDate = req.body.startDate;
+    if (req.body.startDateOffset !== undefined) task.startDateOffset = req.body.startDateOffset;
+    if (req.body.startDateOffsetType !== undefined) task.startDateOffsetType = req.body.startDateOffsetType;
+    if (req.body.endDateMode !== undefined) task.endDateMode = req.body.endDateMode;
     if (req.body.endDate !== undefined) task.endDate = req.body.endDate;
+    if (req.body.endDateOffset !== undefined) task.endDateOffset = req.body.endDateOffset;
+    if (req.body.endDateOffsetType !== undefined) task.endDateOffsetType = req.body.endDateOffsetType;
+
+    // Recalculate dates if in relative mode
+    const deliverableStartDate = deliverable.calculatedStartDate || deliverable.startDate;
+    if (deliverableStartDate) {
+      const taskWithDates = recalculateTaskDates(task.toObject(), deliverableStartDate);
+      task.calculatedStartDate = taskWithDates.calculatedStartDate;
+      task.calculatedEndDate = taskWithDates.calculatedEndDate;
+    }
 
     // Validate dates are within deliverable bounds if dates are being updated
-    if (req.body.startDate !== undefined || req.body.endDate !== undefined) {
+    if (req.body.startDate !== undefined || req.body.endDate !== undefined || req.body.startDateMode !== undefined || req.body.endDateMode !== undefined) {
       try {
         await task.validateDatesWithinDeliverable();
       } catch (validationError) {
@@ -854,20 +981,37 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
 
     await task.save();
 
-    // Return the full project structure
+    // Return the full project structure with calculated dates
     const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    
+    // Recalculate milestone dates
+    const milestonesWithCalculatedDates = recalculateMilestoneDates(
+      milestones.map(m => m.toObject()),
+      project.startDate
+    );
+    
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
 
-    const milestonesWithData = milestones.map(m => {
+    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === m._id.toString())
         .map(d => {
-          const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
-          return { ...d.toObject(), tasks: deliverableTasks };
+          // Calculate deliverable dates
+          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
+          
+          // Calculate task dates
+          const deliverableTasks = tasks
+            .filter(t => t.deliverableId.toString() === d._id.toString())
+            .map(task => {
+              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
+              return recalculateTaskDates(task.toObject(), taskStartDate);
+            });
+          
+          return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      return { ...m.toObject(), deliverables: milestoneDeliverables };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {

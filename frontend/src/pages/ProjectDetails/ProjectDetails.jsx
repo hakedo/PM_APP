@@ -68,11 +68,33 @@ function ProjectDetails() {
     endDate: ''
   });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
-  const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '', startDate: '', endDate: '' });
+  const [newDeliverable, setNewDeliverable] = useState({ 
+    title: '', 
+    description: '', 
+    startDateMode: 'manual',
+    startDate: '', 
+    startDateOffset: 0,
+    startDateOffsetType: 'business',
+    endDateMode: 'manual',
+    endDate: '',
+    endDateOffset: 0,
+    endDateOffsetType: 'business'
+  });
   const [editingDeliverableId, setEditingDeliverableId] = useState(null);
   const [editedDeliverable, setEditedDeliverable] = useState(null);
   const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', startDate: '', endDate: '' });
+  const [newTask, setNewTask] = useState({ 
+    title: '', 
+    description: '', 
+    startDateMode: 'manual',
+    startDate: '', 
+    startDateOffset: 0,
+    startDateOffsetType: 'business',
+    endDateMode: 'manual',
+    endDate: '',
+    endDateOffset: 0,
+    endDateOffsetType: 'business'
+  });
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
 
@@ -1593,7 +1615,114 @@ function ProjectDetails() {
                                             onChange={(e) => setEditedDeliverable({ ...editedDeliverable, description: e.target.value })}
                                             className="min-h-[50px] text-sm"
                                           />
-                                          <div className="flex gap-2">
+                                          
+                                          {/* Start Date Configuration */}
+                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                            <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                            <div className="flex gap-2">
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Mode</Label>
+                                                <select
+                                                  value={editedDeliverable.startDateMode || 'manual'}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateMode: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="manual">Manual</option>
+                                                  <option value="relative">Relative to Milestone</option>
+                                                </select>
+                                              </div>
+                                              {editedDeliverable.startDateMode === 'relative' ? (
+                                                <>
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Days After Milestone Start</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      value={editedDeliverable.startDateOffset || 0}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={editedDeliverable.startDateOffsetType || 'business'}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business Days</option>
+                                                      <option value="calendar">Calendar Days</option>
+                                                    </select>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="flex-1">
+                                                  <Label className="text-xs">Date</Label>
+                                                  <Input
+                                                    type="date"
+                                                    value={editedDeliverable.startDate}
+                                                    onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDate: e.target.value })}
+                                                    className="h-8 text-xs"
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* End Date Configuration */}
+                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                            <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                            <div className="flex gap-2">
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Mode</Label>
+                                                <select
+                                                  value={editedDeliverable.endDateMode || 'manual'}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateMode: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="manual">Manual</option>
+                                                  <option value="relative">Relative to Milestone</option>
+                                                </select>
+                                              </div>
+                                              {editedDeliverable.endDateMode === 'relative' ? (
+                                                <>
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Days After Milestone Start</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      value={editedDeliverable.endDateOffset || 0}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={editedDeliverable.endDateOffsetType || 'business'}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business Days</option>
+                                                      <option value="calendar">Calendar Days</option>
+                                                    </select>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="flex-1">
+                                                  <Label className="text-xs">Date</Label>
+                                                  <Input
+                                                    type="date"
+                                                    value={editedDeliverable.endDate}
+                                                    onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDate: e.target.value })}
+                                                    className="h-8 text-xs"
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex gap-2" style={{ display: 'none' }}>
                                             <div className="flex-1">
                                               <Label className="text-xs">Start Date</Label>
                                               <Input
@@ -1657,25 +1786,25 @@ function ProjectDetails() {
                                             {deliverable.description && (
                                               <p className="text-sm text-gray-600 mt-1">{deliverable.description}</p>
                                             )}
-                                            {(deliverable.startDate || deliverable.endDate) && (
+                                            {(deliverable.calculatedStartDate || deliverable.calculatedEndDate || deliverable.startDate || deliverable.endDate) && (
                                               <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-                                                {deliverable.startDate && (
+                                                {(deliverable.calculatedStartDate || deliverable.startDate) && (
                                                   <div className="flex items-center gap-1">
                                                     <Calendar className="w-3 h-3" />
-                                                    <span>Start: {formatDate(deliverable.startDate)}</span>
+                                                    <span>Start: {formatDate(deliverable.calculatedStartDate || deliverable.startDate)}</span>
                                                   </div>
                                                 )}
-                                                {deliverable.endDate && (
+                                                {(deliverable.calculatedEndDate || deliverable.endDate) && (
                                                   <div className="flex items-center gap-1">
                                                     <Calendar className="w-3 h-3" />
-                                                    <span>End: {formatDate(deliverable.endDate)}</span>
+                                                    <span>End: {formatDate(deliverable.calculatedEndDate || deliverable.endDate)}</span>
                                                   </div>
                                                 )}
-                                                {deliverable.startDate && deliverable.endDate && (
+                                                {(deliverable.calculatedStartDate || deliverable.startDate) && (deliverable.calculatedEndDate || deliverable.endDate) && (
                                                   <div className="flex items-center gap-1">
                                                     <Clock className="w-3 h-3" />
                                                     <span>
-                                                      {Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))} days
+                                                      {Math.ceil((new Date(deliverable.calculatedEndDate || deliverable.endDate) - new Date(deliverable.calculatedStartDate || deliverable.startDate)) / (1000 * 60 * 60 * 24))} days
                                                     </span>
                                                   </div>
                                                 )}
@@ -1742,7 +1871,118 @@ function ProjectDetails() {
                                                         className="text-sm"
                                                       />
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-2">
+                                                    
+                                                    {/* Start Date Configuration */}
+                                                    <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                                      <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                                      <div className="grid grid-cols-3 gap-2">
+                                                        <div>
+                                                          <Label className="text-xs">Mode</Label>
+                                                          <select
+                                                            value={editedTask.startDateMode || 'manual'}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateMode: e.target.value })}
+                                                            className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                          >
+                                                            <option value="manual">Manual</option>
+                                                            <option value="relative">Relative to Deliverable</option>
+                                                          </select>
+                                                        </div>
+                                                        {editedTask.startDateMode === 'relative' ? (
+                                                          <>
+                                                            <div>
+                                                              <Label className="text-xs">Days Offset</Label>
+                                                              <Input
+                                                                type="number"
+                                                                min="0"
+                                                                value={editedTask.startDateOffset || 0}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-xs"
+                                                              />
+                                                            </div>
+                                                            <div>
+                                                              <Label className="text-xs">Type</Label>
+                                                              <select
+                                                                value={editedTask.startDateOffsetType || 'business'}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, startDateOffsetType: e.target.value })}
+                                                                className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                              >
+                                                                <option value="business">Business</option>
+                                                                <option value="calendar">Calendar</option>
+                                                              </select>
+                                                            </div>
+                                                          </>
+                                                        ) : (
+                                                          <div className="col-span-2">
+                                                            <Label className="text-xs">Date</Label>
+                                                            <Input
+                                                              type="date"
+                                                              value={editedTask.startDate}
+                                                              onChange={(e) => setEditedTask({ ...editedTask, startDate: e.target.value })}
+                                                              min={deliverable.startDate || undefined}
+                                                              max={deliverable.endDate || undefined}
+                                                              className="h-8 text-xs"
+                                                            />
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+
+                                                    {/* End Date Configuration */}
+                                                    <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                                      <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                                      <div className="grid grid-cols-3 gap-2">
+                                                        <div>
+                                                          <Label className="text-xs">Mode</Label>
+                                                          <select
+                                                            value={editedTask.endDateMode || 'manual'}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateMode: e.target.value })}
+                                                            className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                          >
+                                                            <option value="manual">Manual</option>
+                                                            <option value="relative">Relative to Deliverable</option>
+                                                          </select>
+                                                        </div>
+                                                        {editedTask.endDateMode === 'relative' ? (
+                                                          <>
+                                                            <div>
+                                                              <Label className="text-xs">Days Offset</Label>
+                                                              <Input
+                                                                type="number"
+                                                                min="0"
+                                                                value={editedTask.endDateOffset || 0}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                                className="h-8 text-xs"
+                                                              />
+                                                            </div>
+                                                            <div>
+                                                              <Label className="text-xs">Type</Label>
+                                                              <select
+                                                                value={editedTask.endDateOffsetType || 'business'}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, endDateOffsetType: e.target.value })}
+                                                                className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                              >
+                                                                <option value="business">Business</option>
+                                                                <option value="calendar">Calendar</option>
+                                                              </select>
+                                                            </div>
+                                                          </>
+                                                        ) : (
+                                                          <div className="col-span-2">
+                                                            <Label className="text-xs">Date</Label>
+                                                            <Input
+                                                              type="date"
+                                                              value={editedTask.endDate}
+                                                              onChange={(e) => setEditedTask({ ...editedTask, endDate: e.target.value })}
+                                                              min={editedTask.startDate || deliverable.startDate || undefined}
+                                                              max={deliverable.endDate || undefined}
+                                                              className="h-8 text-xs"
+                                                            />
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
                                                       <div>
                                                         <Label className="text-xs text-gray-600">Start Date (optional)</Label>
                                                         <Input
@@ -1804,23 +2044,23 @@ function ProjectDetails() {
                                                     {task.description && (
                                                       <p className="text-xs text-gray-500 mt-1">{task.description}</p>
                                                     )}
-                                                    {(task.startDate || task.endDate) && (
+                                                    {(task.calculatedStartDate || task.calculatedEndDate || task.startDate || task.endDate) && (
                                                       <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                                        {task.startDate && (
+                                                        {(task.calculatedStartDate || task.startDate) && (
                                                           <div className="flex items-center gap-1">
                                                             <Calendar className="w-3 h-3" />
-                                                            <span>{formatDate(task.startDate)}</span>
+                                                            <span>{formatDate(task.calculatedStartDate || task.startDate)}</span>
                                                           </div>
                                                         )}
-                                                        {task.endDate && (
+                                                        {(task.calculatedEndDate || task.endDate) && (
                                                           <div className="flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
-                                                            <span>{formatDate(task.endDate)}</span>
+                                                            <span>{formatDate(task.calculatedEndDate || task.endDate)}</span>
                                                           </div>
                                                         )}
-                                                        {task.startDate && task.endDate && (
+                                                        {(task.calculatedStartDate || task.startDate) && (task.calculatedEndDate || task.endDate) && (
                                                           <span className="text-gray-400">
-                                                            ({Math.ceil((new Date(task.endDate) - new Date(task.startDate)) / (1000 * 60 * 60 * 24))} days)
+                                                            ({Math.ceil((new Date(task.calculatedEndDate || task.endDate) - new Date(task.calculatedStartDate || task.startDate)) / (1000 * 60 * 60 * 24))} days)
                                                           </span>
                                                         )}
                                                       </div>
@@ -1886,7 +2126,118 @@ function ProjectDetails() {
                                             }}
                                             className="text-sm"
                                           />
-                                          <div className="grid grid-cols-2 gap-2">
+                                          
+                                          {/* Start Date Configuration */}
+                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                            <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                              <div>
+                                                <Label className="text-xs">Mode</Label>
+                                                <select
+                                                  value={newTask.startDateMode}
+                                                  onChange={(e) => setNewTask({ ...newTask, startDateMode: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="manual">Manual</option>
+                                                  <option value="relative">Relative to Deliverable</option>
+                                                </select>
+                                              </div>
+                                              {newTask.startDateMode === 'relative' ? (
+                                                <>
+                                                  <div>
+                                                    <Label className="text-xs">Days Offset</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      value={newTask.startDateOffset}
+                                                      onChange={(e) => setNewTask({ ...newTask, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={newTask.startDateOffsetType}
+                                                      onChange={(e) => setNewTask({ ...newTask, startDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business</option>
+                                                      <option value="calendar">Calendar</option>
+                                                    </select>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="col-span-2">
+                                                  <Label className="text-xs">Date</Label>
+                                                  <Input
+                                                    type="date"
+                                                    value={newTask.startDate}
+                                                    onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
+                                                    min={deliverable.startDate || undefined}
+                                                    max={deliverable.endDate || undefined}
+                                                    className="h-8 text-xs"
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* End Date Configuration */}
+                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                            <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                              <div>
+                                                <Label className="text-xs">Mode</Label>
+                                                <select
+                                                  value={newTask.endDateMode}
+                                                  onChange={(e) => setNewTask({ ...newTask, endDateMode: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="manual">Manual</option>
+                                                  <option value="relative">Relative to Deliverable</option>
+                                                </select>
+                                              </div>
+                                              {newTask.endDateMode === 'relative' ? (
+                                                <>
+                                                  <div>
+                                                    <Label className="text-xs">Days Offset</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      value={newTask.endDateOffset}
+                                                      onChange={(e) => setNewTask({ ...newTask, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={newTask.endDateOffsetType}
+                                                      onChange={(e) => setNewTask({ ...newTask, endDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business</option>
+                                                      <option value="calendar">Calendar</option>
+                                                    </select>
+                                                  </div>
+                                                </>
+                                              ) : (
+                                                <div className="col-span-2">
+                                                  <Label className="text-xs">Date</Label>
+                                                  <Input
+                                                    type="date"
+                                                    value={newTask.endDate}
+                                                    onChange={(e) => setNewTask({ ...newTask, endDate: e.target.value })}
+                                                    min={newTask.startDate || deliverable.startDate || undefined}
+                                                    max={deliverable.endDate || undefined}
+                                                    className="h-8 text-xs"
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
                                             <div>
                                               <Label className="text-xs text-gray-600">Start Date (optional)</Label>
                                               <Input
@@ -1923,7 +2274,18 @@ function ProjectDetails() {
                                               variant="outline"
                                               onClick={() => {
                                                 setAddingTaskToDeliverable(null);
-                                                setNewTask({ title: '', description: '', startDate: '', endDate: '' });
+                                                setNewTask({ 
+                                                  title: '', 
+                                                  description: '', 
+                                                  startDateMode: 'manual',
+                                                  startDate: '', 
+                                                  startDateOffset: 0,
+                                                  startDateOffsetType: 'business',
+                                                  endDateMode: 'manual',
+                                                  endDate: '',
+                                                  endDateOffset: 0,
+                                                  endDateOffsetType: 'business'
+                                                });
                                               }}
                                             >
                                               Cancel
@@ -1968,8 +2330,118 @@ function ProjectDetails() {
                                         className="min-h-[50px] resize-none text-sm"
                                       />
                                       
+                                      {/* Start Date Configuration */}
+                                      <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                        <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                        <div className="flex gap-2">
+                                          <div className="flex-1">
+                                            <Label className="text-xs">Mode</Label>
+                                            <select
+                                              value={newDeliverable.startDateMode}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateMode: e.target.value })}
+                                              className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                            >
+                                              <option value="manual">Manual</option>
+                                              <option value="relative">Relative to Milestone</option>
+                                            </select>
+                                          </div>
+                                          {newDeliverable.startDateMode === 'relative' ? (
+                                            <>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Days After Milestone Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={newDeliverable.startDateOffset}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Type</Label>
+                                                <select
+                                                  value={newDeliverable.startDateOffsetType}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffsetType: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
+                                                </select>
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <div className="flex-1">
+                                              <Label className="text-xs">Date</Label>
+                                              <Input
+                                                type="date"
+                                                value={newDeliverable.startDate}
+                                                onChange={(e) => setNewDeliverable({ ...newDeliverable, startDate: e.target.value })}
+                                                min={milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : ''}
+                                                max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
+                                                className="h-8 text-xs"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* End Date Configuration */}
+                                      <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
+                                        <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                        <div className="flex gap-2">
+                                          <div className="flex-1">
+                                            <Label className="text-xs">Mode</Label>
+                                            <select
+                                              value={newDeliverable.endDateMode}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateMode: e.target.value })}
+                                              className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                            >
+                                              <option value="manual">Manual</option>
+                                              <option value="relative">Relative to Milestone</option>
+                                            </select>
+                                          </div>
+                                          {newDeliverable.endDateMode === 'relative' ? (
+                                            <>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Days After Milestone Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={newDeliverable.endDateOffset}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Type</Label>
+                                                <select
+                                                  value={newDeliverable.endDateOffsetType}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffsetType: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
+                                                </select>
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <div className="flex-1">
+                                              <Label className="text-xs">Date</Label>
+                                              <Input
+                                                type="date"
+                                                value={newDeliverable.endDate}
+                                                onChange={(e) => setNewDeliverable({ ...newDeliverable, endDate: e.target.value })}
+                                                min={newDeliverable.startDate || (milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : '')}
+                                                max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
+                                                className="h-8 text-xs"
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
                                       {/* Date Range */}
-                                      <div className="flex gap-2">
+                                      <div className="flex gap-2" style={{ display: 'none' }}>
                                         <div className="flex-1 space-y-1">
                                           <Label htmlFor="deliverable-start" className="text-xs font-medium text-gray-600 flex items-center gap-1">
                                             <Calendar className="w-3 h-3" />
@@ -2022,7 +2494,18 @@ function ProjectDetails() {
                                           variant="outline"
                                           onClick={() => {
                                             setAddingDeliverableToMilestone(null);
-                                            setNewDeliverable({ title: '', description: '', startDate: '', endDate: '' });
+                                            setNewDeliverable({ 
+                                              title: '', 
+                                              description: '', 
+                                              startDateMode: 'manual',
+                                              startDate: '', 
+                                              startDateOffset: 0,
+                                              startDateOffsetType: 'business',
+                                              endDateMode: 'manual',
+                                              endDate: '',
+                                              endDateOffset: 0,
+                                              endDateOffsetType: 'business'
+                                            });
                                           }}
                                         >
                                           Cancel
