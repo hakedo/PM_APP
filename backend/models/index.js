@@ -5,8 +5,7 @@ import ClientProjectAssignment from './ClientProjectAssignment.js';
 import Milestone from './Milestone.js';
 import Deliverable from './Deliverable.js';
 import Task from './Task.js';
-import MilestoneTask from './MilestoneTask.js';
 import TeamMember from './TeamMember.js';
 import TeamRole from './TeamRole.js';
 
-export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, MilestoneTask, TeamMember, TeamRole };
+export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole };

@@ -67,31 +67,6 @@ export const deleteTask = async (projectId, milestoneId, deliverableId, taskId) 
   return response.data;
 };
 
-// ====== MILESTONE TASK OPERATIONS (Standalone Tasks) ======
-
-export const addMilestoneTask = async (projectId, milestoneId, taskData) => {
-  const response = await api.post(
-    `/projects/${projectId}/milestones/${milestoneId}/tasks`,
-    taskData
-  );
-  return response.data;
-};
-
-export const updateMilestoneTask = async (projectId, milestoneId, taskId, taskData) => {
-  const response = await api.put(
-    `/projects/${projectId}/milestones/${milestoneId}/tasks/${taskId}`,
-    taskData
-  );
-  return response.data;
-};
-
-export const deleteMilestoneTask = async (projectId, milestoneId, taskId) => {
-  const response = await api.delete(
-    `/projects/${projectId}/milestones/${milestoneId}/tasks/${taskId}`
-  );
-  return response.data;
-};
-
 export default {
   createMilestone,
   updateMilestone,
@@ -102,7 +77,4 @@ export default {
   createTask,
   updateTask,
   deleteTask,
-  addMilestoneTask,
-  updateMilestoneTask,
-  deleteMilestoneTask,
 };

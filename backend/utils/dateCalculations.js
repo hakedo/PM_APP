@@ -164,38 +164,3 @@ export const recalculateTaskDates = (task, deliverableStartDate) => {
     calculatedEndDate: endDate || null
   };
 };
-
-/**
- * Recalculate dates for milestone task based on milestone dates
- * @param {Object} milestoneTask - Milestone task object
- * @param {Date} milestoneStartDate - Parent milestone start date
- * @returns {Object} Milestone task with calculated dates
- */
-export const recalculateMilestoneTaskDates = (milestoneTask, milestoneStartDate) => {
-  let startDate;
-  let endDate;
-
-  // Calculate start date
-  if (milestoneTask.startDateMode === 'relative' && milestoneStartDate) {
-    const offset = milestoneTask.startDateOffset || 0;
-    const offsetType = milestoneTask.startDateOffsetType || 'business';
-    startDate = calculateTaskStartDate(milestoneStartDate, offset, offsetType);
-  } else if (milestoneTask.startDate) {
-    startDate = new Date(milestoneTask.startDate);
-  }
-
-  // Calculate end date
-  if (milestoneTask.endDateMode === 'relative' && milestoneStartDate) {
-    const offset = milestoneTask.endDateOffset || 0;
-    const offsetType = milestoneTask.endDateOffsetType || 'business';
-    endDate = calculateTaskEndDate(milestoneStartDate, offset, offsetType);
-  } else if (milestoneTask.endDate) {
-    endDate = new Date(milestoneTask.endDate);
-  }
-
-  return {
-    ...milestoneTask,
-    calculatedStartDate: startDate || null,
-    calculatedEndDate: endDate || null
-  };
-};

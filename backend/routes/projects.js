@@ -1,7 +1,7 @@
 import express from 'express';
-import { Project, ClientProjectAssignment, Milestone, Deliverable, Task, MilestoneTask } from '../models/index.js';
+import { Project, ClientProjectAssignment, Milestone, Deliverable, Task } from '../models/index.js';
 import { recalculateMilestoneDates, validateMilestoneDates } from '../utils/milestoneUtils.js';
-import { recalculateDeliverableDates, recalculateTaskDates, recalculateMilestoneTaskDates } from '../utils/dateCalculations.js';
+import { recalculateDeliverableDates, recalculateTaskDates } from '../utils/dateCalculations.js';
 
 const router = express.Router();
 
@@ -44,18 +44,8 @@ router.get('/:id', async (req, res, next) => {
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
     
-    // Fetch milestone tasks (standalone tasks)
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestoneIds } }).sort({ order: 1 });
-    
     // Build the nested structure with calculated dates
     const milestonesWithData = milestonesWithCalculatedDates.map((milestone, index) => {
-      // Calculate milestone tasks
-      const milestoneTasksList = milestoneTasks
-        .filter(mt => mt.milestoneId.toString() === milestone._id.toString())
-        .map(milestoneTask => {
-          return recalculateMilestoneTaskDates(milestoneTask.toObject(), milestone.calculatedStartDate);
-        });
-      
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === milestone._id.toString())
         .map(deliverable => {
@@ -81,7 +71,6 @@ router.get('/:id', async (req, res, next) => {
       
       return {
         ...milestone,
-        milestoneTasks: milestoneTasksList,
         deliverables: milestoneDeliverables
       };
     });
@@ -206,9 +195,6 @@ router.delete('/:id', async (req, res, next) => {
 
     // Delete all tasks for these deliverables
     await Task.deleteMany({ deliverableId: { $in: deliverableIds } });
-
-    // Delete all milestone tasks (standalone tasks)
-    await MilestoneTask.deleteMany({ milestoneId: { $in: milestoneIds } });
 
     // Delete all deliverables for these milestones
     await Deliverable.deleteMany({ milestoneId: { $in: milestoneIds } });
@@ -572,14 +558,8 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
 
     const milestonesWithData = milestonesWithCalculatedDates.map(m => {
-      // Calculate milestone tasks
-      const milestoneTasksList = milestoneTasks
-        .filter(mt => mt.milestoneId.toString() === m._id.toString())
-        .map(mt => recalculateMilestoneTaskDates(mt.toObject(), m.calculatedStartDate));
-      
       const milestoneDeliverables = deliverables
         .filter(d => d.milestoneId.toString() === m._id.toString())
         .map(d => {
@@ -596,7 +576,7 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
           
           return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      return { ...m, milestoneTasks: milestoneTasksList, deliverables: milestoneDeliverables };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -774,7 +754,6 @@ router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId', async 
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
 
     const milestonesWithData = milestones.map(m => {
       const milestoneDeliverables = deliverables
@@ -783,10 +762,7 @@ router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId', async 
           const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
           return { ...d.toObject(), tasks: deliverableTasks };
         });
-      
-      const standaloneTasks = milestoneTasks.filter(t => t.milestoneId.toString() === m._id.toString());
-      
-      return { ...m.toObject(), deliverables: milestoneDeliverables, milestoneTasks: standaloneTasks };
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -887,7 +863,6 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
 
     const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
@@ -906,13 +881,7 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
           
           return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      
-      // Calculate milestone task dates
-      const standaloneTasks = milestoneTasks
-        .filter(t => t.milestoneId.toString() === m._id.toString())
-        .map(task => recalculateMilestoneTaskDates(task.toObject(), m.calculatedStartDate));
-      
-      return { ...m, deliverables: milestoneDeliverables, milestoneTasks: standaloneTasks };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -1024,7 +993,6 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
 
     const milestonesWithData = milestonesWithCalculatedDates.map(m => {
       const milestoneDeliverables = deliverables
@@ -1043,13 +1011,7 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
           
           return { ...deliverableWithDates, tasks: deliverableTasks };
         });
-      
-      // Calculate milestone task dates
-      const standaloneTasks = milestoneTasks
-        .filter(t => t.milestoneId.toString() === m._id.toString())
-        .map(task => recalculateMilestoneTaskDates(task.toObject(), m.calculatedStartDate));
-      
-      return { ...m, deliverables: milestoneDeliverables, milestoneTasks: standaloneTasks };
+      return { ...m, deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
@@ -1116,7 +1078,6 @@ router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:t
     const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
     const deliverableIds = deliverables.map(d => d._id);
     const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
 
     const milestonesWithData = milestones.map(m => {
       const milestoneDeliverables = deliverables
@@ -1125,341 +1086,7 @@ router.delete('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:t
           const deliverableTasks = tasks.filter(t => t.deliverableId.toString() === d._id.toString());
           return { ...d.toObject(), tasks: deliverableTasks };
         });
-      
-      const standaloneTasks = milestoneTasks.filter(t => t.milestoneId.toString() === m._id.toString());
-      
-      return { ...m.toObject(), deliverables: milestoneDeliverables, milestoneTasks: standaloneTasks };
-    });
-
-    const projectWithMilestones = {
-      ...project.toObject(),
-      milestones: milestonesWithData
-    };
-
-    res.json(projectWithMilestones);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// ====== MILESTONE TASK ROUTES (Standalone Tasks) ======
-
-// Add a task directly to a milestone (without deliverable)
-router.post('/:id/milestones/:milestoneId/tasks', async (req, res, next) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    
-    if (!project) {
-      return res.status(404).json({ 
-        error: 'Project not found',
-        message: `No project found with id: ${req.params.id}`
-      });
-    }
-
-    const milestone = await Milestone.findOne({ 
-      _id: req.params.milestoneId, 
-      projectId: req.params.id 
-    });
-
-    if (!milestone) {
-      return res.status(404).json({ 
-        error: 'Milestone not found'
-      });
-    }
-
-    // Calculate milestone dates to get the correct start date
-    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
-    const calculatedMilestones = recalculateMilestoneDates(
-      allMilestones.map(m => m.toObject()),
-      project.startDate
-    );
-    const calculatedMilestone = calculatedMilestones.find(m => m._id.toString() === req.params.milestoneId);
-
-    // Get the count of existing milestone tasks to set the order
-    const taskCount = await MilestoneTask.countDocuments({ milestoneId: req.params.milestoneId });
-
-    const milestoneTask = new MilestoneTask({
-      title: req.body.title,
-      description: req.body.description,
-      milestoneId: req.params.milestoneId,
-      completed: false,
-      order: taskCount,
-      startDateMode: req.body.startDateMode || 'manual',
-      startDate: req.body.startDate,
-      startDateOffset: req.body.startDateOffset || 0,
-      startDateOffsetType: req.body.startDateOffsetType || 'business',
-      endDateMode: req.body.endDateMode || 'manual',
-      endDate: req.body.endDate,
-      endDateOffset: req.body.endDateOffset || 0,
-      endDateOffsetType: req.body.endDateOffsetType || 'business'
-    });
-
-    // Calculate dates if in relative mode
-    const milestoneStartDate = calculatedMilestone?.calculatedStartDate || milestone.startDate;
-    if (milestoneStartDate) {
-      const taskWithDates = recalculateMilestoneTaskDates(milestoneTask.toObject(), milestoneStartDate);
-      milestoneTask.calculatedStartDate = taskWithDates.calculatedStartDate;
-      milestoneTask.calculatedEndDate = taskWithDates.calculatedEndDate;
-    }
-
-    // Validate dates are within milestone bounds (only if dates are provided)
-    if (milestoneTask.startDate || milestoneTask.endDate) {
-      try {
-        await milestoneTask.validateDatesWithinMilestone();
-      } catch (validationError) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          message: validationError.message
-        });
-      }
-    }
-
-    await milestoneTask.save();
-
-    // Return the full project structure with calculated dates
-    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
-    
-    // Recalculate milestone dates
-    const milestonesWithCalculatedDates = recalculateMilestoneDates(
-      milestones.map(m => m.toObject()),
-      project.startDate
-    );
-    
-    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-    const deliverableIds = deliverables.map(d => d._id);
-    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-
-    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
-      // Calculate milestone tasks
-      const milestoneTasksList = milestoneTasks
-        .filter(mt => mt.milestoneId.toString() === m._id.toString())
-        .map(mt => recalculateMilestoneTaskDates(mt.toObject(), m.calculatedStartDate));
-      
-      const milestoneDeliverables = deliverables
-        .filter(d => d.milestoneId.toString() === m._id.toString())
-        .map(d => {
-          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
-          const deliverableTasks = tasks
-            .filter(t => t.deliverableId.toString() === d._id.toString())
-            .map(task => {
-              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
-              return recalculateTaskDates(task.toObject(), taskStartDate);
-            });
-          return { ...deliverableWithDates, tasks: deliverableTasks };
-        });
-      return { ...m, milestoneTasks: milestoneTasksList, deliverables: milestoneDeliverables };
-    });
-
-    const projectWithMilestones = {
-      ...project.toObject(),
-      milestones: milestonesWithData
-    };
-
-    res.status(201).json(projectWithMilestones);
-  } catch (error) {
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ 
-        error: 'Validation failed',
-        message: error.message
-      });
-    }
-    next(error);
-  }
-});
-
-// Update a milestone task
-router.put('/:id/milestones/:milestoneId/tasks/:taskId', async (req, res, next) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    
-    if (!project) {
-      return res.status(404).json({ 
-        error: 'Project not found',
-        message: `No project found with id: ${req.params.id}`
-      });
-    }
-
-    const milestone = await Milestone.findOne({ 
-      _id: req.params.milestoneId, 
-      projectId: req.params.id 
-    });
-
-    if (!milestone) {
-      return res.status(404).json({ 
-        error: 'Milestone not found'
-      });
-    }
-
-    // Calculate milestone dates to get the correct start date
-    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
-    const calculatedMilestones = recalculateMilestoneDates(
-      allMilestones.map(m => m.toObject()),
-      project.startDate
-    );
-    const calculatedMilestone = calculatedMilestones.find(m => m._id.toString() === req.params.milestoneId);
-
-    const milestoneTask = await MilestoneTask.findOne({ 
-      _id: req.params.taskId, 
-      milestoneId: req.params.milestoneId 
-    });
-
-    if (!milestoneTask) {
-      return res.status(404).json({ 
-        error: 'Task not found'
-      });
-    }
-
-    if (req.body.title !== undefined) milestoneTask.title = req.body.title;
-    if (req.body.description !== undefined) milestoneTask.description = req.body.description;
-    if (req.body.completed !== undefined) milestoneTask.completed = req.body.completed;
-    if (req.body.order !== undefined) milestoneTask.order = req.body.order;
-    if (req.body.startDateMode !== undefined) milestoneTask.startDateMode = req.body.startDateMode;
-    if (req.body.startDate !== undefined) milestoneTask.startDate = req.body.startDate;
-    if (req.body.startDateOffset !== undefined) milestoneTask.startDateOffset = req.body.startDateOffset;
-    if (req.body.startDateOffsetType !== undefined) milestoneTask.startDateOffsetType = req.body.startDateOffsetType;
-    if (req.body.endDateMode !== undefined) milestoneTask.endDateMode = req.body.endDateMode;
-    if (req.body.endDate !== undefined) milestoneTask.endDate = req.body.endDate;
-    if (req.body.endDateOffset !== undefined) milestoneTask.endDateOffset = req.body.endDateOffset;
-    if (req.body.endDateOffsetType !== undefined) milestoneTask.endDateOffsetType = req.body.endDateOffsetType;
-
-    // Recalculate dates if in relative mode
-    const milestoneStartDate = calculatedMilestone?.calculatedStartDate || milestone.startDate;
-    if (milestoneStartDate) {
-      const taskWithDates = recalculateMilestoneTaskDates(milestoneTask.toObject(), milestoneStartDate);
-      milestoneTask.calculatedStartDate = taskWithDates.calculatedStartDate;
-      milestoneTask.calculatedEndDate = taskWithDates.calculatedEndDate;
-    }
-
-    // Validate dates are within milestone bounds if dates are being updated (only if dates exist)
-    if ((req.body.startDate !== undefined || req.body.endDate !== undefined || req.body.startDateMode !== undefined || req.body.endDateMode !== undefined) && (milestoneTask.startDate || milestoneTask.endDate)) {
-      try {
-        await milestoneTask.validateDatesWithinMilestone();
-      } catch (validationError) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          message: validationError.message
-        });
-      }
-    }
-
-    await milestoneTask.save();
-
-    // Return the full project structure with calculated dates
-    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
-    
-    // Recalculate milestone dates
-    const milestonesWithCalculatedDates = recalculateMilestoneDates(
-      milestones.map(m => m.toObject()),
-      project.startDate
-    );
-    
-    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-    const deliverableIds = deliverables.map(d => d._id);
-    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-
-    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
-      // Calculate milestone tasks
-      const milestoneTasksList = milestoneTasks
-        .filter(mt => mt.milestoneId.toString() === m._id.toString())
-        .map(mt => recalculateMilestoneTaskDates(mt.toObject(), m.calculatedStartDate));
-      
-      const milestoneDeliverables = deliverables
-        .filter(d => d.milestoneId.toString() === m._id.toString())
-        .map(d => {
-          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
-          const deliverableTasks = tasks
-            .filter(t => t.deliverableId.toString() === d._id.toString())
-            .map(task => {
-              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
-              return recalculateTaskDates(task.toObject(), taskStartDate);
-            });
-          return { ...deliverableWithDates, tasks: deliverableTasks };
-        });
-      return { ...m, milestoneTasks: milestoneTasksList, deliverables: milestoneDeliverables };
-    });
-
-    const projectWithMilestones = {
-      ...project.toObject(),
-      milestones: milestonesWithData
-    };
-
-    res.json(projectWithMilestones);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Delete a milestone task
-router.delete('/:id/milestones/:milestoneId/tasks/:taskId', async (req, res, next) => {
-  try {
-    const project = await Project.findById(req.params.id);
-    
-    if (!project) {
-      return res.status(404).json({ 
-        error: 'Project not found',
-        message: `No project found with id: ${req.params.id}`
-      });
-    }
-
-    const milestone = await Milestone.findOne({ 
-      _id: req.params.milestoneId, 
-      projectId: req.params.id 
-    });
-
-    if (!milestone) {
-      return res.status(404).json({ 
-        error: 'Milestone not found'
-      });
-    }
-
-    const milestoneTask = await MilestoneTask.findOne({ 
-      _id: req.params.taskId, 
-      milestoneId: req.params.milestoneId 
-    });
-
-    if (!milestoneTask) {
-      return res.status(404).json({ 
-        error: 'Task not found'
-      });
-    }
-
-    await MilestoneTask.findByIdAndDelete(req.params.taskId);
-
-    // Return the full project structure
-    const milestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
-    
-    // Recalculate milestone dates
-    const milestonesWithCalculatedDates = recalculateMilestoneDates(
-      milestones.map(m => m.toObject()),
-      project.startDate
-    );
-    
-    const deliverables = await Deliverable.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-    const deliverableIds = deliverables.map(d => d._id);
-    const tasks = await Task.find({ deliverableId: { $in: deliverableIds } }).sort({ order: 1 });
-    const milestoneTasks = await MilestoneTask.find({ milestoneId: { $in: milestones.map(m => m._id) } }).sort({ order: 1 });
-
-    const milestonesWithData = milestonesWithCalculatedDates.map(m => {
-      // Calculate milestone tasks
-      const milestoneTasksList = milestoneTasks
-        .filter(mt => mt.milestoneId.toString() === m._id.toString())
-        .map(mt => recalculateMilestoneTaskDates(mt.toObject(), m.calculatedStartDate));
-      
-      const milestoneDeliverables = deliverables
-        .filter(d => d.milestoneId.toString() === m._id.toString())
-        .map(d => {
-          const deliverableWithDates = recalculateDeliverableDates(d.toObject(), m.calculatedStartDate);
-          const deliverableTasks = tasks
-            .filter(t => t.deliverableId.toString() === d._id.toString())
-            .map(task => {
-              const taskStartDate = deliverableWithDates.calculatedStartDate || deliverableWithDates.startDate;
-              return recalculateTaskDates(task.toObject(), taskStartDate);
-            });
-          return { ...deliverableWithDates, tasks: deliverableTasks };
-        });
-      return { ...m, milestoneTasks: milestoneTasksList, deliverables: milestoneDeliverables };
+      return { ...m.toObject(), deliverables: milestoneDeliverables };
     });
 
     const projectWithMilestones = {
