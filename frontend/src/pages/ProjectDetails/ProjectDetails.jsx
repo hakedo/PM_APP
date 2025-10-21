@@ -67,6 +67,8 @@ function ProjectDetails() {
   });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
   const [newDeliverable, setNewDeliverable] = useState({ title: '', description: '', startDate: '', endDate: '' });
+  const [editingDeliverableId, setEditingDeliverableId] = useState(null);
+  const [editedDeliverable, setEditedDeliverable] = useState(null);
   const [addingTaskToDeliverable, setAddingTaskToDeliverable] = useState(null);
   const [newTask, setNewTask] = useState({ title: '', description: '' });
 
@@ -407,6 +409,37 @@ function ProjectDetails() {
       console.error('Failed to delete deliverable:', error);
       alert('Failed to delete deliverable');
     }
+  };
+
+  const handleEditDeliverable = (milestoneId, deliverable) => {
+    setEditingDeliverableId(deliverable._id);
+    setEditedDeliverable({
+      milestoneId: milestoneId,
+      title: deliverable.title,
+      description: deliverable.description || '',
+      startDate: deliverable.startDate ? new Date(deliverable.startDate).toISOString().split('T')[0] : '',
+      endDate: deliverable.endDate ? new Date(deliverable.endDate).toISOString().split('T')[0] : ''
+    });
+  };
+
+  const handleSaveEditedDeliverable = async () => {
+    if (!editedDeliverable.title.trim()) return;
+    
+    try {
+      const { milestoneId, ...deliverableData } = editedDeliverable;
+      await milestoneService.updateDeliverable(id, milestoneId, editingDeliverableId, deliverableData);
+      await refetch();
+      setEditingDeliverableId(null);
+      setEditedDeliverable(null);
+    } catch (error) {
+      console.error('Failed to update deliverable:', error);
+      alert(error.response?.data?.message || 'Failed to update deliverable');
+    }
+  };
+
+  const handleCancelEditDeliverable = () => {
+    setEditingDeliverableId(null);
+    setEditedDeliverable(null);
   };
 
   // Task handlers
@@ -1419,6 +1452,67 @@ function ProjectDetails() {
                                 {/* Deliverables */}
                                 {milestone.deliverables?.map((deliverable, dIndex) => (
                                   <div key={deliverable._id} className="ml-4 border-l-2 border-gray-200 pl-4">
+                                    {editingDeliverableId === deliverable._id ? (
+                                      // Edit Mode
+                                      <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-500">
+                                        <h5 className="text-sm font-medium text-gray-900 mb-2">Edit Deliverable</h5>
+                                        <div className="space-y-2">
+                                          <Input
+                                            placeholder="Title"
+                                            value={editedDeliverable.title}
+                                            onChange={(e) => setEditedDeliverable({ ...editedDeliverable, title: e.target.value })}
+                                            className="text-sm"
+                                          />
+                                          <Textarea
+                                            placeholder="Description (optional)"
+                                            value={editedDeliverable.description}
+                                            onChange={(e) => setEditedDeliverable({ ...editedDeliverable, description: e.target.value })}
+                                            className="min-h-[50px] text-sm"
+                                          />
+                                          <div className="flex gap-2">
+                                            <div className="flex-1">
+                                              <Label className="text-xs">Start Date</Label>
+                                              <Input
+                                                type="date"
+                                                value={editedDeliverable.startDate}
+                                                onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDate: e.target.value })}
+                                                className="text-xs h-8"
+                                              />
+                                            </div>
+                                            <div className="flex-1">
+                                              <Label className="text-xs">End Date</Label>
+                                              <Input
+                                                type="date"
+                                                value={editedDeliverable.endDate}
+                                                onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDate: e.target.value })}
+                                                className="text-xs h-8"
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="flex gap-2">
+                                            <Button
+                                              size="sm"
+                                              onClick={handleSaveEditedDeliverable}
+                                              disabled={!editedDeliverable.title.trim()}
+                                              className="flex-1"
+                                            >
+                                              <Save className="w-3 h-3 mr-1" />
+                                              Save
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={handleCancelEditDeliverable}
+                                              className="flex-1"
+                                            >
+                                              <X className="w-3 h-3 mr-1" />
+                                              Cancel
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      // View Mode
                                     <div className="bg-gray-50 rounded-lg p-3">
                                       <div className="flex items-start justify-between mb-2">
                                         <div className="flex items-start gap-2 flex-1">
@@ -1465,14 +1559,46 @@ function ProjectDetails() {
                                             )}
                                           </div>
                                         </div>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => handleDeleteDeliverable(milestone._id, deliverable._id)}
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 -mt-1"
-                                        >
-                                          <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                        <DropdownMenu modal={false}>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="h-8 w-8 p-0 hover:bg-gray-200 -mt-1"
+                                            >
+                                              <MoreVertical className="w-4 h-4" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent 
+                                            align="end" 
+                                            side="bottom"
+                                            sideOffset={5}
+                                            className="w-32"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <DropdownMenuItem
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleEditDeliverable(milestone._id, deliverable);
+                                              }}
+                                              className="cursor-pointer"
+                                            >
+                                              <Edit2 className="w-4 h-4 mr-2" />
+                                              Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteDeliverable(milestone._id, deliverable._id);
+                                              }}
+                                              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                                            >
+                                              <Trash2 className="w-4 h-4 mr-2" />
+                                              Delete
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </div>
 
                                       {/* Tasks */}
@@ -1557,6 +1683,7 @@ function ProjectDetails() {
                                         </Button>
                                       )}
                                     </div>
+                                    )}
                                   </div>
                                 ))}
 
