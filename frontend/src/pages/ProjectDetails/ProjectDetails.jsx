@@ -977,7 +977,7 @@ function ProjectDetails() {
                                 onChange={(e) => setNewMilestone({ ...newMilestone, dateMode: e.target.value })}
                                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               >
-                                <option value="auto">Auto</option>
+                                <option value="auto">Auto (from previous)</option>
                                 <option value="manual">Manual</option>
                               </select>
                               
@@ -1098,7 +1098,7 @@ function ProjectDetails() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                                  {milestone.abbreviation || String.fromCharCode(65 + mIndex)}
+                                  {milestone.abbreviation || milestone.name.substring(0, 5).toUpperCase()}
                                 </span>
                                 <h3 className="font-semibold text-lg">{milestone.name}</h3>
                               </div>
@@ -1128,11 +1128,22 @@ function ProjectDetails() {
                                         </span>
                                       </div>
                                     )}
-                                    {milestone.daysAfterPrevious > 0 && (
-                                      <div className="flex items-center gap-1 text-amber-600">
-                                        <span>+{milestone.daysAfterPrevious} day gap</span>
-                                      </div>
-                                    )}
+                                    {milestone.calculatedStartDate && (() => {
+                                      const today = new Date();
+                                      today.setHours(0, 0, 0, 0);
+                                      const startDate = new Date(milestone.calculatedStartDate);
+                                      startDate.setHours(0, 0, 0, 0);
+                                      const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                                      
+                                      if (daysUntilStart > 0) {
+                                        return (
+                                          <div className="flex items-center gap-1 text-amber-600">
+                                            <span>Starts in {daysUntilStart} {daysUntilStart === 1 ? 'day' : 'days'}</span>
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })()}
                                   </div>
                                 )}
                             </div>
