@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import connectDB from './config/database.js';
-import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes } from './routes/index.js';
+import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes, teamRoutes } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -43,6 +43,7 @@ app.use('/projects', projectRoutes);
 app.use('/templates', templateRoutes);
 app.use('/clients', clientRoutes);
 app.use('/assignments', clientProjectAssignmentRoutes);
+app.use('/team', teamRoutes);
 
 // Error handlers (must be last)
 app.use(notFoundHandler);

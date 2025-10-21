@@ -28,6 +28,11 @@ const projectSchema = new mongoose.Schema(
         },
         message: 'End date must be after start date'
       }
+    },
+    supervisor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TeamMember',
+      required: false
     }
   },
   { 

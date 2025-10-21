@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Calendar, FolderKanban, Loader2, Trash2, MoreVertical } from 'lucide-react';
+import { Plus, Calendar, FolderKanban, Loader2, Trash2, MoreVertical, UserCheck } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -9,7 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
-import { useProjects } from '../../hooks';
+import { useProjects, useTeam } from '../../hooks';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -49,6 +49,7 @@ const formatUTCDate = (dateString, options = {}) => {
 function Projects() {
   const navigate = useNavigate();
   const { projects, loading, createProject, deleteProject } = useProjects();
+  const { teamMembers } = useTeam();
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -222,6 +223,14 @@ function Projects() {
                           <Calendar className="w-4 h-4" />
                           <span>
                             Due: {formatUTCDate(project.endDate)}
+                          </span>
+                        </div>
+                      )}
+                      {project.supervisor && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <UserCheck className="w-4 h-4" />
+                          <span>
+                            {teamMembers.find(m => m._id === project.supervisor)?.fullName || 'Unknown'}
                           </span>
                         </div>
                       )}

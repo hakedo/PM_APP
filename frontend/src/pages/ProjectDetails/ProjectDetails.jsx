@@ -9,13 +9,14 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
-import { useProject } from '../../hooks';
+import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService, projectService } from '../../services';
 
 function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { project, loading, updateProject, refetch } = useProject(id);
+  const { teamMembers } = useTeam();
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -57,7 +58,6 @@ function ProjectDetails() {
     abbreviation: '',
     description: '',
     teamMember: '',
-    supervisor: '',
     dateMode: 'auto',
     endDateMode: 'duration',
     durationDays: 7,
@@ -270,6 +270,7 @@ function ProjectDetails() {
       description: project.description,
       startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
       endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
+      supervisor: project.supervisor || '',
     });
     setIsEditing(true);
   };
@@ -287,6 +288,7 @@ function ProjectDetails() {
         description: editedProject.description,
         startDate: editedProject.startDate,
         endDate: editedProject.endDate || null,
+        supervisor: editedProject.supervisor || null,
       });
       setIsEditing(false);
       setEditedProject(null);
@@ -323,7 +325,6 @@ function ProjectDetails() {
         abbreviation: '',
         description: '',
         teamMember: '',
-        supervisor: '',
         dateMode: 'auto',
         endDateMode: 'duration',
         durationDays: 7,
@@ -362,7 +363,6 @@ function ProjectDetails() {
       abbreviation: milestone.abbreviation || '',
       description: milestone.description || '',
       teamMember: milestone.teamMember || '',
-      supervisor: milestone.supervisor || '',
       dateMode: milestone.dateMode,
       endDateMode: milestone.endDateMode,
       durationDays: milestone.durationDays,
@@ -796,6 +796,32 @@ function ProjectDetails() {
                     </p>
                   )}
                 </div>
+
+                {/* Supervisor - Minimal width */}
+                <div className="space-y-2 w-64 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-gray-500" />
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Supervisor</h3>
+                  </div>
+                  {isEditing ? (
+                    <select
+                      value={editedProject.supervisor}
+                      onChange={(e) => setEditedProject({ ...editedProject, supervisor: e.target.value })}
+                      className="flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-gray-400 pl-7"
+                    >
+                      <option value="">Not assigned</option>
+                      {teamMembers.filter(m => m.status === 'active').map((member) => (
+                        <option key={member._id} value={member._id}>
+                          {member.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p className="text-gray-900 font-medium pl-7">
+                      {project.supervisor ? teamMembers.find(m => m._id === project.supervisor)?.fullName || 'Not found' : 'Not assigned'}
+                    </p>
+                  )}
+                </div>
               </div>
 
               {/* Assigned Clients Section */}
@@ -1078,34 +1104,19 @@ function ProjectDetails() {
                               />
                             </div>
 
-                            {/* Team Assignment Row */}
-                            <div className="flex gap-3">
-                              <div className="flex-1 space-y-1.5">
-                                <Label htmlFor="team-member" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                  <User className="w-3 h-3" />
-                                  Team Member
-                                </Label>
-                                <Input
-                                  id="team-member"
-                                  placeholder="Assign team member"
-                                  value={newMilestone.teamMember}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, teamMember: e.target.value })}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                              <div className="flex-1 space-y-1.5">
-                                <Label htmlFor="supervisor" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                  <UserCheck className="w-3 h-3" />
-                                  Supervisor
-                                </Label>
-                                <Input
-                                  id="supervisor"
-                                  placeholder="Assign supervisor"
-                                  value={newMilestone.supervisor}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, supervisor: e.target.value })}
-                                  className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
+                            {/* Team Assignment */}
+                            <div className="space-y-1.5">
+                              <Label htmlFor="team-member" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
+                                <User className="w-3 h-3" />
+                                Team Member
+                              </Label>
+                              <Input
+                                id="team-member"
+                                placeholder="Assign team member"
+                                value={newMilestone.teamMember}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, teamMember: e.target.value })}
+                                className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                              />
                             </div>
                           </div>
 
@@ -1221,7 +1232,6 @@ function ProjectDetails() {
                                 abbreviation: '',
                                 description: '',
                                 teamMember: '',
-                                supervisor: '',
                                 dateMode: 'auto',
                                 endDateMode: 'duration',
                                 durationDays: 7,
@@ -1303,26 +1313,15 @@ function ProjectDetails() {
                                 />
                               </div>
 
-                              {/* Team Members */}
-                              <div className="flex gap-2">
-                                <div className="flex-1">
-                                  <Label htmlFor="edit-team" className="text-xs">Team Member</Label>
-                                  <Input
-                                    id="edit-team"
-                                    value={editedMilestone.teamMember}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, teamMember: e.target.value })}
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <Label htmlFor="edit-supervisor" className="text-xs">Supervisor</Label>
-                                  <Input
-                                    id="edit-supervisor"
-                                    value={editedMilestone.supervisor}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, supervisor: e.target.value })}
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
+                              {/* Team Member */}
+                              <div>
+                                <Label htmlFor="edit-team" className="text-xs">Team Member</Label>
+                                <Input
+                                  id="edit-team"
+                                  value={editedMilestone.teamMember}
+                                  onChange={(e) => setEditedMilestone({ ...editedMilestone, teamMember: e.target.value })}
+                                  className="h-8 text-sm"
+                                />
                               </div>
 
                               {/* Date Configuration */}

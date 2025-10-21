@@ -231,7 +231,6 @@ router.post('/:id/milestones', async (req, res, next) => {
       abbreviation: req.body.abbreviation,
       description: req.body.description,
       teamMember: req.body.teamMember,
-      supervisor: req.body.supervisor,
       projectId: req.params.id,
       order: milestoneCount,
       dateMode: req.body.dateMode || 'auto',
@@ -333,7 +332,6 @@ router.put('/:id/milestones/:milestoneId', async (req, res, next) => {
     if (req.body.abbreviation !== undefined) milestone.abbreviation = req.body.abbreviation;
     if (req.body.description !== undefined) milestone.description = req.body.description;
     if (req.body.teamMember !== undefined) milestone.teamMember = req.body.teamMember;
-    if (req.body.supervisor !== undefined) milestone.supervisor = req.body.supervisor;
     if (req.body.order !== undefined) milestone.order = req.body.order;
     
     // Update date fields

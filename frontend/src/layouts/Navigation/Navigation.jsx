@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, FolderKanban, Users, Sparkles, Settings } from 'lucide-react';
+import { Home, FolderKanban, Users, Sparkles, Settings, UserCog } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
   { path: '/projects', label: 'Projects', icon: FolderKanban },
   { path: '/clients', label: 'Clients', icon: Users },
+  { path: '/team', label: 'Team', icon: UserCog },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
