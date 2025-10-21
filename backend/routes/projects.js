@@ -76,7 +76,19 @@ router.get('/:id', async (req, res, next) => {
 // Create new project
 router.post('/', async (req, res, next) => {
   try {
-    const newProject = new Project(req.body);
+    const projectData = { ...req.body };
+    
+    // Convert date strings to UTC dates at midnight
+    if (projectData.startDate) {
+      const [year, month, day] = projectData.startDate.split('-').map(Number);
+      projectData.startDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    if (projectData.endDate) {
+      const [year, month, day] = projectData.endDate.split('-').map(Number);
+      projectData.endDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    
+    const newProject = new Project(projectData);
     const savedProject = await newProject.save();
     res.status(201).json(savedProject);
   } catch (error) {
@@ -94,9 +106,21 @@ router.post('/', async (req, res, next) => {
 // Update project by ID
 router.put('/:id', async (req, res, next) => {
   try {
+    const updateData = { ...req.body };
+    
+    // Convert date strings to UTC dates at midnight
+    if (updateData.startDate) {
+      const [year, month, day] = updateData.startDate.split('-').map(Number);
+      updateData.startDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    if (updateData.endDate) {
+      const [year, month, day] = updateData.endDate.split('-').map(Number);
+      updateData.endDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    
     const updatedProject = await Project.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
     
@@ -187,6 +211,9 @@ router.post('/:id/milestones', async (req, res, next) => {
       });
     }
 
+    console.log('Received milestone data:', req.body);
+    console.log('Project start date from DB:', project.startDate);
+
     // Get existing milestones to determine previous milestone's end date
     const existingMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
     const milestoneCount = existingMilestones.length;
@@ -216,11 +243,19 @@ router.post('/:id/milestones', async (req, res, next) => {
     };
 
     // Add manual dates if provided
-    if (req.body.startDate) milestoneData.startDate = req.body.startDate;
-    if (req.body.endDate) milestoneData.endDate = req.body.endDate;
+    if (req.body.startDate) {
+      // Convert YYYY-MM-DD string to UTC date at midnight
+      const [year, month, day] = req.body.startDate.split('-').map(Number);
+      milestoneData.startDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    if (req.body.endDate) {
+      // Convert YYYY-MM-DD string to UTC date at midnight
+      const [year, month, day] = req.body.endDate.split('-').map(Number);
+      milestoneData.endDate = new Date(Date.UTC(year, month - 1, day));
+    }
 
     // Validate dates
-    const validation = validateMilestoneDates(milestoneData, previousEndDate, project.endDate);
+    const validation = validateMilestoneDates(milestoneData, previousEndDate, project.endDate, project.startDate);
     if (!validation.isValid) {
       return res.status(400).json({
         error: 'Validation failed',
@@ -308,23 +343,49 @@ router.put('/:id/milestones/:milestoneId', async (req, res, next) => {
     if (req.body.durationType !== undefined) milestone.durationType = req.body.durationType;
     if (req.body.daysAfterPrevious !== undefined) milestone.daysAfterPrevious = req.body.daysAfterPrevious;
     if (req.body.gapType !== undefined) milestone.gapType = req.body.gapType;
-    if (req.body.startDate !== undefined) milestone.startDate = req.body.startDate;
-    if (req.body.endDate !== undefined) milestone.endDate = req.body.endDate;
+    if (req.body.startDate !== undefined) {
+      // Convert YYYY-MM-DD string to UTC date at midnight
+      const [year, month, day] = req.body.startDate.split('-').map(Number);
+      milestone.startDate = new Date(Date.UTC(year, month - 1, day));
+    }
+    if (req.body.endDate !== undefined) {
+      // Convert YYYY-MM-DD string to UTC date at midnight
+      const [year, month, day] = req.body.endDate.split('-').map(Number);
+      milestone.endDate = new Date(Date.UTC(year, month - 1, day));
+    }
+
+    // Get previous milestone end date for validation
+    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const milestoneIndex = allMilestones.findIndex(m => m._id.toString() === milestone._id.toString());
+    let previousEndDate = project.startDate;
+    if (milestoneIndex > 0) {
+      const previousMilestone = allMilestones[milestoneIndex - 1];
+      previousEndDate = previousMilestone.calculatedEndDate || previousMilestone.endDate || project.startDate;
+    }
+
+    // Validate dates before saving
+    const validation = validateMilestoneDates(milestone.toObject(), previousEndDate, project.endDate, project.startDate);
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        message: validation.errors.join(', ')
+      });
+    }
 
     await milestone.save();
 
     // Recalculate all milestones after any date change
-    const allMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
+    const updatedMilestones = await Milestone.find({ projectId: req.params.id }).sort({ order: 1 });
     const recalculated = recalculateMilestoneDates(
-      allMilestones.map(m => m.toObject()), 
+      updatedMilestones.map(m => m.toObject()), 
       project.startDate
     );
 
     // Update all milestones with recalculated dates
-    for (let i = 0; i < allMilestones.length; i++) {
-      allMilestones[i].calculatedStartDate = recalculated[i].calculatedStartDate;
-      allMilestones[i].calculatedEndDate = recalculated[i].calculatedEndDate;
-      await allMilestones[i].save();
+    for (let i = 0; i < updatedMilestones.length; i++) {
+      updatedMilestones[i].calculatedStartDate = recalculated[i].calculatedStartDate;
+      updatedMilestones[i].calculatedEndDate = recalculated[i].calculatedEndDate;
+      await updatedMilestones[i].save();
     }
 
     // Return the project with all milestones populated

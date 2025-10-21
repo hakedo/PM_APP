@@ -33,6 +33,19 @@ const itemVariants = {
   },
 };
 
+// Helper function to format UTC dates without timezone conversion
+const formatUTCDate = (dateString, options = {}) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const defaultOptions = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'
+  };
+  return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
+};
+
 function Projects() {
   const navigate = useNavigate();
   const { projects, loading, createProject, deleteProject } = useProjects();
@@ -201,22 +214,14 @@ function Projects() {
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {new Date(project.startDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                          {formatUTCDate(project.startDate)}
                         </span>
                       </div>
                       {project.endDate && (
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4" />
                           <span>
-                            Due: {new Date(project.endDate).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
+                            Due: {formatUTCDate(project.endDate)}
                           </span>
                         </div>
                       )}

@@ -313,6 +313,8 @@ function ProjectDetails() {
   const handleAddMilestone = async () => {
     if (!newMilestone.name.trim()) return;
     
+    console.log('Sending milestone data:', newMilestone);
+    
     try {
       await milestoneService.createMilestone(id, newMilestone);
       await refetch();
@@ -334,7 +336,10 @@ function ProjectDetails() {
       setIsAddingMilestone(false);
     } catch (error) {
       console.error('Failed to add milestone:', error);
-      alert('Failed to add milestone');
+      console.error('Error data:', error.data);
+      // Extract error message from APIError
+      const errorMessage = error.data?.message || error.message || 'Failed to add milestone';
+      alert(errorMessage);
     }
   };
 
@@ -550,10 +555,11 @@ function ProjectDetails() {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
+    // Parse UTC date string directly to avoid timezone conversion
     const date = new Date(dateString);
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const year = date.getUTCFullYear();
     return `${month}/${day}/${year}`;
   };
 
@@ -940,11 +946,11 @@ function ProjectDetails() {
               onClick={() => setIsDeliverablesCollapsed(!isDeliverablesCollapsed)}
             >
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-4">
+                <CardTitle className="flex items-center gap-4 text-3xl font-bold text-gray-900">
                   <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
                     <Package className="w-7 h-7 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900">Milestones</h2>
+                  <span>Milestones</span>
                 </CardTitle>
 
                 <div className="flex gap-2">
@@ -1470,13 +1476,13 @@ function ProjectDetails() {
                                     {milestone.calculatedStartDate && (
                                       <div className="flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
-                                        <span>Start: {new Date(milestone.calculatedStartDate).toLocaleDateString()}</span>
+                                        <span>Start: {formatDate(milestone.calculatedStartDate)}</span>
                                       </div>
                                     )}
                                     {milestone.calculatedEndDate && (
                                       <div className="flex items-center gap-1">
                                         <Calendar className="w-3 h-3" />
-                                        <span>End: {new Date(milestone.calculatedEndDate).toLocaleDateString()}</span>
+                                        <span>End: {formatDate(milestone.calculatedEndDate)}</span>
                                       </div>
                                     )}
                                     {milestone.calculatedStartDate && milestone.calculatedEndDate && (
@@ -1657,13 +1663,13 @@ function ProjectDetails() {
                                                 {deliverable.startDate && (
                                                   <div className="flex items-center gap-1">
                                                     <Calendar className="w-3 h-3" />
-                                                    <span>Start: {new Date(deliverable.startDate).toLocaleDateString()}</span>
+                                                    <span>Start: {formatDate(deliverable.startDate)}</span>
                                                   </div>
                                                 )}
                                                 {deliverable.endDate && (
                                                   <div className="flex items-center gap-1">
                                                     <Calendar className="w-3 h-3" />
-                                                    <span>End: {new Date(deliverable.endDate).toLocaleDateString()}</span>
+                                                    <span>End: {formatDate(deliverable.endDate)}</span>
                                                   </div>
                                                 )}
                                                 {deliverable.startDate && deliverable.endDate && (
@@ -1804,13 +1810,13 @@ function ProjectDetails() {
                                                         {task.startDate && (
                                                           <div className="flex items-center gap-1">
                                                             <Calendar className="w-3 h-3" />
-                                                            <span>{new Date(task.startDate).toLocaleDateString()}</span>
+                                                            <span>{formatDate(task.startDate)}</span>
                                                           </div>
                                                         )}
                                                         {task.endDate && (
                                                           <div className="flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
-                                                            <span>{new Date(task.endDate).toLocaleDateString()}</span>
+                                                            <span>{formatDate(task.endDate)}</span>
                                                           </div>
                                                         )}
                                                         {task.startDate && task.endDate && (

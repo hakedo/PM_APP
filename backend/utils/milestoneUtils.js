@@ -126,35 +126,27 @@ export const recalculateMilestoneDates = (milestones, projectStartDate) => {
 /**
  * Validate milestone dates
  * @param {Object} milestone - Milestone object
- * @param {Date} previousEndDate - End date of previous milestone
+ * @param {Date} previousEndDate - End date of previous milestone (or project start date)
  * @param {Date} projectEndDate - Project end date (optional)
+ * @param {Date} projectStartDate - Project start date (optional)
  * @returns {Object} Validation result { isValid: boolean, errors: string[] }
  */
-export const validateMilestoneDates = (milestone, previousEndDate, projectEndDate = null) => {
+export const validateMilestoneDates = (milestone, previousEndDate, projectEndDate = null, projectStartDate = null) => {
   const errors = [];
 
   const startDate = milestone.dateMode === 'manual' 
     ? new Date(milestone.startDate) 
-    : calculateMilestoneStartDate(previousEndDate, milestone.daysAfterPrevious || 0);
+    : calculateMilestoneStartDate(previousEndDate, milestone.daysAfterPrevious || 0, milestone.gapType || 'business');
 
   const endDate = milestone.endDateMode === 'manual'
     ? new Date(milestone.endDate)
-    : calculateMilestoneEndDate(startDate, milestone.durationDays || 1);
+    : calculateMilestoneEndDate(startDate, milestone.durationDays || 1, milestone.durationType || 'business');
 
-  // Validate start date is not before previous milestone end
-  if (previousEndDate && startDate < previousEndDate) {
-    errors.push('Milestone cannot start before previous milestone ends');
-  }
-
-  // Validate end date is after start date
-  if (endDate < startDate) {
-    errors.push('Milestone end date must be after start date');
-  }
-
-  // Validate against project end date if provided
-  if (projectEndDate && endDate > projectEndDate) {
-    errors.push('Milestone end date exceeds project end date');
-  }
+  console.log('Validation - Start Date:', startDate);
+  console.log('Validation - End Date:', endDate);
+  console.log('Validation - Project Start Date:', projectStartDate);
+  console.log('Validation - Previous End Date:', previousEndDate);
+  console.log('Validation - Project End Date:', projectEndDate);
 
   // Validate manual dates are provided when required
   if (milestone.dateMode === 'manual' && !milestone.startDate) {
@@ -168,6 +160,78 @@ export const validateMilestoneDates = (milestone, previousEndDate, projectEndDat
   // Validate duration
   if (milestone.endDateMode === 'duration' && (!milestone.durationDays || milestone.durationDays < 1)) {
     errors.push('Duration must be at least 1 day');
+  }
+
+  // Only validate date logic if dates are present
+  if (milestone.startDate || milestone.dateMode === 'auto') {
+    // Normalize dates to compare only date parts (ignore time)
+    const normalizeDate = (date) => {
+      const d = new Date(date);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const normalizedStartDate = normalizeDate(startDate);
+    
+    // Validate against project start date
+    if (projectStartDate) {
+      const normalizedProjectStart = normalizeDate(projectStartDate);
+      if (normalizedStartDate < normalizedProjectStart) {
+        const projectStartStr = normalizedProjectStart.toLocaleDateString();
+        errors.push(`Milestone start date cannot be before project start date (${projectStartStr})`);
+      }
+    }
+
+    // Validate start date is not before previous milestone end
+    // Only check if previousEndDate is different from projectStartDate (to avoid duplicate error)
+    if (previousEndDate && projectStartDate) {
+      const normalizedPrevEnd = normalizeDate(previousEndDate);
+      const normalizedProjectStart = normalizeDate(projectStartDate);
+      
+      // Only validate against previous end if it's not the same as project start
+      if (normalizedPrevEnd.getTime() !== normalizedProjectStart.getTime()) {
+        if (normalizedStartDate < normalizedPrevEnd) {
+          const prevEndStr = normalizedPrevEnd.toLocaleDateString();
+          errors.push(`Milestone start date cannot be before previous milestone end date (${prevEndStr})`);
+        }
+      }
+    }
+
+    // Validate start date against project end date
+    if (projectEndDate) {
+      const normalizedProjectEnd = normalizeDate(projectEndDate);
+      if (normalizedStartDate > normalizedProjectEnd) {
+        const projectEndStr = normalizedProjectEnd.toLocaleDateString();
+        errors.push(`Milestone start date cannot be after project end date (${projectEndStr})`);
+      }
+    }
+  }
+
+  // Only validate end date logic if dates are present
+  if ((milestone.endDate || milestone.endDateMode === 'duration') && (milestone.startDate || milestone.dateMode === 'auto')) {
+    // Normalize dates to compare
+    const normalizeDate = (date) => {
+      const d = new Date(date);
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    };
+
+    const normalizedStartDate = normalizeDate(startDate);
+    const normalizedEndDate = normalizeDate(endDate);
+    
+    // Validate end date is after start date (use <=, end must be strictly after start)
+    if (normalizedEndDate <= normalizedStartDate) {
+      errors.push('Milestone end date must be after start date');
+    }
+
+    // Validate against project end date if provided
+    if (projectEndDate) {
+      const normalizedProjectEnd = normalizeDate(projectEndDate);
+      if (normalizedEndDate > normalizedProjectEnd) {
+        const projectEndStr = normalizedProjectEnd.toLocaleDateString();
+        errors.push(`Milestone end date cannot exceed project end date (${projectEndStr})`);
+      }
+    }
   }
 
   return {
