@@ -10,6 +10,7 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useProjects, useTeam } from '../../hooks';
+import { getTodayString, formatDateDisplay } from '../../utils/dateUtils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -33,18 +34,7 @@ const itemVariants = {
   },
 };
 
-// Helper function to format UTC dates without timezone conversion
-const formatUTCDate = (dateString, options = {}) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const defaultOptions = {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'
-  };
-  return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-};
+// Use formatDateDisplay from dateUtils for consistency
 
 function Projects() {
   const navigate = useNavigate();
@@ -215,14 +205,14 @@ function Projects() {
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4" />
                         <span>
-                          {formatUTCDate(project.startDate)}
+                          {formatDateDisplay(project.startDate)}
                         </span>
                       </div>
                       {project.endDate && (
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4" />
                           <span>
-                            Due: {formatUTCDate(project.endDate)}
+                            Due: {formatDateDisplay(project.endDate)}
                           </span>
                         </div>
                       )}
@@ -293,7 +283,7 @@ function Projects() {
                       name="startDate"
                       value={newProject.startDate}
                       onChange={handleInputChange}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={getTodayString()}
                       required
                     />
                   </div>
@@ -306,7 +296,7 @@ function Projects() {
                       name="endDate"
                       value={newProject.endDate}
                       onChange={handleInputChange}
-                      min={newProject.startDate || new Date().toISOString().split('T')[0]}
+                      min={newProject.startDate || getTodayString()}
                     />
                   </div>
                 </div>

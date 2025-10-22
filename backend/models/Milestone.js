@@ -35,7 +35,7 @@ const milestoneSchema = new mongoose.Schema(
     // Date configuration
     dateMode: {
       type: String,
-      enum: ['manual', 'auto'],
+      enum: ['auto'],
       default: 'auto',
       required: true
     },
@@ -47,7 +47,7 @@ const milestoneSchema = new mongoose.Schema(
     // End date configuration
     endDateMode: {
       type: String,
-      enum: ['manual', 'duration'],
+      enum: ['duration'],
       default: 'duration',
       required: true
     },

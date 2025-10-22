@@ -25,7 +25,7 @@ const deliverableSchema = new mongoose.Schema(
     startDateMode: {
       type: String,
       enum: ['manual', 'relative'],
-      default: 'manual'
+      default: 'relative'
     },
     startDate: {
       type: Date,
@@ -46,7 +46,7 @@ const deliverableSchema = new mongoose.Schema(
     endDateMode: {
       type: String,
       enum: ['manual', 'relative'],
-      default: 'manual'
+      default: 'relative'
     },
     endDate: {
       type: Date,

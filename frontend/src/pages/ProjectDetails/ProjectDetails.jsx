@@ -11,6 +11,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService, projectService } from '../../services';
+import { formatDateDisplay, extractDateForInput } from '../../utils/dateUtils';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -63,21 +64,17 @@ function ProjectDetails() {
     durationDays: 7,
     durationType: 'business', // 'business' or 'calendar'
     daysAfterPrevious: 0,
-    gapType: 'business', // 'business' or 'calendar' for daysAfterPrevious
-    startDate: '',
-    endDate: ''
+    gapType: 'business' // 'business' or 'calendar' for daysAfterPrevious
   });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
   const [newDeliverable, setNewDeliverable] = useState({ 
     title: '', 
     description: '', 
-    startDateMode: 'manual',
-    startDate: '', 
+    startDateMode: 'relative',
     startDateOffset: 0,
     startDateOffsetType: 'business',
-    endDateMode: 'manual',
-    endDate: '',
-    endDateOffset: 0,
+    endDateMode: 'relative',
+    endDateOffset: 1,
     endDateOffsetType: 'business'
   });
   const [editingDeliverableId, setEditingDeliverableId] = useState(null);
@@ -86,23 +83,29 @@ function ProjectDetails() {
   const [newTask, setNewTask] = useState({ 
     title: '', 
     description: '', 
-    startDateMode: 'manual',
-    startDate: '', 
+    startDateMode: 'relative',
     startDateOffset: 0,
     startDateOffsetType: 'business',
-    endDateMode: 'manual',
-    endDate: '',
-    endDateOffset: 0,
+    endDateMode: 'relative',
+    endDateOffset: 1,
     endDateOffsetType: 'business'
   });
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
 
   // Helper function to add business days to a date
+  // Handles both Date objects and UTC date strings from database
   const addBusinessDays = (startDate, days) => {
-    let currentDate = new Date(startDate);
-    let addedDays = 0;
+    // If it's a string (from database), parse it as UTC and create a local date
+    let currentDate;
+    if (typeof startDate === 'string') {
+      const d = new Date(startDate);
+      currentDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    } else {
+      currentDate = new Date(startDate);
+    }
     
+    let addedDays = 0;
     while (addedDays < days) {
       currentDate.setDate(currentDate.getDate() + 1);
       // Skip weekends (0 = Sunday, 6 = Saturday)
@@ -115,8 +118,16 @@ function ProjectDetails() {
   };
 
   // Helper function to add calendar days to a date
+  // Handles both Date objects and UTC date strings from database
   const addCalendarDays = (startDate, days) => {
-    const date = new Date(startDate);
+    // If it's a string (from database), parse it as UTC and create a local date
+    let date;
+    if (typeof startDate === 'string') {
+      const d = new Date(startDate);
+      date = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    } else {
+      date = new Date(startDate);
+    }
     date.setDate(date.getDate() + days);
     return date;
   };
@@ -290,8 +301,8 @@ function ProjectDetails() {
     setEditedProject({
       title: project.title,
       description: project.description,
-      startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
-      endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
+      startDate: project.startDate ? extractDateForInput(project.startDate) : '',
+      endDate: project.endDate ? extractDateForInput(project.endDate) : '',
       supervisor: project.supervisor || '',
     });
     setIsEditing(true);
@@ -575,9 +586,9 @@ function ProjectDetails() {
     }
   };
 
+  // Use formatDateDisplay from dateUtils for consistency
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    // Parse UTC date string directly to avoid timezone conversion
     const date = new Date(dateString);
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
@@ -1151,93 +1162,118 @@ function ProjectDetails() {
                                 <span className="text-xs font-medium text-gray-700">Start Date</span>
                               </div>
                               
+                              {/* Related Date Display */}
+                              {(() => {
+                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
+                                const relatedDate = lastMilestone 
+                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                return relatedDate ? (
+                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mb-2">
+                                    <span className="font-medium">After: </span>
+                                    {formatDateDisplay(relatedDate)}
+                                    {lastMilestone && <span className="text-gray-500"> (prev milestone)</span>}
+                                    {!lastMilestone && <span className="text-gray-500"> (project start)</span>}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
+                              <div className="flex gap-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={newMilestone.daysAfterPrevious}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
+                                  placeholder="Gap days"
+                                  className="h-8 text-xs border-gray-200 flex-1"
+                                />
+                                <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
+                              </div>
                               <select
-                                value={newMilestone.dateMode}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, dateMode: e.target.value })}
+                                value={newMilestone.gapType}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, gapType: e.target.value })}
                                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               >
-                                <option value="auto">Auto (from previous)</option>
-                                <option value="manual">Manual</option>
+                                <option value="business">Business Days</option>
+                                <option value="calendar">Calendar Days</option>
                               </select>
                               
-                              {newMilestone.dateMode === 'auto' ? (
-                                <>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      value={newMilestone.daysAfterPrevious}
-                                      onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
-                                      placeholder="Gap days"
-                                      className="h-8 text-xs border-gray-200 flex-1"
-                                    />
-                                    <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
-                                  </div>
-                                  <select
-                                    value={newMilestone.gapType}
-                                    onChange={(e) => setNewMilestone({ ...newMilestone, gapType: e.target.value })}
-                                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                  >
-                                    <option value="business">Business Days</option>
-                                    <option value="calendar">Calendar Days</option>
-                                  </select>
-                                </>
-                              ) : (
-                                <Input
-                                  type="date"
-                                  value={newMilestone.startDate}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, startDate: e.target.value })}
-                                  className="h-8 text-xs border-gray-200"
-                                />
-                              )}
+                              {/* Calculated Start Date Display */}
+                              {(() => {
+                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
+                                const relatedDate = lastMilestone 
+                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                if (relatedDate) {
+                                  const startDate = newMilestone.gapType === 'business'
+                                    ? addBusinessDays(relatedDate, newMilestone.daysAfterPrevious || 0)
+                                    : addCalendarDays(relatedDate, newMilestone.daysAfterPrevious || 0);
+                                  
+                                  return (
+                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                      <span className="font-medium">Will start: </span>
+                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
 
                             {/* End Date Card */}
                             <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
                               <div className="flex items-center gap-1.5 mb-2">
                                 <Clock className="w-3.5 h-3.5 text-gray-500" />
-                                <span className="text-xs font-medium text-gray-700">End Date</span>
+                                <span className="text-xs font-medium text-gray-700">Duration</span>
                               </div>
                               
+                              <div className="flex gap-2">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={newMilestone.durationDays}
+                                  onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
+                                  placeholder="Duration"
+                                  className="h-8 text-xs border-gray-200 flex-1"
+                                />
+                                <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
+                              </div>
                               <select
-                                value={newMilestone.endDateMode}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, endDateMode: e.target.value })}
+                                value={newMilestone.durationType}
+                                onChange={(e) => setNewMilestone({ ...newMilestone, durationType: e.target.value })}
                                 className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               >
-                                <option value="duration">Duration</option>
-                                <option value="manual">Manual</option>
+                                <option value="business">Business Days</option>
+                                <option value="calendar">Calendar Days</option>
                               </select>
                               
-                              {newMilestone.endDateMode === 'duration' ? (
-                                <>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={newMilestone.durationDays}
-                                      onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
-                                      placeholder="Duration"
-                                      className="h-8 text-xs border-gray-200 flex-1"
-                                    />
-                                    <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
-                                  </div>
-                                  <select
-                                    value={newMilestone.durationType}
-                                    onChange={(e) => setNewMilestone({ ...newMilestone, durationType: e.target.value })}
-                                    className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                  >
-                                    <option value="business">Business Days</option>
-                                    <option value="calendar">Calendar Days</option>
-                                  </select>
-                                </>
-                              ) : (
-                                <Input
-                                  type="date"
-                                  value={newMilestone.endDate}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, endDate: e.target.value })}
-                                  className="h-8 text-xs border-gray-200"
-                                />
-                              )}
+                              {/* Calculated End Date Display */}
+                              {(() => {
+                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
+                                const relatedDate = lastMilestone 
+                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                if (relatedDate) {
+                                  const startDate = newMilestone.gapType === 'business'
+                                    ? addBusinessDays(relatedDate, newMilestone.daysAfterPrevious || 0)
+                                    : addCalendarDays(relatedDate, newMilestone.daysAfterPrevious || 0);
+                                  
+                                  const endDate = newMilestone.durationType === 'business'
+                                    ? addBusinessDays(startDate, newMilestone.durationDays || 1)
+                                    : addCalendarDays(startDate, newMilestone.durationDays || 1);
+                                  
+                                  return (
+                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                      <span className="font-medium">Will end: </span>
+                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -1347,46 +1383,36 @@ function ProjectDetails() {
                               </div>
 
                               {/* Date Configuration */}
+                              {/* Related Date Display */}
+                              {(() => {
+                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
+                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
+                                const relatedDate = prevMilestone 
+                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                return relatedDate ? (
+                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mb-2">
+                                    <span className="font-medium">After: </span>
+                                    {formatDateDisplay(relatedDate)}
+                                    {prevMilestone && <span className="text-gray-500"> (prev milestone)</span>}
+                                    {!prevMilestone && <span className="text-gray-500"> (project start)</span>}
+                                  </div>
+                                ) : null;
+                              })()}
+                              
                               <div className="flex gap-2">
                                 <div className="flex-1">
-                                  <Label className="text-xs">Start Date Mode</Label>
-                                  <select
-                                    value={editedMilestone.dateMode}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, dateMode: e.target.value })}
-                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                  >
-                                    <option value="auto">Auto (from previous)</option>
-                                    <option value="manual">Manual</option>
-                                  </select>
+                                  <Label className="text-xs">Days After Previous</Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={editedMilestone.daysAfterPrevious}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
+                                    className="h-8 text-sm"
+                                  />
                                 </div>
                                 <div className="flex-1">
-                                  {editedMilestone.dateMode === 'auto' ? (
-                                    <>
-                                      <Label className="text-xs">Days After Previous</Label>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        value={editedMilestone.daysAfterPrevious}
-                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
-                                        className="h-8 text-sm"
-                                      />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Label className="text-xs">Start Date</Label>
-                                      <Input
-                                        type="date"
-                                        value={editedMilestone.startDate}
-                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, startDate: e.target.value })}
-                                        className="h-8 text-sm"
-                                      />
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-
-                              {editedMilestone.dateMode === 'auto' && (
-                                <div>
                                   <Label className="text-xs">Gap Type</Label>
                                   <select
                                     value={editedMilestone.gapType || 'business'}
@@ -1397,48 +1423,43 @@ function ProjectDetails() {
                                     <option value="calendar">Calendar Days</option>
                                   </select>
                                 </div>
-                              )}
+                              </div>
+                              
+                              {/* Calculated Start Date */}
+                              {(() => {
+                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
+                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
+                                const relatedDate = prevMilestone 
+                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                if (relatedDate) {
+                                  const startDate = editedMilestone.gapType === 'business'
+                                    ? addBusinessDays(new Date(relatedDate), editedMilestone.daysAfterPrevious || 0)
+                                    : addCalendarDays(new Date(relatedDate), editedMilestone.daysAfterPrevious || 0);
+                                  
+                                  return (
+                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                      <span className="font-medium">Will start: </span>
+                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
 
                               <div className="flex gap-2">
                                 <div className="flex-1">
-                                  <Label className="text-xs">End Date Mode</Label>
-                                  <select
-                                    value={editedMilestone.endDateMode}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, endDateMode: e.target.value })}
-                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                  >
-                                    <option value="duration">Duration</option>
-                                    <option value="manual">Manual</option>
-                                  </select>
+                                  <Label className="text-xs">Duration (days)</Label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={editedMilestone.durationDays}
+                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, durationDays: parseInt(e.target.value) || 1 })}
+                                    className="h-8 text-sm"
+                                  />
                                 </div>
                                 <div className="flex-1">
-                                  {editedMilestone.endDateMode === 'duration' ? (
-                                    <>
-                                      <Label className="text-xs">Duration (days)</Label>
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        value={editedMilestone.durationDays}
-                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, durationDays: parseInt(e.target.value) || 1 })}
-                                        className="h-8 text-sm"
-                                      />
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Label className="text-xs">End Date</Label>
-                                      <Input
-                                        type="date"
-                                        value={editedMilestone.endDate}
-                                        onChange={(e) => setEditedMilestone({ ...editedMilestone, endDate: e.target.value })}
-                                        className="h-8 text-sm"
-                                      />
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-
-                              {editedMilestone.endDateMode === 'duration' && (
-                                <div>
                                   <Label className="text-xs">Duration Type</Label>
                                   <select
                                     value={editedMilestone.durationType || 'business'}
@@ -1449,7 +1470,34 @@ function ProjectDetails() {
                                     <option value="calendar">Calendar Days</option>
                                   </select>
                                 </div>
-                              )}
+                              </div>
+                              
+                              {/* Calculated End Date */}
+                              {(() => {
+                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
+                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
+                                const relatedDate = prevMilestone 
+                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
+                                  : project?.startDate;
+                                
+                                if (relatedDate) {
+                                  const startDate = editedMilestone.gapType === 'business'
+                                    ? addBusinessDays(relatedDate, editedMilestone.daysAfterPrevious || 0)
+                                    : addCalendarDays(relatedDate, editedMilestone.daysAfterPrevious || 0);
+                                  
+                                  const endDate = editedMilestone.durationType === 'business'
+                                    ? addBusinessDays(startDate, editedMilestone.durationDays || 1)
+                                    : addCalendarDays(startDate, editedMilestone.durationDays || 1);
+                                  
+                                  return (
+                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                      <span className="font-medium">Will end: </span>
+                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
 
                               {/* Action Buttons */}
                               <div className="flex gap-2 pt-2">
@@ -1623,107 +1671,96 @@ function ProjectDetails() {
                                           {/* Start Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                             <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                            
+                                            {/* Related Date Display */}
+                                            {milestone.calculatedStartDate && (
+                                              <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                <span className="font-medium">Milestone starts: </span>
+                                                {formatDateDisplay(milestone.calculatedStartDate)}
+                                              </div>
+                                            )}
+                                            
                                             <div className="flex gap-2">
                                               <div className="flex-1">
-                                                <Label className="text-xs">Mode</Label>
+                                                <Label className="text-xs">Days After Milestone Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={editedDeliverable.startDateOffset || 0}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Type</Label>
                                                 <select
-                                                  value={editedDeliverable.startDateMode || 'manual'}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateMode: e.target.value })}
+                                                  value={editedDeliverable.startDateOffsetType || 'business'}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffsetType: e.target.value })}
                                                   className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                 >
-                                                  <option value="manual">Manual</option>
-                                                  <option value="relative">Relative to Milestone</option>
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
                                                 </select>
                                               </div>
-                                              {editedDeliverable.startDateMode === 'relative' ? (
-                                                <>
-                                                  <div className="flex-1">
-                                                    <Label className="text-xs">Days After Milestone Start</Label>
-                                                    <Input
-                                                      type="number"
-                                                      min="0"
-                                                      value={editedDeliverable.startDateOffset || 0}
-                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                      className="h-8 text-xs"
-                                                    />
-                                                  </div>
-                                                  <div className="flex-1">
-                                                    <Label className="text-xs">Type</Label>
-                                                    <select
-                                                      value={editedDeliverable.startDateOffsetType || 'business'}
-                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffsetType: e.target.value })}
-                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                    >
-                                                      <option value="business">Business Days</option>
-                                                      <option value="calendar">Calendar Days</option>
-                                                    </select>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <div className="flex-1">
-                                                  <Label className="text-xs">Date</Label>
-                                                  <Input
-                                                    type="date"
-                                                    value={editedDeliverable.startDate}
-                                                    onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDate: e.target.value })}
-                                                    className="h-8 text-xs"
-                                                  />
-                                                </div>
-                                              )}
                                             </div>
+                                            
+                                            {/* Calculated Start Date */}
+                                            {milestone.calculatedStartDate && (() => {
+                                              const milestoneStart = new Date(milestone.calculatedStartDate);
+                                              const startDate = editedDeliverable.startDateOffsetType === 'business'
+                                                ? addBusinessDays(milestoneStart, editedDeliverable.startDateOffset || 0)
+                                                : addCalendarDays(milestoneStart, editedDeliverable.startDateOffset || 0);
+                                              
+                                              return (
+                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                  <span className="font-medium">Will start: </span>
+                                                  {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
 
                                           {/* End Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                             <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                            
                                             <div className="flex gap-2">
                                               <div className="flex-1">
-                                                <Label className="text-xs">Mode</Label>
+                                                <Label className="text-xs">Days After Milestone Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={editedDeliverable.endDateOffset || 0}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Type</Label>
                                                 <select
-                                                  value={editedDeliverable.endDateMode || 'manual'}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateMode: e.target.value })}
+                                                  value={editedDeliverable.endDateOffsetType || 'business'}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffsetType: e.target.value })}
                                                   className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                 >
-                                                  <option value="manual">Manual</option>
-                                                  <option value="relative">Relative to Milestone</option>
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
                                                 </select>
                                               </div>
-                                              {editedDeliverable.endDateMode === 'relative' ? (
-                                                <>
-                                                  <div className="flex-1">
-                                                    <Label className="text-xs">Days After Milestone Start</Label>
-                                                    <Input
-                                                      type="number"
-                                                      min="0"
-                                                      value={editedDeliverable.endDateOffset || 0}
-                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                      className="h-8 text-xs"
-                                                    />
-                                                  </div>
-                                                  <div className="flex-1">
-                                                    <Label className="text-xs">Type</Label>
-                                                    <select
-                                                      value={editedDeliverable.endDateOffsetType || 'business'}
-                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffsetType: e.target.value })}
-                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                    >
-                                                      <option value="business">Business Days</option>
-                                                      <option value="calendar">Calendar Days</option>
-                                                    </select>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <div className="flex-1">
-                                                  <Label className="text-xs">Date</Label>
-                                                  <Input
-                                                    type="date"
-                                                    value={editedDeliverable.endDate}
-                                                    onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDate: e.target.value })}
-                                                    className="h-8 text-xs"
-                                                  />
-                                                </div>
-                                              )}
                                             </div>
+                                            
+                                            {/* Calculated End Date */}
+                                            {milestone.calculatedStartDate && (() => {
+                                              const endDate = editedDeliverable.endDateOffsetType === 'business'
+                                                ? addBusinessDays(milestone.calculatedStartDate, editedDeliverable.endDateOffset || 0)
+                                                : addCalendarDays(milestone.calculatedStartDate, editedDeliverable.endDateOffset || 0);
+                                              
+                                              return (
+                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                  <span className="font-medium">Will end: </span>
+                                                  {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
                                           
                                           <div className="flex gap-2" style={{ display: 'none' }}>
@@ -1879,111 +1916,96 @@ function ProjectDetails() {
                                                     {/* Start Date Configuration */}
                                                     <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                                       <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-                                                      <div className="grid grid-cols-3 gap-2">
+                                                      
+                                                      {/* Related Date Display */}
+                                                      {deliverable.calculatedStartDate && (
+                                                        <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                          <span className="font-medium">Deliverable starts: </span>
+                                                          {formatDateDisplay(deliverable.calculatedStartDate)}
+                                                        </div>
+                                                      )}
+                                                      
+                                                      <div className="grid grid-cols-2 gap-2">
                                                         <div>
-                                                          <Label className="text-xs">Mode</Label>
+                                                          <Label className="text-xs">Days After Deliverable Start</Label>
+                                                          <Input
+                                                            type="number"
+                                                            min="0"
+                                                            value={editedTask.startDateOffset || 0}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                            className="h-8 text-xs"
+                                                          />
+                                                        </div>
+                                                        <div>
+                                                          <Label className="text-xs">Type</Label>
                                                           <select
-                                                            value={editedTask.startDateMode || 'manual'}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateMode: e.target.value })}
+                                                            value={editedTask.startDateOffsetType || 'business'}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateOffsetType: e.target.value })}
                                                             className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                           >
-                                                            <option value="manual">Manual</option>
-                                                            <option value="relative">Relative to Deliverable</option>
+                                                            <option value="business">Business Days</option>
+                                                            <option value="calendar">Calendar Days</option>
                                                           </select>
                                                         </div>
-                                                        {editedTask.startDateMode === 'relative' ? (
-                                                          <>
-                                                            <div>
-                                                              <Label className="text-xs">Days Offset</Label>
-                                                              <Input
-                                                                type="number"
-                                                                min="0"
-                                                                value={editedTask.startDateOffset || 0}
-                                                                onChange={(e) => setEditedTask({ ...editedTask, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                                className="h-8 text-xs"
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <Label className="text-xs">Type</Label>
-                                                              <select
-                                                                value={editedTask.startDateOffsetType || 'business'}
-                                                                onChange={(e) => setEditedTask({ ...editedTask, startDateOffsetType: e.target.value })}
-                                                                className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                              >
-                                                                <option value="business">Business</option>
-                                                                <option value="calendar">Calendar</option>
-                                                              </select>
-                                                            </div>
-                                                          </>
-                                                        ) : (
-                                                          <div className="col-span-2">
-                                                            <Label className="text-xs">Date</Label>
-                                                            <Input
-                                                              type="date"
-                                                              value={editedTask.startDate}
-                                                              onChange={(e) => setEditedTask({ ...editedTask, startDate: e.target.value })}
-                                                              min={deliverable.startDate || undefined}
-                                                              max={deliverable.endDate || undefined}
-                                                              className="h-8 text-xs"
-                                                            />
-                                                          </div>
-                                                        )}
                                                       </div>
+                                                      
+                                                      {/* Calculated Start Date */}
+                                                      {deliverable.calculatedStartDate && (() => {
+                                                        const deliverableStart = new Date(deliverable.calculatedStartDate);
+                                                        const startDate = editedTask.startDateOffsetType === 'business'
+                                                          ? addBusinessDays(deliverableStart, editedTask.startDateOffset || 0)
+                                                          : addCalendarDays(deliverableStart, editedTask.startDateOffset || 0);
+                                                        
+                                                        return (
+                                                          <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                            <span className="font-medium">Will start: </span>
+                                                            {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                          </div>
+                                                        );
+                                                      })()}
                                                     </div>
 
                                                     {/* End Date Configuration */}
                                                     <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                                       <Label className="text-xs font-semibold text-gray-700">End Date</Label>
-                                                      <div className="grid grid-cols-3 gap-2">
+                                                      
+                                                      <div className="grid grid-cols-2 gap-2">
                                                         <div>
-                                                          <Label className="text-xs">Mode</Label>
+                                                          <Label className="text-xs">Days After Deliverable Start</Label>
+                                                          <Input
+                                                            type="number"
+                                                            min="0"
+                                                            value={editedTask.endDateOffset || 0}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                            className="h-8 text-xs"
+                                                          />
+                                                        </div>
+                                                        <div>
+                                                          <Label className="text-xs">Type</Label>
                                                           <select
-                                                            value={editedTask.endDateMode || 'manual'}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateMode: e.target.value })}
+                                                            value={editedTask.endDateOffsetType || 'business'}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateOffsetType: e.target.value })}
                                                             className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                           >
-                                                            <option value="manual">Manual</option>
-                                                            <option value="relative">Relative to Deliverable</option>
+                                                            <option value="business">Business Days</option>
+                                                            <option value="calendar">Calendar Days</option>
                                                           </select>
                                                         </div>
-                                                        {editedTask.endDateMode === 'relative' ? (
-                                                          <>
-                                                            <div>
-                                                              <Label className="text-xs">Days Offset</Label>
-                                                              <Input
-                                                                type="number"
-                                                                min="0"
-                                                                value={editedTask.endDateOffset || 0}
-                                                                onChange={(e) => setEditedTask({ ...editedTask, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                                className="h-8 text-xs"
-                                                              />
-                                                            </div>
-                                                            <div>
-                                                              <Label className="text-xs">Type</Label>
-                                                              <select
-                                                                value={editedTask.endDateOffsetType || 'business'}
-                                                                onChange={(e) => setEditedTask({ ...editedTask, endDateOffsetType: e.target.value })}
-                                                                className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                              >
-                                                                <option value="business">Business</option>
-                                                                <option value="calendar">Calendar</option>
-                                                              </select>
-                                                            </div>
-                                                          </>
-                                                        ) : (
-                                                          <div className="col-span-2">
-                                                            <Label className="text-xs">Date</Label>
-                                                            <Input
-                                                              type="date"
-                                                              value={editedTask.endDate}
-                                                              onChange={(e) => setEditedTask({ ...editedTask, endDate: e.target.value })}
-                                                              min={editedTask.startDate || deliverable.startDate || undefined}
-                                                              max={deliverable.endDate || undefined}
-                                                              className="h-8 text-xs"
-                                                            />
-                                                          </div>
-                                                        )}
                                                       </div>
+                                                      
+                                                      {/* Calculated End Date */}
+                                                      {deliverable.calculatedStartDate && (() => {
+                                                        const endDate = editedTask.endDateOffsetType === 'business'
+                                                          ? addBusinessDays(deliverable.calculatedStartDate, editedTask.endDateOffset || 0)
+                                                          : addCalendarDays(deliverable.calculatedStartDate, editedTask.endDateOffset || 0);
+                                                        
+                                                        return (
+                                                          <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                            <span className="font-medium">Will end: </span>
+                                                            {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                          </div>
+                                                        );
+                                                      })()}
                                                     </div>
                                                     
                                                     <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
@@ -2134,111 +2156,96 @@ function ProjectDetails() {
                                           {/* Start Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                             <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            
+                                            {/* Related Date Display */}
+                                            {deliverable.calculatedStartDate && (
+                                              <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                <span className="font-medium">Deliverable starts: </span>
+                                                {formatDateDisplay(deliverable.calculatedStartDate)}
+                                              </div>
+                                            )}
+                                            
+                                            <div className="grid grid-cols-2 gap-2">
                                               <div>
-                                                <Label className="text-xs">Mode</Label>
+                                                <Label className="text-xs">Days After Deliverable Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={newTask.startDateOffset}
+                                                  onChange={(e) => setNewTask({ ...newTask, startDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Type</Label>
                                                 <select
-                                                  value={newTask.startDateMode}
-                                                  onChange={(e) => setNewTask({ ...newTask, startDateMode: e.target.value })}
+                                                  value={newTask.startDateOffsetType}
+                                                  onChange={(e) => setNewTask({ ...newTask, startDateOffsetType: e.target.value })}
                                                   className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                 >
-                                                  <option value="manual">Manual</option>
-                                                  <option value="relative">Relative to Deliverable</option>
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
                                                 </select>
                                               </div>
-                                              {newTask.startDateMode === 'relative' ? (
-                                                <>
-                                                  <div>
-                                                    <Label className="text-xs">Days Offset</Label>
-                                                    <Input
-                                                      type="number"
-                                                      min="0"
-                                                      value={newTask.startDateOffset}
-                                                      onChange={(e) => setNewTask({ ...newTask, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                      className="h-8 text-xs"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <Label className="text-xs">Type</Label>
-                                                    <select
-                                                      value={newTask.startDateOffsetType}
-                                                      onChange={(e) => setNewTask({ ...newTask, startDateOffsetType: e.target.value })}
-                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                    >
-                                                      <option value="business">Business</option>
-                                                      <option value="calendar">Calendar</option>
-                                                    </select>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <div className="col-span-2">
-                                                  <Label className="text-xs">Date</Label>
-                                                  <Input
-                                                    type="date"
-                                                    value={newTask.startDate}
-                                                    onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
-                                                    min={deliverable.startDate || undefined}
-                                                    max={deliverable.endDate || undefined}
-                                                    className="h-8 text-xs"
-                                                  />
-                                                </div>
-                                              )}
                                             </div>
+                                            
+                                            {/* Calculated Start Date */}
+                                            {deliverable.calculatedStartDate && (() => {
+                                              const deliverableStart = new Date(deliverable.calculatedStartDate);
+                                              const startDate = newTask.startDateOffsetType === 'business'
+                                                ? addBusinessDays(deliverableStart, newTask.startDateOffset || 0)
+                                                : addCalendarDays(deliverableStart, newTask.startDateOffset || 0);
+                                              
+                                              return (
+                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                  <span className="font-medium">Will start: </span>
+                                                  {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
 
                                           {/* End Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                             <Label className="text-xs font-semibold text-gray-700">End Date</Label>
-                                            <div className="grid grid-cols-3 gap-2">
+                                            
+                                            <div className="grid grid-cols-2 gap-2">
                                               <div>
-                                                <Label className="text-xs">Mode</Label>
+                                                <Label className="text-xs">Days After Deliverable Start</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="0"
+                                                  value={newTask.endDateOffset}
+                                                  onChange={(e) => setNewTask({ ...newTask, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div>
+                                                <Label className="text-xs">Type</Label>
                                                 <select
-                                                  value={newTask.endDateMode}
-                                                  onChange={(e) => setNewTask({ ...newTask, endDateMode: e.target.value })}
+                                                  value={newTask.endDateOffsetType}
+                                                  onChange={(e) => setNewTask({ ...newTask, endDateOffsetType: e.target.value })}
                                                   className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                                 >
-                                                  <option value="manual">Manual</option>
-                                                  <option value="relative">Relative to Deliverable</option>
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
                                                 </select>
                                               </div>
-                                              {newTask.endDateMode === 'relative' ? (
-                                                <>
-                                                  <div>
-                                                    <Label className="text-xs">Days Offset</Label>
-                                                    <Input
-                                                      type="number"
-                                                      min="0"
-                                                      value={newTask.endDateOffset}
-                                                      onChange={(e) => setNewTask({ ...newTask, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                      className="h-8 text-xs"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <Label className="text-xs">Type</Label>
-                                                    <select
-                                                      value={newTask.endDateOffsetType}
-                                                      onChange={(e) => setNewTask({ ...newTask, endDateOffsetType: e.target.value })}
-                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                    >
-                                                      <option value="business">Business</option>
-                                                      <option value="calendar">Calendar</option>
-                                                    </select>
-                                                  </div>
-                                                </>
-                                              ) : (
-                                                <div className="col-span-2">
-                                                  <Label className="text-xs">Date</Label>
-                                                  <Input
-                                                    type="date"
-                                                    value={newTask.endDate}
-                                                    onChange={(e) => setNewTask({ ...newTask, endDate: e.target.value })}
-                                                    min={newTask.startDate || deliverable.startDate || undefined}
-                                                    max={deliverable.endDate || undefined}
-                                                    className="h-8 text-xs"
-                                                  />
-                                                </div>
-                                              )}
                                             </div>
+                                            
+                                            {/* Calculated End Date */}
+                                            {deliverable.calculatedStartDate && (() => {
+                                              const endDate = newTask.endDateOffsetType === 'business'
+                                                ? addBusinessDays(deliverable.calculatedStartDate, newTask.endDateOffset || 0)
+                                                : addCalendarDays(deliverable.calculatedStartDate, newTask.endDateOffset || 0);
+                                              
+                                              return (
+                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                  <span className="font-medium">Will end: </span>
+                                                  {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
                                           
                                           <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
@@ -2337,111 +2344,96 @@ function ProjectDetails() {
                                       {/* Start Date Configuration */}
                                       <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                         <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                        
+                                        {/* Related Date Display */}
+                                        {milestone.calculatedStartDate && (
+                                          <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                            <span className="font-medium">Milestone starts: </span>
+                                            {formatDateDisplay(milestone.calculatedStartDate)}
+                                          </div>
+                                        )}
+                                        
                                         <div className="flex gap-2">
                                           <div className="flex-1">
-                                            <Label className="text-xs">Mode</Label>
+                                            <Label className="text-xs">Days After Milestone Start</Label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              value={newDeliverable.startDateOffset}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
+                                              className="h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <Label className="text-xs">Type</Label>
                                             <select
-                                              value={newDeliverable.startDateMode}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateMode: e.target.value })}
+                                              value={newDeliverable.startDateOffsetType}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffsetType: e.target.value })}
                                               className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                             >
-                                              <option value="manual">Manual</option>
-                                              <option value="relative">Relative to Milestone</option>
+                                              <option value="business">Business Days</option>
+                                              <option value="calendar">Calendar Days</option>
                                             </select>
                                           </div>
-                                          {newDeliverable.startDateMode === 'relative' ? (
-                                            <>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Days After Milestone Start</Label>
-                                                <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={newDeliverable.startDateOffset}
-                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                  className="h-8 text-xs"
-                                                />
-                                              </div>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={newDeliverable.startDateOffsetType}
-                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </>
-                                          ) : (
-                                            <div className="flex-1">
-                                              <Label className="text-xs">Date</Label>
-                                              <Input
-                                                type="date"
-                                                value={newDeliverable.startDate}
-                                                onChange={(e) => setNewDeliverable({ ...newDeliverable, startDate: e.target.value })}
-                                                min={milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : ''}
-                                                max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
-                                                className="h-8 text-xs"
-                                              />
-                                            </div>
-                                          )}
                                         </div>
+                                        
+                                        {/* Calculated Start Date */}
+                                        {milestone.calculatedStartDate && (() => {
+                                          const milestoneStart = new Date(milestone.calculatedStartDate);
+                                          const startDate = newDeliverable.startDateOffsetType === 'business'
+                                            ? addBusinessDays(milestoneStart, newDeliverable.startDateOffset || 0)
+                                            : addCalendarDays(milestoneStart, newDeliverable.startDateOffset || 0);
+                                          
+                                          return (
+                                            <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                              <span className="font-medium">Will start: </span>
+                                              {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
 
                                       {/* End Date Configuration */}
                                       <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
                                         <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                        
                                         <div className="flex gap-2">
                                           <div className="flex-1">
-                                            <Label className="text-xs">Mode</Label>
+                                            <Label className="text-xs">Days After Milestone Start</Label>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              value={newDeliverable.endDateOffset}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                              className="h-8 text-xs"
+                                            />
+                                          </div>
+                                          <div className="flex-1">
+                                            <Label className="text-xs">Type</Label>
                                             <select
-                                              value={newDeliverable.endDateMode}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateMode: e.target.value })}
+                                              value={newDeliverable.endDateOffsetType}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffsetType: e.target.value })}
                                               className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
                                             >
-                                              <option value="manual">Manual</option>
-                                              <option value="relative">Relative to Milestone</option>
+                                              <option value="business">Business Days</option>
+                                              <option value="calendar">Calendar Days</option>
                                             </select>
                                           </div>
-                                          {newDeliverable.endDateMode === 'relative' ? (
-                                            <>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Days After Milestone Start</Label>
-                                                <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={newDeliverable.endDateOffset}
-                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                  className="h-8 text-xs"
-                                                />
-                                              </div>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={newDeliverable.endDateOffsetType}
-                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </>
-                                          ) : (
-                                            <div className="flex-1">
-                                              <Label className="text-xs">Date</Label>
-                                              <Input
-                                                type="date"
-                                                value={newDeliverable.endDate}
-                                                onChange={(e) => setNewDeliverable({ ...newDeliverable, endDate: e.target.value })}
-                                                min={newDeliverable.startDate || (milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : '')}
-                                                max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
-                                                className="h-8 text-xs"
-                                              />
-                                            </div>
-                                          )}
                                         </div>
+                                        
+                                        {/* Calculated End Date */}
+                                        {milestone.calculatedStartDate && (() => {
+                                          const endDate = newDeliverable.endDateOffsetType === 'business'
+                                            ? addBusinessDays(milestone.calculatedStartDate, newDeliverable.endDateOffset || 0)
+                                            : addCalendarDays(milestone.calculatedStartDate, newDeliverable.endDateOffset || 0);
+                                          
+                                          return (
+                                            <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                              <span className="font-medium">Will end: </span>
+                                              {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                       
                                       {/* Date Range */}
@@ -2481,7 +2473,7 @@ function ProjectDetails() {
                                       {/* Date Range Info */}
                                       {milestone.calculatedStartDate && milestone.calculatedEndDate && (
                                         <p className="text-xs text-gray-500 italic">
-                                          Dates must be within milestone range: {new Date(milestone.calculatedStartDate).toLocaleDateString()} - {new Date(milestone.calculatedEndDate).toLocaleDateString()}
+                                          Dates must be within milestone range: {formatDateDisplay(milestone.calculatedStartDate)} - {formatDateDisplay(milestone.calculatedEndDate)}
                                         </p>
                                       )}
                                       
