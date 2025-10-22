@@ -1515,11 +1515,15 @@ function ProjectDetails() {
                                       </div>
                                     )}
                                     {milestone.calculatedStartDate && (() => {
+                                      // Get today's date at midnight local time
                                       const today = new Date();
-                                      today.setHours(0, 0, 0, 0);
+                                      const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                                      
+                                      // Parse start date and convert to local midnight
                                       const startDate = new Date(milestone.calculatedStartDate);
-                                      startDate.setHours(0, 0, 0, 0);
-                                      const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                                      const startMidnight = new Date(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate());
+                                      
+                                      const daysUntilStart = Math.round((startMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
                                       
                                       if (daysUntilStart > 0) {
                                         return (
