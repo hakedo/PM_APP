@@ -283,7 +283,6 @@ function Projects() {
                       name="startDate"
                       value={newProject.startDate}
                       onChange={handleInputChange}
-                      min={getTodayString()}
                       required
                     />
                   </div>
