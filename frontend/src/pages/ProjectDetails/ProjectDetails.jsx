@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2, Clock, User, UserCheck, MoreVertical } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Loader2, FolderKanban, Edit2, Save, X, ChevronDown, ChevronUp, Users, UserPlus, Search, Package, Plus, Check, Trash2, Circle, CheckCircle2, Clock, User, UserCheck, MoreVertical, BarChart3 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
+import { GanttChart } from '../../components/gantt';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService, projectService } from '../../services';
 import { formatDateDisplay, extractDateForInput } from '../../utils/dateUtils';
@@ -23,6 +24,7 @@ function ProjectDetails() {
   const [saving, setSaving] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isDeliverablesCollapsed, setIsDeliverablesCollapsed] = useState(false);
+  const [showGanttChart, setShowGanttChart] = useState(false);
 
   // Client assignment state
   const [assignedClients, setAssignedClients] = useState([]);
@@ -1008,11 +1010,80 @@ function ProjectDetails() {
           </Card>
         </motion.div>
 
+        {/* Gantt Chart Timeline View */}
+        {milestones.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+            className="mt-6"
+          >
+            <Card className="border-gray-200">
+              <CardHeader 
+                className="pb-6 cursor-pointer" 
+                onClick={() => setShowGanttChart(!showGanttChart)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-4 text-3xl font-bold text-gray-900">
+                    <div className="w-14 h-14 bg-gray-900 rounded-xl flex items-center justify-center">
+                      <BarChart3 className="w-7 h-7 text-white" />
+                    </div>
+                    <span>Project Timeline</span>
+                  </CardTitle>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowGanttChart(!showGanttChart);
+                    }}
+                    className="gap-1.5 h-8 text-xs"
+                  >
+                    {showGanttChart ? (
+                      <>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        Collapse
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                        Expand
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardHeader>
+
+              <AnimatePresence>
+                {showGanttChart && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <CardContent className="pt-0 p-0">
+                      <GanttChart 
+                        milestones={milestones}
+                        onItemClick={(item, type) => {
+                          console.log('Clicked item:', type, item);
+                        }}
+                      />
+                    </CardContent>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Milestones Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
           className="mt-6"
         >
           <Card className="border-gray-200">
