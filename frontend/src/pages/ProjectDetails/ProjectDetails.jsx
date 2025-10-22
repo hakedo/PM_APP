@@ -351,7 +351,12 @@ function ProjectDetails() {
     console.log('Sending milestone data:', newMilestone);
     
     try {
-      await milestoneService.createMilestone(id, newMilestone);
+      // Create a copy and remove empty date fields to avoid sending empty strings
+      const dataToSend = { ...newMilestone };
+      if (!dataToSend.startDate) delete dataToSend.startDate;
+      if (!dataToSend.endDate) delete dataToSend.endDate;
+      
+      await milestoneService.createMilestone(id, dataToSend);
       await refetch();
       setNewMilestone({ 
         name: '',
@@ -391,6 +396,10 @@ function ProjectDetails() {
 
   const handleEditMilestone = (milestone) => {
     setEditingMilestoneId(milestone._id);
+    // Use calculated dates if available (for auto mode), otherwise use manual dates
+    const startDateToUse = milestone.calculatedStartDate || milestone.startDate;
+    const endDateToUse = milestone.calculatedEndDate || milestone.endDate;
+    
     setEditedMilestone({
       name: milestone.name,
       abbreviation: milestone.abbreviation || '',
@@ -402,8 +411,8 @@ function ProjectDetails() {
       durationType: milestone.durationType || 'business',
       daysAfterPrevious: milestone.daysAfterPrevious,
       gapType: milestone.gapType || 'business',
-      startDate: milestone.startDate ? new Date(milestone.startDate).toISOString().split('T')[0] : '',
-      endDate: milestone.endDate ? new Date(milestone.endDate).toISOString().split('T')[0] : ''
+      startDate: extractDateForInput(startDateToUse),
+      endDate: extractDateForInput(endDateToUse)
     });
     // Expand the milestone being edited
     setExpandedMilestones(prev => ({
@@ -416,13 +425,20 @@ function ProjectDetails() {
     if (!editedMilestone.name.trim()) return;
     
     try {
-      await milestoneService.updateMilestone(id, editingMilestoneId, editedMilestone);
+      // Create a copy and remove empty date fields to avoid sending empty strings
+      const dataToSend = { ...editedMilestone };
+      if (!dataToSend.startDate) delete dataToSend.startDate;
+      if (!dataToSend.endDate) delete dataToSend.endDate;
+      
+      await milestoneService.updateMilestone(id, editingMilestoneId, dataToSend);
       await refetch();
       setEditingMilestoneId(null);
       setEditedMilestone(null);
     } catch (error) {
       console.error('Failed to update milestone:', error);
-      alert('Failed to update milestone');
+      // Extract error message from APIError
+      const errorMessage = error.data?.message || error.message || 'Failed to update milestone';
+      alert(errorMessage);
     }
   };
 
@@ -1435,8 +1451,8 @@ function ProjectDetails() {
                                 
                                 if (relatedDate) {
                                   const startDate = editedMilestone.gapType === 'business'
-                                    ? addBusinessDays(new Date(relatedDate), editedMilestone.daysAfterPrevious || 0)
-                                    : addCalendarDays(new Date(relatedDate), editedMilestone.daysAfterPrevious || 0);
+                                    ? addBusinessDays(relatedDate, editedMilestone.daysAfterPrevious || 0)
+                                    : addCalendarDays(relatedDate, editedMilestone.daysAfterPrevious || 0);
                                   
                                   return (
                                     <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
@@ -1706,10 +1722,9 @@ function ProjectDetails() {
                                             
                                             {/* Calculated Start Date */}
                                             {milestone.calculatedStartDate && (() => {
-                                              const milestoneStart = new Date(milestone.calculatedStartDate);
                                               const startDate = editedDeliverable.startDateOffsetType === 'business'
-                                                ? addBusinessDays(milestoneStart, editedDeliverable.startDateOffset || 0)
-                                                : addCalendarDays(milestoneStart, editedDeliverable.startDateOffset || 0);
+                                                ? addBusinessDays(milestone.calculatedStartDate, editedDeliverable.startDateOffset || 0)
+                                                : addCalendarDays(milestone.calculatedStartDate, editedDeliverable.startDateOffset || 0);
                                               
                                               return (
                                                 <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
@@ -1951,10 +1966,9 @@ function ProjectDetails() {
                                                       
                                                       {/* Calculated Start Date */}
                                                       {deliverable.calculatedStartDate && (() => {
-                                                        const deliverableStart = new Date(deliverable.calculatedStartDate);
                                                         const startDate = editedTask.startDateOffsetType === 'business'
-                                                          ? addBusinessDays(deliverableStart, editedTask.startDateOffset || 0)
-                                                          : addCalendarDays(deliverableStart, editedTask.startDateOffset || 0);
+                                                          ? addBusinessDays(deliverable.calculatedStartDate, editedTask.startDateOffset || 0)
+                                                          : addCalendarDays(deliverable.calculatedStartDate, editedTask.startDateOffset || 0);
                                                         
                                                         return (
                                                           <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
@@ -2191,10 +2205,9 @@ function ProjectDetails() {
                                             
                                             {/* Calculated Start Date */}
                                             {deliverable.calculatedStartDate && (() => {
-                                              const deliverableStart = new Date(deliverable.calculatedStartDate);
                                               const startDate = newTask.startDateOffsetType === 'business'
-                                                ? addBusinessDays(deliverableStart, newTask.startDateOffset || 0)
-                                                : addCalendarDays(deliverableStart, newTask.startDateOffset || 0);
+                                                ? addBusinessDays(deliverable.calculatedStartDate, newTask.startDateOffset || 0)
+                                                : addCalendarDays(deliverable.calculatedStartDate, newTask.startDateOffset || 0);
                                               
                                               return (
                                                 <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
@@ -2379,10 +2392,9 @@ function ProjectDetails() {
                                         
                                         {/* Calculated Start Date */}
                                         {milestone.calculatedStartDate && (() => {
-                                          const milestoneStart = new Date(milestone.calculatedStartDate);
                                           const startDate = newDeliverable.startDateOffsetType === 'business'
-                                            ? addBusinessDays(milestoneStart, newDeliverable.startDateOffset || 0)
-                                            : addCalendarDays(milestoneStart, newDeliverable.startDateOffset || 0);
+                                            ? addBusinessDays(milestone.calculatedStartDate, newDeliverable.startDateOffset || 0)
+                                            : addCalendarDays(milestone.calculatedStartDate, newDeliverable.startDateOffset || 0);
                                           
                                           return (
                                             <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
