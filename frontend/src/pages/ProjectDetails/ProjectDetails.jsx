@@ -60,24 +60,17 @@ function ProjectDetails() {
     name: '',
     abbreviation: '',
     description: '',
-    teamMember: '',
-    dateMode: 'auto',
-    endDateMode: 'duration',
-    durationDays: 7,
-    durationType: 'business', // 'business' or 'calendar'
-    daysAfterPrevious: 0,
-    gapType: 'business' // 'business' or 'calendar' for daysAfterPrevious
+    teamMember: ''
   });
   const [addingDeliverableToMilestone, setAddingDeliverableToMilestone] = useState(null);
   const [newDeliverable, setNewDeliverable] = useState({ 
     title: '', 
     description: '', 
-    startDateMode: 'relative',
-    startDateOffset: 0,
-    startDateOffsetType: 'business',
-    endDateMode: 'relative',
-    endDateOffset: 1,
-    endDateOffsetType: 'business'
+    startDate: '',
+    endDateMode: 'date', // 'date' or 'duration'
+    endDate: '',
+    durationDays: 1,
+    durationType: 'business' // 'business' or 'calendar'
   });
   const [editingDeliverableId, setEditingDeliverableId] = useState(null);
   const [editedDeliverable, setEditedDeliverable] = useState(null);
@@ -145,6 +138,12 @@ function ProjectDetails() {
   useEffect(() => {
     if (project?.milestones) {
       setMilestones(project.milestones);
+      console.log('Project milestones updated:', project.milestones.map(m => ({
+        name: m.name,
+        calculatedStartDate: m.calculatedStartDate,
+        calculatedEndDate: m.calculatedEndDate,
+        deliverables: m.deliverables?.length || 0
+      })));
     }
   }, [project]);
 
@@ -353,26 +352,13 @@ function ProjectDetails() {
     console.log('Sending milestone data:', newMilestone);
     
     try {
-      // Create a copy and remove empty date fields to avoid sending empty strings
-      const dataToSend = { ...newMilestone };
-      if (!dataToSend.startDate) delete dataToSend.startDate;
-      if (!dataToSend.endDate) delete dataToSend.endDate;
-      
-      await milestoneService.createMilestone(id, dataToSend);
+      await milestoneService.createMilestone(id, newMilestone);
       await refetch();
       setNewMilestone({ 
         name: '',
         abbreviation: '',
         description: '',
-        teamMember: '',
-        dateMode: 'auto',
-        endDateMode: 'duration',
-        durationDays: 7,
-        durationType: 'business',
-        daysAfterPrevious: 0,
-        gapType: 'business',
-        startDate: '',
-        endDate: ''
+        teamMember: ''
       });
       setIsAddingMilestone(false);
     } catch (error) {
@@ -398,23 +384,11 @@ function ProjectDetails() {
 
   const handleEditMilestone = (milestone) => {
     setEditingMilestoneId(milestone._id);
-    // Use calculated dates if available (for auto mode), otherwise use manual dates
-    const startDateToUse = milestone.calculatedStartDate || milestone.startDate;
-    const endDateToUse = milestone.calculatedEndDate || milestone.endDate;
-    
     setEditedMilestone({
       name: milestone.name,
       abbreviation: milestone.abbreviation || '',
       description: milestone.description || '',
-      teamMember: milestone.teamMember || '',
-      dateMode: milestone.dateMode,
-      endDateMode: milestone.endDateMode,
-      durationDays: milestone.durationDays,
-      durationType: milestone.durationType || 'business',
-      daysAfterPrevious: milestone.daysAfterPrevious,
-      gapType: milestone.gapType || 'business',
-      startDate: extractDateForInput(startDateToUse),
-      endDate: extractDateForInput(endDateToUse)
+      teamMember: milestone.teamMember || ''
     });
     // Expand the milestone being edited
     setExpandedMilestones(prev => ({
@@ -427,12 +401,7 @@ function ProjectDetails() {
     if (!editedMilestone.name.trim()) return;
     
     try {
-      // Create a copy and remove empty date fields to avoid sending empty strings
-      const dataToSend = { ...editedMilestone };
-      if (!dataToSend.startDate) delete dataToSend.startDate;
-      if (!dataToSend.endDate) delete dataToSend.endDate;
-      
-      await milestoneService.updateMilestone(id, editingMilestoneId, dataToSend);
+      await milestoneService.updateMilestone(id, editingMilestoneId, editedMilestone);
       await refetch();
       setEditingMilestoneId(null);
       setEditedMilestone(null);
@@ -458,12 +427,43 @@ function ProjectDetails() {
 
   // Deliverable handlers
   const handleAddDeliverable = async (milestoneId) => {
-    if (!newDeliverable.title.trim()) return;
+    if (!newDeliverable.title.trim() || !newDeliverable.startDate) return;
     
     try {
-      await milestoneService.createDeliverable(id, milestoneId, newDeliverable);
+      const dataToSend = {
+        title: newDeliverable.title,
+        description: newDeliverable.description,
+        startDate: newDeliverable.startDate
+      };
+
+      // Calculate end date based on mode
+      if (newDeliverable.endDateMode === 'date') {
+        if (!newDeliverable.endDate) {
+          alert('Please provide an end date');
+          return;
+        }
+        dataToSend.endDate = newDeliverable.endDate;
+      } else {
+        // Duration mode - calculate end date
+        const startDate = new Date(newDeliverable.startDate);
+        const endDate = newDeliverable.durationType === 'business'
+          ? addBusinessDays(startDate, newDeliverable.durationDays || 1)
+          : addCalendarDays(startDate, newDeliverable.durationDays || 1);
+        dataToSend.endDate = endDate.toISOString().split('T')[0];
+      }
+
+      console.log('Sending deliverable data:', dataToSend);
+      await milestoneService.createDeliverable(id, milestoneId, dataToSend);
       await refetch();
-      setNewDeliverable({ title: '', description: '', startDate: '', endDate: '' });
+      setNewDeliverable({ 
+        title: '', 
+        description: '', 
+        startDate: '',
+        endDateMode: 'date',
+        endDate: '',
+        durationDays: 1,
+        durationType: 'business'
+      });
       setAddingDeliverableToMilestone(null);
     } catch (error) {
       console.error('Failed to add deliverable:', error);
@@ -505,15 +505,41 @@ function ProjectDetails() {
       title: deliverable.title,
       description: deliverable.description || '',
       startDate: deliverable.startDate ? new Date(deliverable.startDate).toISOString().split('T')[0] : '',
-      endDate: deliverable.endDate ? new Date(deliverable.endDate).toISOString().split('T')[0] : ''
+      endDateMode: 'date',
+      endDate: deliverable.endDate ? new Date(deliverable.endDate).toISOString().split('T')[0] : '',
+      durationDays: 1,
+      durationType: 'business'
     });
   };
 
   const handleSaveEditedDeliverable = async () => {
-    if (!editedDeliverable.title.trim()) return;
+    if (!editedDeliverable.title.trim() || !editedDeliverable.startDate) return;
     
     try {
-      const { milestoneId, ...deliverableData } = editedDeliverable;
+      const { milestoneId, endDateMode, durationDays, durationType, ...baseData } = editedDeliverable;
+      
+      const deliverableData = {
+        title: baseData.title,
+        description: baseData.description,
+        startDate: baseData.startDate
+      };
+
+      // Calculate end date based on mode
+      if (endDateMode === 'date') {
+        if (!baseData.endDate) {
+          alert('Please provide an end date');
+          return;
+        }
+        deliverableData.endDate = baseData.endDate;
+      } else {
+        // Duration mode - calculate end date
+        const startDate = new Date(baseData.startDate);
+        const endDate = durationType === 'business'
+          ? addBusinessDays(startDate, durationDays || 1)
+          : addCalendarDays(startDate, durationDays || 1);
+        deliverableData.endDate = endDate.toISOString().split('T')[0];
+      }
+
       await milestoneService.updateDeliverable(id, milestoneId, editingDeliverableId, deliverableData);
       await refetch();
       setEditingDeliverableId(null);
@@ -1177,15 +1203,14 @@ function ProjectDetails() {
                           <h4 className="text-sm font-medium text-gray-900">New Milestone</h4>
                         </div>
                         
-                        {/* Form Content - Two Column Layout */}
-                        <div className="p-4 flex gap-4">
-                          {/* Left Column - Name & Description */}
-                          <div className="flex-1 space-y-3">
+                        {/* Form Content - Simple Single Column Layout */}
+                        <div className="p-4">
+                          <div className="max-w-xl space-y-3">
                             {/* Name and Abbreviation Row */}
                             <div className="flex gap-3">
                               <div className="flex-1 space-y-1.5">
                                 <Label htmlFor="milestone-name" className="text-xs font-medium text-gray-600">
-                                  Name
+                                  Name *
                                 </Label>
                                 <Input
                                   id="milestone-name"
@@ -1210,7 +1235,7 @@ function ProjectDetails() {
                               </div>
                             </div>
 
-                            {/* Description - Shorter */}
+                            {/* Description */}
                             <div className="space-y-1.5">
                               <Label htmlFor="milestone-description" className="text-xs font-medium text-gray-600">
                                 Description <span className="text-gray-400 font-normal">(optional)</span>
@@ -1224,143 +1249,10 @@ function ProjectDetails() {
                               />
                             </div>
 
-                            {/* Team Assignment */}
-                            <div className="space-y-1.5">
-                              <Label htmlFor="team-member" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3 h-3" />
-                                Team Member
-                              </Label>
-                              <Input
-                                id="team-member"
-                                placeholder="Assign team member"
-                                value={newMilestone.teamMember}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, teamMember: e.target.value })}
-                                className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Right Column - Date Configuration */}
-                          <div className="w-64 space-y-3">
-                            {/* Start Date Card */}
-                            <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                                <span className="text-xs font-medium text-gray-700">Start Date</span>
-                              </div>
-                              
-                              {/* Related Date Display */}
-                              {(() => {
-                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
-                                const relatedDate = lastMilestone 
-                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                return relatedDate ? (
-                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mb-2">
-                                    <span className="font-medium">After: </span>
-                                    {formatDateDisplay(relatedDate)}
-                                    {lastMilestone && <span className="text-gray-500"> (prev milestone)</span>}
-                                    {!lastMilestone && <span className="text-gray-500"> (project start)</span>}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              <div className="flex gap-2">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={newMilestone.daysAfterPrevious}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
-                                  placeholder="Gap days"
-                                  className="h-8 text-xs border-gray-200 flex-1"
-                                />
-                                <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
-                              </div>
-                              <select
-                                value={newMilestone.gapType}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, gapType: e.target.value })}
-                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              >
-                                <option value="business">Business Days</option>
-                                <option value="calendar">Calendar Days</option>
-                              </select>
-                              
-                              {/* Calculated Start Date Display */}
-                              {(() => {
-                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
-                                const relatedDate = lastMilestone 
-                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                if (relatedDate) {
-                                  const startDate = newMilestone.gapType === 'business'
-                                    ? addBusinessDays(relatedDate, newMilestone.daysAfterPrevious || 0)
-                                    : addCalendarDays(relatedDate, newMilestone.daysAfterPrevious || 0);
-                                  
-                                  return (
-                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                      <span className="font-medium">Will start: </span>
-                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-
-                            {/* End Date Card */}
-                            <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Clock className="w-3.5 h-3.5 text-gray-500" />
-                                <span className="text-xs font-medium text-gray-700">Duration</span>
-                              </div>
-                              
-                              <div className="flex gap-2">
-                                <Input
-                                  type="number"
-                                  min="1"
-                                  value={newMilestone.durationDays}
-                                  onChange={(e) => setNewMilestone({ ...newMilestone, durationDays: parseInt(e.target.value) || 1 })}
-                                  placeholder="Duration"
-                                  className="h-8 text-xs border-gray-200 flex-1"
-                                />
-                                <span className="text-xs text-gray-500 self-center whitespace-nowrap">days</span>
-                              </div>
-                              <select
-                                value={newMilestone.durationType}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, durationType: e.target.value })}
-                                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              >
-                                <option value="business">Business Days</option>
-                                <option value="calendar">Calendar Days</option>
-                              </select>
-                              
-                              {/* Calculated End Date Display */}
-                              {(() => {
-                                const lastMilestone = milestones.length > 0 ? milestones[milestones.length - 1] : null;
-                                const relatedDate = lastMilestone 
-                                  ? (lastMilestone.calculatedEndDate || lastMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                if (relatedDate) {
-                                  const startDate = newMilestone.gapType === 'business'
-                                    ? addBusinessDays(relatedDate, newMilestone.daysAfterPrevious || 0)
-                                    : addCalendarDays(relatedDate, newMilestone.daysAfterPrevious || 0);
-                                  
-                                  const endDate = newMilestone.durationType === 'business'
-                                    ? addBusinessDays(startDate, newMilestone.durationDays || 1)
-                                    : addCalendarDays(startDate, newMilestone.durationDays || 1);
-                                  
-                                  return (
-                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                      <span className="font-medium">Will end: </span>
-                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
+                            {/* Info Note */}
+                            <div className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2">
+                              <p className="font-medium mb-0.5">📅 Dates calculated automatically</p>
+                              <p className="text-blue-600">Milestone dates will be calculated from its deliverables. Add at least one deliverable with dates.</p>
                             </div>
                           </div>
                         </div>
@@ -1376,15 +1268,7 @@ function ProjectDetails() {
                                 name: '',
                                 abbreviation: '',
                                 description: '',
-                                teamMember: '',
-                                dateMode: 'auto',
-                                endDateMode: 'duration',
-                                durationDays: 7,
-                                durationType: 'business',
-                                daysAfterPrevious: 0,
-                                gapType: 'business',
-                                startDate: '',
-                                endDate: ''
+                                teamMember: ''
                               });
                             }}
                             className="h-8 text-xs"
@@ -1469,122 +1353,10 @@ function ProjectDetails() {
                                 />
                               </div>
 
-                              {/* Date Configuration */}
-                              {/* Related Date Display */}
-                              {(() => {
-                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
-                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
-                                const relatedDate = prevMilestone 
-                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                return relatedDate ? (
-                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5 mb-2">
-                                    <span className="font-medium">After: </span>
-                                    {formatDateDisplay(relatedDate)}
-                                    {prevMilestone && <span className="text-gray-500"> (prev milestone)</span>}
-                                    {!prevMilestone && <span className="text-gray-500"> (project start)</span>}
-                                  </div>
-                                ) : null;
-                              })()}
-                              
-                              <div className="flex gap-2">
-                                <div className="flex-1">
-                                  <Label className="text-xs">Days After Previous</Label>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={editedMilestone.daysAfterPrevious}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, daysAfterPrevious: parseInt(e.target.value) || 0 })}
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <Label className="text-xs">Gap Type</Label>
-                                  <select
-                                    value={editedMilestone.gapType || 'business'}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, gapType: e.target.value })}
-                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                  >
-                                    <option value="business">Business Days</option>
-                                    <option value="calendar">Calendar Days</option>
-                                  </select>
-                                </div>
+                              {/* Info Note */}
+                              <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                <span className="font-medium">Note:</span> Milestone dates will be calculated from its deliverables.
                               </div>
-                              
-                              {/* Calculated Start Date */}
-                              {(() => {
-                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
-                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
-                                const relatedDate = prevMilestone 
-                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                if (relatedDate) {
-                                  const startDate = editedMilestone.gapType === 'business'
-                                    ? addBusinessDays(relatedDate, editedMilestone.daysAfterPrevious || 0)
-                                    : addCalendarDays(relatedDate, editedMilestone.daysAfterPrevious || 0);
-                                  
-                                  return (
-                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                      <span className="font-medium">Will start: </span>
-                                      {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-
-                              <div className="flex gap-2">
-                                <div className="flex-1">
-                                  <Label className="text-xs">Duration (days)</Label>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={editedMilestone.durationDays}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, durationDays: parseInt(e.target.value) || 1 })}
-                                    className="h-8 text-sm"
-                                  />
-                                </div>
-                                <div className="flex-1">
-                                  <Label className="text-xs">Duration Type</Label>
-                                  <select
-                                    value={editedMilestone.durationType || 'business'}
-                                    onChange={(e) => setEditedMilestone({ ...editedMilestone, durationType: e.target.value })}
-                                    className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                  >
-                                    <option value="business">Business Days</option>
-                                    <option value="calendar">Calendar Days</option>
-                                  </select>
-                                </div>
-                              </div>
-                              
-                              {/* Calculated End Date */}
-                              {(() => {
-                                const currentIndex = milestones.findIndex(m => m._id === milestone._id);
-                                const prevMilestone = currentIndex > 0 ? milestones[currentIndex - 1] : null;
-                                const relatedDate = prevMilestone 
-                                  ? (prevMilestone.calculatedEndDate || prevMilestone.endDate)
-                                  : project?.startDate;
-                                
-                                if (relatedDate) {
-                                  const startDate = editedMilestone.gapType === 'business'
-                                    ? addBusinessDays(relatedDate, editedMilestone.daysAfterPrevious || 0)
-                                    : addCalendarDays(relatedDate, editedMilestone.daysAfterPrevious || 0);
-                                  
-                                  const endDate = editedMilestone.durationType === 'business'
-                                    ? addBusinessDays(startDate, editedMilestone.durationDays || 1)
-                                    : addCalendarDays(startDate, editedMilestone.durationDays || 1);
-                                  
-                                  return (
-                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                      <span className="font-medium">Will end: </span>
-                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
 
                               {/* Action Buttons */}
                               <div className="flex gap-2 pt-2">
@@ -1755,125 +1527,96 @@ function ProjectDetails() {
                                             className="min-h-[50px] text-sm"
                                           />
                                           
-                                          {/* Start Date Configuration */}
-                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                            <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-                                            
-                                            {/* Related Date Display */}
-                                            {milestone.calculatedStartDate && (
-                                              <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
-                                                <span className="font-medium">Milestone starts: </span>
-                                                {formatDateDisplay(milestone.calculatedStartDate)}
-                                              </div>
-                                            )}
-                                            
-                                            <div className="flex gap-2">
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Days After Milestone Start</Label>
-                                                <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={editedDeliverable.startDateOffset || 0}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                  className="h-8 text-xs"
-                                                />
-                                              </div>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={editedDeliverable.startDateOffsetType || 'business'}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Calculated Start Date */}
-                                            {milestone.calculatedStartDate && (() => {
-                                              const startDate = editedDeliverable.startDateOffsetType === 'business'
-                                                ? addBusinessDays(milestone.calculatedStartDate, editedDeliverable.startDateOffset || 0)
-                                                : addCalendarDays(milestone.calculatedStartDate, editedDeliverable.startDateOffset || 0);
-                                              
-                                              return (
-                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                  <span className="font-medium">Will start: </span>
-                                                  {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </div>
-                                              );
-                                            })()}
+                                          {/* Start Date */}
+                                          <div className="space-y-1">
+                                            <Label className="text-xs font-medium text-gray-700">
+                                              Start Date <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                              type="date"
+                                              value={editedDeliverable.startDate}
+                                              onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDate: e.target.value })}
+                                              className="h-8 text-xs"
+                                              required
+                                            />
                                           </div>
 
                                           {/* End Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                            <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                              <select
+                                                value={editedDeliverable.endDateMode}
+                                                onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateMode: e.target.value })}
+                                                className="text-xs px-2 py-1 border border-gray-200 rounded"
+                                              >
+                                                <option value="date">Specific Date</option>
+                                                <option value="duration">Duration</option>
+                                              </select>
+                                            </div>
                                             
-                                            <div className="flex gap-2">
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Days After Milestone Start</Label>
+                                            {editedDeliverable.endDateMode === 'date' ? (
+                                              <div>
                                                 <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={editedDeliverable.endDateOffset || 0}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                                  type="date"
+                                                  value={editedDeliverable.endDate}
+                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDate: e.target.value })}
+                                                  min={editedDeliverable.startDate || undefined}
                                                   className="h-8 text-xs"
                                                 />
                                               </div>
-                                              <div className="flex-1">
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={editedDeliverable.endDateOffsetType || 'business'}
-                                                  onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Calculated End Date */}
-                                            {milestone.calculatedStartDate && (() => {
-                                              const endDate = editedDeliverable.endDateOffsetType === 'business'
-                                                ? addBusinessDays(milestone.calculatedStartDate, editedDeliverable.endDateOffset || 0)
-                                                : addCalendarDays(milestone.calculatedStartDate, editedDeliverable.endDateOffset || 0);
-                                              
-                                              return (
-                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                  <span className="font-medium">Will end: </span>
-                                                  {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            ) : (
+                                              <div className="space-y-2">
+                                                <div className="flex gap-2">
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Duration (days)</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      value={editedDeliverable.durationDays}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, durationDays: parseInt(e.target.value) || 1 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                  </div>
+                                                  <div className="flex-1">
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={editedDeliverable.durationType}
+                                                      onChange={(e) => setEditedDeliverable({ ...editedDeliverable, durationType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business Days</option>
+                                                      <option value="calendar">Calendar Days</option>
+                                                    </select>
+                                                  </div>
                                                 </div>
-                                              );
-                                            })()}
-                                          </div>
-                                          
-                                          <div className="flex gap-2" style={{ display: 'none' }}>
-                                            <div className="flex-1">
-                                              <Label className="text-xs">Start Date</Label>
-                                              <Input
-                                                type="date"
-                                                value={editedDeliverable.startDate}
-                                                onChange={(e) => setEditedDeliverable({ ...editedDeliverable, startDate: e.target.value })}
-                                                className="text-xs h-8"
-                                              />
-                                            </div>
-                                            <div className="flex-1">
-                                              <Label className="text-xs">End Date</Label>
-                                              <Input
-                                                type="date"
-                                                value={editedDeliverable.endDate}
-                                                onChange={(e) => setEditedDeliverable({ ...editedDeliverable, endDate: e.target.value })}
-                                                className="text-xs h-8"
-                                              />
-                                            </div>
+                                                
+                                                {/* Calculated End Date */}
+                                                {editedDeliverable.startDate && (() => {
+                                                  const startDate = new Date(editedDeliverable.startDate);
+                                                  const endDate = editedDeliverable.durationType === 'business'
+                                                    ? addBusinessDays(startDate, editedDeliverable.durationDays || 1)
+                                                    : addCalendarDays(startDate, editedDeliverable.durationDays || 1);
+                                                  
+                                                  return (
+                                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                      <span className="font-medium">Will end: </span>
+                                                      {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                  );
+                                                })()}
+                                              </div>
+                                            )}
                                           </div>
                                           <div className="flex gap-2">
                                             <Button
                                               size="sm"
                                               onClick={handleSaveEditedDeliverable}
-                                              disabled={!editedDeliverable.title.trim()}
+                                              disabled={
+                                                !editedDeliverable.title.trim() || 
+                                                !editedDeliverable.startDate ||
+                                                (editedDeliverable.endDateMode === 'date' && !editedDeliverable.endDate)
+                                              }
                                               className="flex-1"
                                             >
                                               <Save className="w-3 h-3 mr-1" />
@@ -2425,146 +2168,98 @@ function ProjectDetails() {
                                         className="min-h-[50px] resize-none text-sm"
                                       />
                                       
-                                      {/* Start Date Configuration */}
-                                      <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                        <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-                                        
-                                        {/* Related Date Display */}
-                                        {milestone.calculatedStartDate && (
-                                          <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
-                                            <span className="font-medium">Milestone starts: </span>
-                                            {formatDateDisplay(milestone.calculatedStartDate)}
-                                          </div>
-                                        )}
-                                        
-                                        <div className="flex gap-2">
-                                          <div className="flex-1">
-                                            <Label className="text-xs">Days After Milestone Start</Label>
-                                            <Input
-                                              type="number"
-                                              min="0"
-                                              value={newDeliverable.startDateOffset}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffset: parseInt(e.target.value) || 0 })}
-                                              className="h-8 text-xs"
-                                            />
-                                          </div>
-                                          <div className="flex-1">
-                                            <Label className="text-xs">Type</Label>
-                                            <select
-                                              value={newDeliverable.startDateOffsetType}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, startDateOffsetType: e.target.value })}
-                                              className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                            >
-                                              <option value="business">Business Days</option>
-                                              <option value="calendar">Calendar Days</option>
-                                            </select>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Calculated Start Date */}
-                                        {milestone.calculatedStartDate && (() => {
-                                          const startDate = newDeliverable.startDateOffsetType === 'business'
-                                            ? addBusinessDays(milestone.calculatedStartDate, newDeliverable.startDateOffset || 0)
-                                            : addCalendarDays(milestone.calculatedStartDate, newDeliverable.startDateOffset || 0);
-                                          
-                                          return (
-                                            <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                              <span className="font-medium">Will start: </span>
-                                              {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                            </div>
-                                          );
-                                        })()}
+                                      {/* Start Date */}
+                                      <div className="space-y-1">
+                                        <Label htmlFor="deliverable-start" className="text-xs font-medium text-gray-700">
+                                          Start Date <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                          id="deliverable-start"
+                                          type="date"
+                                          value={newDeliverable.startDate}
+                                          onChange={(e) => setNewDeliverable({ ...newDeliverable, startDate: e.target.value })}
+                                          className="h-8 text-xs"
+                                          required
+                                        />
                                       </div>
 
                                       {/* End Date Configuration */}
                                       <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                        <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                          <select
+                                            value={newDeliverable.endDateMode}
+                                            onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateMode: e.target.value })}
+                                            className="text-xs px-2 py-1 border border-gray-200 rounded"
+                                          >
+                                            <option value="date">Specific Date</option>
+                                            <option value="duration">Duration</option>
+                                          </select>
+                                        </div>
                                         
-                                        <div className="flex gap-2">
-                                          <div className="flex-1">
-                                            <Label className="text-xs">Days After Milestone Start</Label>
+                                        {newDeliverable.endDateMode === 'date' ? (
+                                          <div>
                                             <Input
-                                              type="number"
-                                              min="0"
-                                              value={newDeliverable.endDateOffset}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffset: parseInt(e.target.value) || 0 })}
+                                              type="date"
+                                              value={newDeliverable.endDate}
+                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDate: e.target.value })}
+                                              min={newDeliverable.startDate || undefined}
                                               className="h-8 text-xs"
                                             />
                                           </div>
-                                          <div className="flex-1">
-                                            <Label className="text-xs">Type</Label>
-                                            <select
-                                              value={newDeliverable.endDateOffsetType}
-                                              onChange={(e) => setNewDeliverable({ ...newDeliverable, endDateOffsetType: e.target.value })}
-                                              className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                            >
-                                              <option value="business">Business Days</option>
-                                              <option value="calendar">Calendar Days</option>
-                                            </select>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Calculated End Date */}
-                                        {milestone.calculatedStartDate && (() => {
-                                          const endDate = newDeliverable.endDateOffsetType === 'business'
-                                            ? addBusinessDays(milestone.calculatedStartDate, newDeliverable.endDateOffset || 0)
-                                            : addCalendarDays(milestone.calculatedStartDate, newDeliverable.endDateOffset || 0);
-                                          
-                                          return (
-                                            <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                              <span className="font-medium">Will end: </span>
-                                              {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        ) : (
+                                          <div className="space-y-2">
+                                            <div className="flex gap-2">
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Duration (days)</Label>
+                                                <Input
+                                                  type="number"
+                                                  min="1"
+                                                  value={newDeliverable.durationDays}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, durationDays: parseInt(e.target.value) || 1 })}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                              <div className="flex-1">
+                                                <Label className="text-xs">Type</Label>
+                                                <select
+                                                  value={newDeliverable.durationType}
+                                                  onChange={(e) => setNewDeliverable({ ...newDeliverable, durationType: e.target.value })}
+                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                >
+                                                  <option value="business">Business Days</option>
+                                                  <option value="calendar">Calendar Days</option>
+                                                </select>
+                                              </div>
                                             </div>
-                                          );
-                                        })()}
+                                            
+                                            {/* Calculated End Date */}
+                                            {newDeliverable.startDate && (() => {
+                                              const startDate = new Date(newDeliverable.startDate);
+                                              const endDate = newDeliverable.durationType === 'business'
+                                                ? addBusinessDays(startDate, newDeliverable.durationDays || 1)
+                                                : addCalendarDays(startDate, newDeliverable.durationDays || 1);
+                                              
+                                              return (
+                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                  <span className="font-medium">Will end: </span>
+                                                  {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                </div>
+                                              );
+                                            })()}
+                                          </div>
+                                        )}
                                       </div>
-                                      
-                                      {/* Date Range */}
-                                      <div className="flex gap-2" style={{ display: 'none' }}>
-                                        <div className="flex-1 space-y-1">
-                                          <Label htmlFor="deliverable-start" className="text-xs font-medium text-gray-600 flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            Start Date <span className="text-gray-400 font-normal">(optional)</span>
-                                          </Label>
-                                          <Input
-                                            id="deliverable-start"
-                                            type="date"
-                                            value={newDeliverable.startDate}
-                                            onChange={(e) => setNewDeliverable({ ...newDeliverable, startDate: e.target.value })}
-                                            min={milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : ''}
-                                            max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
-                                            className="text-xs"
-                                          />
-                                        </div>
-                                        <div className="flex-1 space-y-1">
-                                          <Label htmlFor="deliverable-end" className="text-xs font-medium text-gray-600 flex items-center gap-1">
-                                            <Calendar className="w-3 h-3" />
-                                            End Date <span className="text-gray-400 font-normal">(optional)</span>
-                                          </Label>
-                                          <Input
-                                            id="deliverable-end"
-                                            type="date"
-                                            value={newDeliverable.endDate}
-                                            onChange={(e) => setNewDeliverable({ ...newDeliverable, endDate: e.target.value })}
-                                            min={newDeliverable.startDate || (milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate).toISOString().split('T')[0] : '')}
-                                            max={milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate).toISOString().split('T')[0] : ''}
-                                            className="text-xs"
-                                          />
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Date Range Info */}
-                                      {milestone.calculatedStartDate && milestone.calculatedEndDate && (
-                                        <p className="text-xs text-gray-500 italic">
-                                          Dates must be within milestone range: {formatDateDisplay(milestone.calculatedStartDate)} - {formatDateDisplay(milestone.calculatedEndDate)}
-                                        </p>
-                                      )}
                                       
                                       <div className="flex gap-2">
                                         <Button
                                           size="sm"
                                           onClick={() => handleAddDeliverable(milestone._id)}
-                                          disabled={!newDeliverable.title.trim()}
+                                          disabled={
+                                            !newDeliverable.title.trim() || 
+                                            !newDeliverable.startDate ||
+                                            (newDeliverable.endDateMode === 'date' && !newDeliverable.endDate)
+                                          }
                                         >
                                           Add
                                         </Button>
@@ -2576,14 +2271,11 @@ function ProjectDetails() {
                                             setNewDeliverable({ 
                                               title: '', 
                                               description: '', 
-                                              startDateMode: 'manual',
-                                              startDate: '', 
-                                              startDateOffset: 0,
-                                              startDateOffsetType: 'business',
-                                              endDateMode: 'manual',
+                                              startDate: '',
+                                              endDateMode: 'date',
                                               endDate: '',
-                                              endDateOffset: 0,
-                                              endDateOffsetType: 'business'
+                                              durationDays: 1,
+                                              durationType: 'business'
                                             });
                                           }}
                                         >

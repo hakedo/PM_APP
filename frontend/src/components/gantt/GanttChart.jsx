@@ -39,6 +39,16 @@ function GanttChart({ milestones, onItemClick }) {
     [minDate, cellWidth, interval]
   );
 
+  // Debug: Log milestone dates
+  useEffect(() => {
+    console.log('Milestones data:', milestones.map(m => ({
+      name: m.name,
+      calculatedStartDate: m.calculatedStartDate,
+      calculatedEndDate: m.calculatedEndDate,
+      deliverables: m.deliverables?.length || 0
+    })));
+  }, [milestones]);
+
   // Calculate today's column index for day view
   const todayColumnIndex = useMemo(() => {
     if (viewMode !== 'day' && !(viewMode === 'auto' && interval === 1)) {

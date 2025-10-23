@@ -98,6 +98,9 @@ const DropdownMenuContent = React.forwardRef(
       center: "-translate-x-1/2",
     };
 
+    // Remove internal props before spreading to DOM element
+    const { open: _open, setOpen: _setOpen, triggerRef: _triggerRef, ...domProps } = props;
+
     const content = (
       <div
         ref={contentRef}
@@ -112,7 +115,7 @@ const DropdownMenuContent = React.forwardRef(
           alignmentClasses[align],
           className
         )}
-        {...props}
+        {...domProps}
       >
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child)) {

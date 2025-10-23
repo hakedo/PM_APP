@@ -21,49 +21,16 @@ const deliverableSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    // Start date configuration
-    startDateMode: {
-      type: String,
-      enum: ['manual', 'relative'],
-      default: 'relative'
-    },
+    // Start and end dates are required for deliverables
     startDate: {
       type: Date,
-      required: false
-    },
-    // Days offset from milestone start (used when startDateMode is 'relative')
-    startDateOffset: {
-      type: Number,
-      default: 0
-    },
-    // Offset type for start date: 'business' or 'calendar'
-    startDateOffsetType: {
-      type: String,
-      enum: ['business', 'calendar'],
-      default: 'business'
-    },
-    // End date configuration
-    endDateMode: {
-      type: String,
-      enum: ['manual', 'relative'],
-      default: 'relative'
+      required: [true, 'Start date is required for deliverables']
     },
     endDate: {
       type: Date,
-      required: false
+      required: [true, 'End date is required for deliverables']
     },
-    // Days offset from milestone start (used when endDateMode is 'relative')
-    endDateOffset: {
-      type: Number,
-      default: 0
-    },
-    // Offset type for end date: 'business' or 'calendar'
-    endDateOffsetType: {
-      type: String,
-      enum: ['business', 'calendar'],
-      default: 'business'
-    },
-    // Calculated dates (computed based on mode and settings)
+    // Calculated dates (same as actual dates for deliverables)
     calculatedStartDate: {
       type: Date,
       required: false

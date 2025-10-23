@@ -96,37 +96,18 @@ export const calculateTaskEndDate = (deliverableStartDate, offsetDays = 0, offse
 };
 
 /**
- * Recalculate dates for deliverable based on milestone dates
+ * Recalculate dates for deliverable (now just uses the actual dates)
  * @param {Object} deliverable - Deliverable object
- * @param {Date} milestoneStartDate - Parent milestone start date
+ * @param {Date} milestoneStartDate - Not used anymore (milestone dates are calculated from deliverables)
  * @returns {Object} Deliverable with calculated dates
  */
 export const recalculateDeliverableDates = (deliverable, milestoneStartDate) => {
-  let startDate;
-  let endDate;
-
-  // Calculate start date
-  if (deliverable.startDateMode === 'relative' && milestoneStartDate) {
-    const offset = deliverable.startDateOffset || 0;
-    const offsetType = deliverable.startDateOffsetType || 'business';
-    startDate = calculateDeliverableStartDate(milestoneStartDate, offset, offsetType);
-  } else if (deliverable.startDate) {
-    startDate = new Date(deliverable.startDate);
-  }
-
-  // Calculate end date
-  if (deliverable.endDateMode === 'relative' && milestoneStartDate) {
-    const offset = deliverable.endDateOffset || 0;
-    const offsetType = deliverable.endDateOffsetType || 'business';
-    endDate = calculateDeliverableEndDate(milestoneStartDate, offset, offsetType);
-  } else if (deliverable.endDate) {
-    endDate = new Date(deliverable.endDate);
-  }
-
+  // Deliverables now have direct start and end dates
+  // Calculated dates are just copies of the actual dates
   return {
     ...deliverable,
-    calculatedStartDate: startDate || null,
-    calculatedEndDate: endDate || null
+    calculatedStartDate: deliverable.startDate ? new Date(deliverable.startDate) : null,
+    calculatedEndDate: deliverable.endDate ? new Date(deliverable.endDate) : null
   };
 };
 

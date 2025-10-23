@@ -32,55 +32,7 @@ const milestoneSchema = new mongoose.Schema(
       ref: 'Project',
       required: [true, 'Project ID is required']
     },
-    // Date configuration
-    dateMode: {
-      type: String,
-      enum: ['auto'],
-      default: 'auto',
-      required: true
-    },
-    // Manual start date (used when dateMode is 'manual')
-    startDate: {
-      type: Date,
-      required: false
-    },
-    // End date configuration
-    endDateMode: {
-      type: String,
-      enum: ['duration'],
-      default: 'duration',
-      required: true
-    },
-    // Manual end date (used when endDateMode is 'manual')
-    endDate: {
-      type: Date,
-      required: false
-    },
-    // Duration in days (used when endDateMode is 'duration')
-    durationDays: {
-      type: Number,
-      min: [1, 'Duration must be at least 1 day'],
-      default: 1
-    },
-    // Duration type: 'business' or 'calendar'
-    durationType: {
-      type: String,
-      enum: ['business', 'calendar'],
-      default: 'business'
-    },
-    // Gap after previous milestone in days (used when dateMode is 'auto')
-    daysAfterPrevious: {
-      type: Number,
-      min: [0, 'Days after previous milestone cannot be negative'],
-      default: 0
-    },
-    // Gap type: 'business' or 'calendar' for daysAfterPrevious
-    gapType: {
-      type: String,
-      enum: ['business', 'calendar'],
-      default: 'business'
-    },
-    // Calculated dates (computed based on mode and settings)
+    // Calculated dates (dynamically computed from deliverables)
     calculatedStartDate: {
       type: Date,
       required: false

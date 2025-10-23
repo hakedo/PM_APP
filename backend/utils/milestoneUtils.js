@@ -80,45 +80,64 @@ export const calculateMilestoneEndDate = (startDate, durationDays, durationType 
 };
 
 /**
+ * Calculate milestone dates from its deliverables
+ * @param {Object} milestone - Milestone object with deliverables populated
+ * @returns {Object} Object with calculatedStartDate and calculatedEndDate
+ */
+export const calculateMilestoneDatesFromDeliverables = (milestone) => {
+  // If milestone has no deliverables, return null dates
+  if (!milestone.deliverables || milestone.deliverables.length === 0) {
+    return {
+      calculatedStartDate: null,
+      calculatedEndDate: null
+    };
+  }
+
+  let earliestStart = null;
+  let latestEnd = null;
+
+  // Find the earliest start date and latest end date among all deliverables
+  milestone.deliverables.forEach(deliverable => {
+    const startDate = deliverable.calculatedStartDate || deliverable.startDate;
+    const endDate = deliverable.calculatedEndDate || deliverable.endDate;
+
+    if (startDate) {
+      const start = new Date(startDate);
+      if (!earliestStart || start < earliestStart) {
+        earliestStart = start;
+      }
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      if (!latestEnd || end > latestEnd) {
+        latestEnd = end;
+      }
+    }
+  });
+
+  return {
+    calculatedStartDate: earliestStart,
+    calculatedEndDate: latestEnd
+  };
+};
+
+/**
  * Recalculate dates for all milestones in a project
- * @param {Array} milestones - Array of milestone objects (sorted by order)
- * @param {Date} projectStartDate - Project start date
+ * @param {Array} milestones - Array of milestone objects (sorted by order) with deliverables populated
+ * @param {Date} projectStartDate - Project start date (optional, not used for milestone calculation)
  * @returns {Array} Array of milestones with updated calculated dates
  */
 export const recalculateMilestoneDates = (milestones, projectStartDate) => {
-  let previousEndDate = projectStartDate;
   
-  return milestones.map((milestone, index) => {
-    let startDate;
-    let endDate;
-
-    // Calculate start date
-    if (milestone.dateMode === 'manual' && milestone.startDate) {
-      startDate = new Date(milestone.startDate);
-    } else {
-      // Auto mode: start after previous milestone
-      const gap = milestone.daysAfterPrevious || 0;
-      const gapType = milestone.gapType || 'business';
-      startDate = calculateMilestoneStartDate(previousEndDate, gap, gapType);
-    }
-
-    // Calculate end date
-    if (milestone.endDateMode === 'manual' && milestone.endDate) {
-      endDate = new Date(milestone.endDate);
-    } else {
-      // Duration mode: calculate based on duration and type
-      const duration = milestone.durationDays || 1;
-      const durationType = milestone.durationType || 'business';
-      endDate = calculateMilestoneEndDate(startDate, duration, durationType);
-    }
-
-    // Update previous end date for next iteration
-    previousEndDate = endDate;
+  return milestones.map((milestone) => {
+    // Calculate milestone dates from its deliverables
+    const { calculatedStartDate, calculatedEndDate } = calculateMilestoneDatesFromDeliverables(milestone);
 
     return {
       ...milestone,
-      calculatedStartDate: startDate,
-      calculatedEndDate: endDate
+      calculatedStartDate,
+      calculatedEndDate
     };
   });
 };
