@@ -7,5 +7,8 @@ import Deliverable from './Deliverable.js';
 import Task from './Task.js';
 import TeamMember from './TeamMember.js';
 import TeamRole from './TeamRole.js';
+import DeliverableNew from './DeliverableNew.js';
+import TaskNew from './TaskNew.js';
+import DeliverableGroup from './DeliverableGroup.js';
 
-export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole };
+export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole, DeliverableNew, TaskNew, DeliverableGroup };

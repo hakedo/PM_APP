@@ -19,7 +19,8 @@ const DropdownMenu = ({ children }) => {
 };
 
 const DropdownMenuTrigger = React.forwardRef(
-  ({ className, children, asChild, open, setOpen, ...props }, ref) => {
+  ({ className, children, asChild, open, setOpen, triggerRef, ...props }, ref) => {
+    // Filter out internal props - triggerRef should not be passed to DOM
     const Comp = asChild ? React.Fragment : "button";
     
     const handleClick = (e) => {
@@ -50,9 +51,8 @@ const DropdownMenuTrigger = React.forwardRef(
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
 const DropdownMenuContent = React.forwardRef(
-  ({ className, align = "start", children, ...props }, ref) => {
-    // Extract internal props that shouldn't be passed to DOM
-    const { open, setOpen, triggerRef, ...domProps } = props;
+  ({ className, align = "start", children, open, setOpen, triggerRef, ...props }, ref) => {
+    // Internal props are now explicitly extracted from function params
     
     const contentRef = React.useRef(null);
     const [position, setPosition] = React.useState({ top: 0, left: 0 });
@@ -115,7 +115,7 @@ const DropdownMenuContent = React.forwardRef(
           alignmentClasses[align],
           className
         )}
-        {...domProps}
+        {...props}
       >
         {React.Children.map(children, (child) => {
           if (React.isValidElement(child)) {
@@ -153,9 +153,33 @@ const DropdownMenuItem = React.forwardRef(
 );
 DropdownMenuItem.displayName = "DropdownMenuItem";
 
+const DropdownMenuSeparator = React.forwardRef(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn("-mx-1 my-1 h-px bg-gray-200", className)}
+      {...props}
+    />
+  )
+);
+DropdownMenuSeparator.displayName = "DropdownMenuSeparator";
+
+const DropdownMenuLabel = React.forwardRef(
+  ({ className, ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn("px-2 py-1.5 text-sm font-semibold text-gray-900", className)}
+      {...props}
+    />
+  )
+);
+DropdownMenuLabel.displayName = "DropdownMenuLabel";
+
 export {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
 };

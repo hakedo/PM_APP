@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, BarChart3, FolderKanban } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { LoadingSpinner, EmptyState, CollapsibleInfoCard } from '../../components/ui';
-import { ClientAssignmentSection, MilestonesSection, TimelineDialog } from '../../components/project-details';
+import { ClientAssignmentSection, MilestonesSection, TimelineDialog, DeliverablesSection } from '../../components/project-details';
 import { GanttChart } from '../../components/gantt';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService } from '../../services';
@@ -700,12 +700,26 @@ function ProjectDetails() {
           />
         </motion.div>
 
+        {/* Deliverables Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="mt-6"
+        >
+          <DeliverablesSection
+            projectId={id}
+            projectStartDate={project.startDate}
+            projectEndDate={project.endDate}
+          />
+        </motion.div>
+
         {/* Gantt Chart Toggle */}
         {milestones.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.5 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
             className="mt-6"
           >
             <Button

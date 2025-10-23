@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import connectDB from './config/database.js';
-import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes, teamRoutes, teamRoleRoutes } from './routes/index.js';
+import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes, teamRoutes, teamRoleRoutes, deliverableRoutes, deliverableGroupRoutes } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -11,7 +11,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: [config.corsOrigin, 'http://localhost:5174'],
+  origin: [config.corsOrigin, 'http://localhost:5173', 'http://localhost:5174'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -45,6 +45,8 @@ app.use('/clients', clientRoutes);
 app.use('/assignments', clientProjectAssignmentRoutes);
 app.use('/team', teamRoutes);
 app.use('/team-roles', teamRoleRoutes);
+app.use('/deliverables', deliverableRoutes);
+app.use('/deliverable-groups', deliverableGroupRoutes);
 
 // Error handlers (must be last)
 app.use(notFoundHandler);

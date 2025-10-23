@@ -9,27 +9,32 @@ import Clients from './pages/Clients/Clients';
 import ClientDetails from './pages/ClientDetails/ClientDetails';
 import Team from './pages/Team/Team';
 import Navigation from './layouts/Navigation/Navigation';
+import { Toaster } from './components/ui/sonner';
+import { TooltipProvider } from './components/ui/tooltip';
 import './App.css';
 
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <main className="ml-[240px] transition-all duration-300">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/projects/:id" element={<ProjectDetails />} />
-            <Route path="/clients" element={<Clients />} />
-            <Route path="/clients/:id" element={<ClientDetails />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/templates/:id" element={<TemplateDetails />} />
-          </Routes>
-        </main>
-      </div>
+      <TooltipProvider>
+        <div className="min-h-screen bg-gray-50">
+          <Navigation />
+          <main className="ml-[240px] transition-all duration-300">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:id" element={<ProjectDetails />} />
+              <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:id" element={<ClientDetails />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/templates" element={<Templates />} />
+              <Route path="/templates/:id" element={<TemplateDetails />} />
+            </Routes>
+          </main>
+          <Toaster />
+        </div>
+      </TooltipProvider>
     </Router>
   );
 }
