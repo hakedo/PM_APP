@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, BarChart3, FolderKanban } from 'lucide-react';
+import { ArrowLeft, FolderKanban } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { LoadingSpinner, EmptyState, CollapsibleInfoCard } from '../../components/ui';
-import { ClientAssignmentSection, MilestonesSection, TimelineDialog, DeliverablesSection } from '../../components/project-details';
-import { GanttChart } from '../../components/gantt';
+import { ClientAssignmentSection, DeliverablesSection } from '../../components/project-details';
 import { FinancesSection } from '../../components/finances';
 import { useProject, useTeam } from '../../hooks';
-import { clientService, assignmentService, milestoneService } from '../../services';
+import { clientService, assignmentService } from '../../services';
 import { extractDateForInput } from '../../utils/dateUtils';
 import { formatPhoneNumber } from '../../utils/formatters';
 
@@ -46,18 +45,6 @@ function ProjectDetails() {
     state: '',
     zip: ''
   });
-
-  // Milestone state
-  const [milestones, setMilestones] = useState([]);
-  const [expandedMilestones, setExpandedMilestones] = useState({});
-  const [showGanttChart, setShowGanttChart] = useState(false);
-
-  // Timeline dialog state
-  const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
-  const [timelineDialogType, setTimelineDialogType] = useState(null);
-  const [timelineDialogMode, setTimelineDialogMode] = useState('add');
-  const [timelineDialogData, setTimelineDialogData] = useState(null);
-  const [timelineDialogParent, setTimelineDialogParent] = useState(null);
 
   // Helper functions
   const addBusinessDays = (startDate, days) => {
@@ -97,12 +84,6 @@ function ProjectDetails() {
       fetchAssignedClients();
     }
   }, [id]);
-
-  useEffect(() => {
-    if (project?.milestones) {
-      setMilestones(project.milestones);
-    }
-  }, [project]);
 
   useEffect(() => {
     if (showClientSearch && allClients.length === 0) {
@@ -258,255 +239,6 @@ function ProjectDetails() {
       state: '',
       zip: ''
     });
-  };
-
-  // Milestone handlers
-  const handleAddMilestone = () => {
-    setTimelineDialogType('milestone');
-    setTimelineDialogMode('add');
-    setTimelineDialogData({
-      name: '',
-      abbreviation: '',
-      description: '',
-      teamMember: ''
-    });
-    setTimelineDialogParent(null);
-    setTimelineDialogOpen(true);
-  };
-
-  const handleEditMilestone = (milestone) => {
-    setTimelineDialogType('milestone');
-    setTimelineDialogMode('edit');
-    setTimelineDialogData(milestone);
-    setTimelineDialogParent(null);
-    setTimelineDialogOpen(true);
-  };
-
-  const handleDeleteMilestone = async (milestoneId) => {
-    if (!window.confirm('Delete this milestone and all its deliverables?')) return;
-    
-    try {
-      await milestoneService.deleteMilestone(id, milestoneId);
-      await refetch();
-    } catch (error) {
-      console.error('Failed to delete milestone:', error);
-      alert('Failed to delete milestone');
-    }
-  };
-
-  // Deliverable handlers
-  const handleAddDeliverable = (milestoneId) => {
-    const milestone = milestones.find(m => m._id === milestoneId);
-    setTimelineDialogType('deliverable');
-    setTimelineDialogMode('add');
-    setTimelineDialogData({
-      title: '',
-      description: '',
-      startDate: '',
-      endDateMode: 'date',
-      endDate: '',
-      durationDays: 1,
-      durationType: 'business'
-    });
-    setTimelineDialogParent({ milestone });
-    setTimelineDialogOpen(true);
-  };
-
-  const handleEditDeliverable = (milestoneId, deliverable) => {
-    const milestone = milestones.find(m => m._id === milestoneId);
-    setTimelineDialogType('deliverable');
-    setTimelineDialogMode('edit');
-    setTimelineDialogData({
-      ...deliverable,
-      startDate: deliverable.startDate ? new Date(deliverable.startDate).toISOString().split('T')[0] : '',
-      endDate: deliverable.endDate ? new Date(deliverable.endDate).toISOString().split('T')[0] : '',
-      endDateMode: 'date',
-      durationDays: 1,
-      durationType: 'business'
-    });
-    setTimelineDialogParent({ milestone });
-    setTimelineDialogOpen(true);
-  };
-
-  const handleToggleDeliverable = async (milestoneId, deliverableId, currentState) => {
-    try {
-      await milestoneService.updateDeliverable(
-        id,
-        milestoneId,
-        deliverableId,
-        { completed: !currentState }
-      );
-      await refetch();
-    } catch (error) {
-      console.error('Failed to update deliverable:', error);
-      alert('Failed to update deliverable');
-    }
-  };
-
-  const handleDeleteDeliverable = async (milestoneId, deliverableId) => {
-    if (!window.confirm('Delete this deliverable and all its tasks?')) return;
-    
-    try {
-      await milestoneService.deleteDeliverable(id, milestoneId, deliverableId);
-      await refetch();
-    } catch (error) {
-      console.error('Failed to delete deliverable:', error);
-      alert('Failed to delete deliverable');
-    }
-  };
-
-  // Task handlers
-  const handleAddTask = (milestoneId, deliverableId) => {
-    const milestone = milestones.find(m => m._id === milestoneId);
-    const deliverable = milestone?.deliverables?.find(d => d._id === deliverableId);
-    setTimelineDialogType('task');
-    setTimelineDialogMode('add');
-    setTimelineDialogData({
-      title: '',
-      description: '',
-      dueDateMode: 'date',
-      dueDate: '',
-      dueDateOffset: 1,
-      dueDateOffsetType: 'business'
-    });
-    setTimelineDialogParent({ milestone, deliverable });
-    setTimelineDialogOpen(true);
-  };
-
-  const handleEditTask = (milestoneId, deliverableId, task) => {
-    const milestone = milestones.find(m => m._id === milestoneId);
-    const deliverable = milestone?.deliverables?.find(d => d._id === deliverableId);
-    setTimelineDialogType('task');
-    setTimelineDialogMode('edit');
-    setTimelineDialogData({
-      ...task,
-      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-      dueDateMode: task.dueDateMode || 'date',
-      dueDateOffset: task.dueDateOffset || 1,
-      dueDateOffsetType: task.dueDateOffsetType || 'business'
-    });
-    setTimelineDialogParent({ milestone, deliverable });
-    setTimelineDialogOpen(true);
-  };
-
-  const handleToggleTask = async (milestoneId, deliverableId, taskId, currentState) => {
-    try {
-      await milestoneService.updateTask(
-        id,
-        milestoneId,
-        deliverableId,
-        taskId,
-        { completed: !currentState }
-      );
-      await refetch();
-    } catch (error) {
-      console.error('Failed to update task:', error);
-      alert('Failed to update task');
-    }
-  };
-
-  const handleDeleteTask = async (milestoneId, deliverableId, taskId) => {
-    if (!window.confirm('Delete this task?')) return;
-    
-    try {
-      await milestoneService.deleteTask(id, milestoneId, deliverableId, taskId);
-      await refetch();
-    } catch (error) {
-      console.error('Failed to delete task:', error);
-      alert('Failed to delete task');
-    }
-  };
-
-  // Timeline dialog handlers
-  const handleTimelineDialogSave = async () => {
-    try {
-      if (timelineDialogType === 'milestone') {
-        if (timelineDialogMode === 'add') {
-          await milestoneService.createMilestone(id, timelineDialogData);
-        } else {
-          await milestoneService.updateMilestone(id, timelineDialogData._id, {
-            name: timelineDialogData.name,
-            abbreviation: timelineDialogData.abbreviation,
-            description: timelineDialogData.description,
-            teamMember: timelineDialogData.teamMember
-          });
-        }
-      } else if (timelineDialogType === 'deliverable') {
-        const milestoneId = timelineDialogParent.milestone._id;
-        
-        const dataToSend = {
-          title: timelineDialogData.title,
-          description: timelineDialogData.description,
-          startDate: timelineDialogData.startDate
-        };
-
-        if (timelineDialogData.endDateMode === 'date') {
-          if (!timelineDialogData.endDate) {
-            alert('Please provide an end date');
-            return;
-          }
-          dataToSend.endDate = timelineDialogData.endDate;
-        } else {
-          const startDate = new Date(timelineDialogData.startDate);
-          const endDate = timelineDialogData.durationType === 'business'
-            ? addBusinessDays(startDate, timelineDialogData.durationDays || 1)
-            : addCalendarDays(startDate, timelineDialogData.durationDays || 1);
-          dataToSend.endDate = endDate.toISOString().split('T')[0];
-        }
-
-        if (timelineDialogMode === 'add') {
-          await milestoneService.createDeliverable(id, milestoneId, dataToSend);
-        } else {
-          await milestoneService.updateDeliverable(id, milestoneId, timelineDialogData._id, dataToSend);
-        }
-      } else if (timelineDialogType === 'task') {
-        const { milestone, deliverable } = timelineDialogParent;
-        
-        const dataToSend = {
-          title: timelineDialogData.title,
-          description: timelineDialogData.description,
-          dueDateMode: timelineDialogData.dueDateMode,
-          dueDate: timelineDialogData.dueDateMode === 'date' ? timelineDialogData.dueDate : undefined,
-          dueDateOffset: timelineDialogData.dueDateMode !== 'date' ? timelineDialogData.dueDateOffset : undefined,
-          dueDateOffsetType: timelineDialogData.dueDateMode !== 'date' ? timelineDialogData.dueDateOffsetType : undefined
-        };
-
-        if (timelineDialogMode === 'add') {
-          await milestoneService.createTask(id, milestone._id, deliverable._id, dataToSend);
-        } else {
-          await milestoneService.updateTask(id, milestone._id, deliverable._id, timelineDialogData._id, dataToSend);
-        }
-      }
-
-      await refetch();
-      setTimelineDialogOpen(false);
-      setTimelineDialogType(null);
-      setTimelineDialogMode('add');
-      setTimelineDialogData(null);
-      setTimelineDialogParent(null);
-    } catch (error) {
-      console.error('Failed to save:', error);
-      alert(error.response?.data?.message || 'Failed to save');
-    }
-  };
-
-  const handleTimelineDialogDelete = async () => {
-    if (timelineDialogType === 'milestone') {
-      await handleDeleteMilestone(timelineDialogData._id);
-    } else if (timelineDialogType === 'deliverable') {
-      await handleDeleteDeliverable(timelineDialogParent.milestone._id, timelineDialogData._id);
-    } else if (timelineDialogType === 'task') {
-      await handleDeleteTask(
-        timelineDialogParent.milestone._id,
-        timelineDialogParent.deliverable._id,
-        timelineDialogData._id
-      );
-    }
-    setTimelineDialogOpen(false);
-    setTimelineDialogType(null);
-    setTimelineDialogMode('add');
-    setTimelineDialogData(null);
-    setTimelineDialogParent(null);
   };
 
   // Loading state
@@ -675,37 +407,11 @@ function ProjectDetails() {
           />
         </motion.div>
 
-        {/* Milestones Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-          className="mt-6"
-        >
-          <MilestonesSection
-            milestones={milestones}
-            expandedMilestones={expandedMilestones}
-            setExpandedMilestones={setExpandedMilestones}
-            teamMembers={teamMembers}
-            onAddMilestone={handleAddMilestone}
-            onEditMilestone={handleEditMilestone}
-            onDeleteMilestone={handleDeleteMilestone}
-            onAddDeliverable={handleAddDeliverable}
-            onToggleDeliverable={handleToggleDeliverable}
-            onEditDeliverable={handleEditDeliverable}
-            onDeleteDeliverable={handleDeleteDeliverable}
-            onAddTask={handleAddTask}
-            onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
-            onToggleTask={handleToggleTask}
-          />
-        </motion.div>
-
         {/* Deliverables Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
           className="mt-6"
         >
           <DeliverablesSection
@@ -719,58 +425,11 @@ function ProjectDetails() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.6 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
           className="mt-6"
         >
           <FinancesSection projectId={id} />
         </motion.div>
-
-        {/* Gantt Chart Toggle */}
-        {milestones.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.7 }}
-            className="mt-6"
-          >
-            <Button
-              variant="outline"
-              onClick={() => setShowGanttChart(!showGanttChart)}
-              className="w-full gap-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              {showGanttChart ? 'Hide' : 'Show'} Gantt Chart
-            </Button>
-          </motion.div>
-        )}
-
-        {/* Gantt Chart */}
-        {showGanttChart && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mt-6"
-          >
-            <GanttChart milestones={milestones} projectStartDate={project.startDate} />
-          </motion.div>
-        )}
-
-        {/* Timeline Dialog */}
-        <TimelineDialog
-          open={timelineDialogOpen}
-          onOpenChange={setTimelineDialogOpen}
-          type={timelineDialogType}
-          mode={timelineDialogMode}
-          data={timelineDialogData}
-          onDataChange={setTimelineDialogData}
-          onSave={handleTimelineDialogSave}
-          onDelete={handleTimelineDialogDelete}
-          teamMembers={teamMembers}
-          parentMilestone={timelineDialogParent?.milestone}
-          parentDeliverable={timelineDialogParent?.deliverable}
-        />
       </motion.div>
     </div>
   );
