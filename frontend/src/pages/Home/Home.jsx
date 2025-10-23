@@ -1,29 +1,32 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Zap, Users, TrendingUp, ArrowRight } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { FolderKanban, Zap, Users, TrendingUp, ArrowRight, Sparkles } from 'lucide-react';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge } from '../../components/ui';
 
 const features = [
   {
     icon: FolderKanban,
     title: 'Project Organization',
     description: 'Keep all your projects organized in one beautiful workspace',
+    badge: 'Core',
   },
   {
     icon: Zap,
     title: 'Lightning Fast',
     description: 'Built for speed with modern technologies and optimized performance',
+    badge: 'Performance',
   },
   {
     icon: Users,
     title: 'Collaboration',
     description: 'Work together seamlessly with your team in real-time',
+    badge: 'Team',
   },
   {
     icon: TrendingUp,
     title: 'Track Progress',
     description: 'Monitor project status and milestones with ease',
+    badge: 'Analytics',
   },
 ];
 
@@ -66,16 +69,17 @@ function Home() {
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-sm text-gray-600 mb-6"
           >
-            <Zap className="w-4 h-4" />
-            <span>Modern Project Management</span>
+            <Badge variant="secondary" className="mb-6 px-4 py-2 text-sm">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Modern Project Management
+            </Badge>
           </motion.div>
 
           <h1 className="text-6xl font-bold text-gray-900 mb-6 tracking-tight">
             Manage Projects
             <br />
-            <span className="bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-gray-900 via-gray-700 to-gray-600 bg-clip-text text-transparent">
               The Modern Way
             </span>
           </h1>
@@ -93,7 +97,7 @@ function Home() {
             <Button
               size="lg"
               onClick={() => navigate('/projects')}
-              className="text-base h-12 px-8 gap-2"
+              className="text-base h-12 px-8 gap-2 shadow-lg hover:shadow-xl transition-shadow"
             >
               Get Started
               <ArrowRight className="w-4 h-4" />
@@ -104,23 +108,24 @@ function Home() {
         {/* Features Grid */}
         <motion.div
           variants={containerVariants}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16"
+          className="grid md:grid-cols-2 gap-6 mb-16"
         >
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <motion.div key={index} variants={itemVariants}>
-                <Card className="h-full hover:shadow-lg transition-all duration-300 border-gray-100 group cursor-pointer">
+                <Card className="h-full hover:shadow-xl transition-all duration-300 border-gray-200 group">
                   <CardHeader>
-                    <motion.div
-                      whileHover={{ scale: 1.05, rotate: 5 }}
-                      transition={{ duration: 0.2 }}
-                      className="w-12 h-12 rounded-lg bg-gray-900 flex items-center justify-center mb-4 group-hover:bg-gray-800 transition-colors"
-                    >
-                      <Icon className="w-6 h-6 text-white" />
-                    </motion.div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
-                    <CardDescription className="text-base">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-md">
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {feature.badge}
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
+                    <CardDescription className="text-base leading-relaxed">
                       {feature.description}
                     </CardDescription>
                   </CardHeader>

@@ -2,13 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Calendar, FolderKanban, Loader2, Trash2, MoreVertical, UserCheck } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Textarea, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Badge } from '../../components/ui';
 import { useProjects, useTeam } from '../../hooks';
 import { getTodayString, formatDateDisplay } from '../../utils/dateUtils';
 
@@ -224,6 +218,25 @@ function Projects() {
                           </span>
                         </div>
                       )}
+                      <div className="pt-2 flex items-center gap-2 flex-wrap">
+                        {project.milestones && project.milestones.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {project.milestones.length} Milestone{project.milestones.length !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                        {project.status && (
+                          <Badge 
+                            variant={
+                              project.status === 'completed' ? 'success' : 
+                              project.status === 'in-progress' ? 'default' : 
+                              'outline'
+                            }
+                            className="text-xs"
+                          >
+                            {project.status.charAt(0).toUpperCase() + project.status.slice(1).replace('-', ' ')}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

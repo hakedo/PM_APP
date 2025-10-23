@@ -2,18 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Plus, Loader2, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu';
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Textarea, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Badge } from '../../components/ui';
 import { useTemplates } from '../../hooks';
 
 const containerVariants = {
@@ -247,7 +236,7 @@ function Templates() {
                 <Card className="h-full cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200 relative">
                   <CardHeader>
                     <CardTitle className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-gray-900 to-gray-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                         <FileText className="w-5 h-5 text-white" />
                       </div>
                       <span className="line-clamp-2 flex-1">{template.name}</span>
@@ -293,6 +282,13 @@ function Templates() {
                       </CardDescription>
                     )}
                   </CardHeader>
+                  <CardContent>
+                    {template.milestones && template.milestones.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        {template.milestones.length} Milestone{template.milestones.length !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </CardContent>
                 </Card>
               </motion.div>
             ))}

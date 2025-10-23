@@ -50,7 +50,10 @@ const DropdownMenuTrigger = React.forwardRef(
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger";
 
 const DropdownMenuContent = React.forwardRef(
-  ({ className, align = "start", children, open, setOpen, triggerRef, ...props }, ref) => {
+  ({ className, align = "start", children, ...props }, ref) => {
+    // Extract internal props that shouldn't be passed to DOM
+    const { open, setOpen, triggerRef, ...domProps } = props;
+    
     const contentRef = React.useRef(null);
     const [position, setPosition] = React.useState({ top: 0, left: 0 });
 
@@ -97,9 +100,6 @@ const DropdownMenuContent = React.forwardRef(
       end: "-translate-x-full",
       center: "-translate-x-1/2",
     };
-
-    // Remove internal props before spreading to DOM element
-    const { open: _open, setOpen: _setOpen, triggerRef: _triggerRef, ...domProps } = props;
 
     const content = (
       <div
