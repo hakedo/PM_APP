@@ -55,6 +55,6 @@ const financeItemSchema = new mongoose.Schema({
 // Index for efficient queries
 financeItemSchema.index({ project: 1, group: 1, date: 1 });
 
-const FinanceItem = mongoose.model('FinanceItem', financeItemSchema);
+const FinanceItem = mongoose.model('FinanceItem', financeItemSchema, 'finance_items');
 
 export default FinanceItem;

@@ -23,6 +23,6 @@ const financeGroupSchema = new mongoose.Schema({
 // Index for efficient queries
 financeGroupSchema.index({ project: 1, order: 1 });
 
-const FinanceGroup = mongoose.model('FinanceGroup', financeGroupSchema);
+const FinanceGroup = mongoose.model('FinanceGroup', financeGroupSchema, 'finance_groups');
 
 export default FinanceGroup;

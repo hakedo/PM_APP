@@ -33,6 +33,6 @@ const financeSubItemSchema = new mongoose.Schema({
 // Index for efficient queries
 financeSubItemSchema.index({ financeItem: 1, order: 1 });
 
-const FinanceSubItem = mongoose.model('FinanceSubItem', financeSubItemSchema);
+const FinanceSubItem = mongoose.model('FinanceSubItem', financeSubItemSchema, 'finance_subitems');
 
 export default FinanceSubItem;

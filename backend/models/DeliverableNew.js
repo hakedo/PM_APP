@@ -45,6 +45,6 @@ const deliverableSchema = new mongoose.Schema({
 // Index for efficient queries
 deliverableSchema.index({ project: 1, group: 1, startDate: 1 });
 
-const DeliverableNew = mongoose.model('DeliverableNew', deliverableSchema);
+const DeliverableNew = mongoose.model('DeliverableNew', deliverableSchema, 'deliverable_items');
 
 export default DeliverableNew;

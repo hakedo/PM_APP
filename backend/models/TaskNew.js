@@ -32,6 +32,6 @@ const taskSchema = new mongoose.Schema({
 // Index for efficient queries
 taskSchema.index({ deliverable: 1, order: 1 });
 
-const TaskNew = mongoose.model('TaskNew', taskSchema);
+const TaskNew = mongoose.model('TaskNew', taskSchema, 'deliverable_subitems');
 
 export default TaskNew;

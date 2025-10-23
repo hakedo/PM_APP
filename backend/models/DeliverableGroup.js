@@ -23,6 +23,6 @@ const deliverableGroupSchema = new mongoose.Schema({
 // Index for efficient queries
 deliverableGroupSchema.index({ project: 1, order: 1 });
 
-const DeliverableGroup = mongoose.model('DeliverableGroup', deliverableGroupSchema);
+const DeliverableGroup = mongoose.model('DeliverableGroup', deliverableGroupSchema, 'deliverable_groups');
 
 export default DeliverableGroup;
