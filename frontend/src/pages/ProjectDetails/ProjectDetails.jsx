@@ -134,7 +134,7 @@ function ProjectDetails() {
   // Project handlers
   const handleEdit = () => {
     setEditedProject({
-      name: project.name,
+      title: project.title,
       description: project.description || '',
       startDate: extractDateForInput(project.startDate),
       endDate: extractDateForInput(project.endDate)
@@ -565,7 +565,7 @@ function ProjectDetails() {
           transition={{ duration: 0.4, delay: 0.2 }}
         >
           <CollapsibleInfoCard
-            title={project.name}
+            title={project.title}
             subtitle={project.description}
             icon={FolderKanban}
             isEditing={isEditing}
@@ -583,8 +583,8 @@ function ProjectDetails() {
                   </label>
                   <input
                     type="text"
-                    value={editedProject.name}
-                    onChange={(e) => setEditedProject({ ...editedProject, name: e.target.value })}
+                    value={editedProject.title}
+                    onChange={(e) => setEditedProject({ ...editedProject, title: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>

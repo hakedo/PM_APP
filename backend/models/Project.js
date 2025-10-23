@@ -11,8 +11,9 @@ const projectSchema = new mongoose.Schema(
     },
     description: { 
       type: String, 
-      required: [true, 'Project description is required'],
+      required: false,
       trim: true,
+      default: '',
       maxlength: [2000, 'Description cannot exceed 2000 characters']
     },
     startDate: { 
