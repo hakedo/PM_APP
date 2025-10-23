@@ -444,9 +444,9 @@ function GanttChart({ milestones, onItemClick }) {
                                 >
                                   {/* Circle - filled if completed, hollow if not */}
                                   {task.completed ? (
-                                    <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-md group-hover:scale-125 transition-transform duration-150"></div>
+                                    <div className="w-5 h-5 rounded-full bg-emerald-500 border-3 border-white shadow-lg group-hover:scale-125 transition-transform duration-150"></div>
                                   ) : (
-                                    <div className="w-4 h-4 rounded-full bg-white border-2 border-amber-500 shadow-md group-hover:scale-125 transition-transform duration-150"></div>
+                                    <div className="w-5 h-5 rounded-full bg-white border-3 border-blue-400 shadow-lg group-hover:scale-125 transition-transform duration-150"></div>
                                   )}
                                 </div>
                               );

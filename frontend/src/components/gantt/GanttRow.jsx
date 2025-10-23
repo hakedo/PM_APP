@@ -57,7 +57,7 @@ function GanttRow({
           initial={{ opacity: 0, scaleX: 0 }}
           animate={{ opacity: 1, scaleX: 1 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`absolute h-7 top-2 rounded-md ${barColor} ${barHoverColor} cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md`}
+          className={`absolute h-8 top-1.5 rounded-full ${barColor} ${barHoverColor} cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg`}
           style={{
             left: `${left}px`,
             width: `${width}px`,
@@ -66,9 +66,9 @@ function GanttRow({
           onClick={() => onBarClick && onBarClick(item, type)}
           title={`${getItemTitle()}\n${formatDate(item.calculatedStartDate)} - ${formatDate(item.calculatedEndDate)}`}
         >
-          {/* Bar label (shown if there's enough space) */}
-          {width > 40 && (
-            <div className="absolute inset-0 flex items-center px-2.5 text-white text-[11px] font-medium truncate">
+          {/* Bar label with better visibility */}
+          {width > 60 && (
+            <div className="absolute inset-0 flex items-center px-4 text-white text-xs font-semibold truncate drop-shadow-sm">
               {item.abbreviation || getItemTitle()}
             </div>
           )}
