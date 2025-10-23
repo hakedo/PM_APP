@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, DollarSign, FolderPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '../ui';
 import { FinanceGroup } from './FinanceGroup';
 import { FinanceFormDialog } from './FinanceFormDialog';
@@ -281,14 +281,15 @@ export function FinancesSection({ projectId }) {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="border-gray-200">
         <CardHeader>
-          <CardTitle>Finances</CardTitle>
+          <CardTitle className="flex items-center gap-3">
+            <DollarSign className="w-6 h-6" />
+            Finances
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <p className="text-gray-500">Loading finances...</p>
-          </div>
+          <div className="py-8 text-center text-gray-500">Loading finances...</div>
         </CardContent>
       </Card>
     );
@@ -296,23 +297,38 @@ export function FinancesSection({ projectId }) {
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Finances ({groups.length})</CardTitle>
-          <Button onClick={handleAddGroup} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Group
-          </Button>
+      <Card className="border-gray-200">
+        {/* Header */}
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <DollarSign className="w-6 h-6" />
+              Finances ({groups.length})
+            </div>
+            <Button onClick={handleAddGroup} variant="outline" size="sm" className="gap-2">
+              <FolderPlus className="w-4 h-4" />
+              Add Group
+            </Button>
+          </CardTitle>
         </CardHeader>
         
+        {/* Groups Content */}
         <CardContent className="p-0">
           {groups.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-gray-500 mb-4">No finance groups yet. Create your first group to get started.</p>
-              <Button onClick={handleAddGroup} variant="outline" className="gap-2">
-                <Plus className="w-4 h-4" />
-                Add First Group
-              </Button>
+            <div className="py-12">
+              <div className="text-center space-y-4">
+                <div>
+                  <FolderPlus className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No groups yet</h3>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Create a group to start organizing your finances
+                  </p>
+                </div>
+                <Button onClick={handleAddGroup} size="lg" className="gap-2">
+                  <FolderPlus className="w-4 h-4" />
+                  Create Your First Group
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
