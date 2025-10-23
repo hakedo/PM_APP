@@ -54,14 +54,12 @@ function GanttRow({
     <div className="relative h-11 bg-transparent" style={{ width: `${totalWidth}px` }}>
       {width > 0 && (
         <motion.div
-          initial={{ opacity: 0, scaleX: 0 }}
-          animate={{ opacity: 1, scaleX: 1 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          className={`absolute h-8 top-1.5 rounded-full ${barColor} ${barHoverColor} cursor-pointer transition-all duration-200 shadow-md hover:shadow-lg`}
+          initial={false}
+          animate={{ opacity: 1 }}
+          className={`absolute h-8 top-1.5 rounded-full ${barColor} ${barHoverColor} cursor-pointer transition-all duration-150 shadow-md hover:shadow-lg`}
           style={{
             left: `${left}px`,
-            width: `${width}px`,
-            transformOrigin: 'left'
+            width: `${width}px`
           }}
           onClick={() => onBarClick && onBarClick(item, type)}
           title={`${getItemTitle()}\n${formatDate(item.calculatedStartDate)} - ${formatDate(item.calculatedEndDate)}`}

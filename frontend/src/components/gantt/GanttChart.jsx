@@ -311,7 +311,7 @@ function GanttChart({ milestones, onItemClick }) {
           {/* Milestone rows */}
           {milestones.map((milestone) => (
             <div key={milestone._id} className="relative">
-              {/* Milestone container bar background - spans across all children */}
+              {/* Milestone container - pill when collapsed, brackets when expanded */}
               {milestone.calculatedStartDate && milestone.calculatedEndDate && (
                 <div 
                   className="absolute left-[280px] top-0 bottom-0 pointer-events-none z-0"
@@ -331,19 +331,40 @@ function GanttChart({ milestones, onItemClick }) {
                     })()}px`
                   }}
                 >
-                  {/* Strong container with borders and background */}
-                  <div className="absolute inset-0 bg-blue-100/60 border-l-[6px] border-r-[6px] border-t-2 border-b-2 border-blue-500/70 rounded-md shadow-sm"></div>
-                  {/* Top label bar */}
-                  <div className="absolute top-0 left-0 right-0 h-6 bg-blue-500/20 border-b-2 border-blue-500/40 flex items-center px-2">
-                    <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wide truncate">
-                      {milestone.name || 'Untitled Milestone'}
-                    </span>
-                  </div>
+                  {expandedItems[milestone._id] ? (
+                    // Expanded: Show brackets
+                    <>
+                      {/* Left bracket */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500/80 rounded-l-sm"></div>
+                      <div className="absolute left-0 top-0 h-3 w-3 border-t-3 border-l-3 border-blue-500/80 rounded-tl-md"></div>
+                      <div className="absolute left-0 bottom-0 h-3 w-3 border-b-3 border-l-3 border-blue-500/80 rounded-bl-md"></div>
+                      
+                      {/* Right bracket */}
+                      <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-500/80 rounded-r-sm"></div>
+                      <div className="absolute right-0 top-0 h-3 w-3 border-t-3 border-r-3 border-blue-500/80 rounded-tr-md"></div>
+                      <div className="absolute right-0 bottom-0 h-3 w-3 border-b-3 border-r-3 border-blue-500/80 rounded-br-md"></div>
+                      
+                      {/* Subtle background tint */}
+                      <div className="absolute inset-0 bg-blue-50/20 pointer-events-none"></div>
+                      
+                      {/* Milestone label at the top */}
+                      <div className="absolute -top-5 left-2 text-[10px] font-bold text-blue-600 uppercase tracking-wide truncate max-w-full pr-4">
+                        {milestone.name || 'Untitled'}
+                      </div>
+                    </>
+                  ) : (
+                    // Collapsed: Show pill
+                    <div className="absolute top-2 h-8 rounded-full bg-blue-500/90 shadow-md flex items-center px-4 left-0 right-0">
+                      <span className="text-xs font-semibold text-white truncate drop-shadow-sm">
+                        {milestone.name || 'Untitled Milestone'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               
               {/* Milestone row with expand/collapse */}
-              <div className="flex items-center border-b border-gray-200 hover:bg-blue-50/50 transition-colors duration-150 relative z-10">
+              <div className="flex items-center border-b border-gray-200 relative z-10">
                 <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20">
                   <button
                     onClick={() => toggleExpand(milestone._id)}
@@ -394,8 +415,8 @@ function GanttChart({ milestones, onItemClick }) {
                     {milestone.deliverables.map((deliverable) => (
                       <div key={deliverable._id}>
                         {/* Deliverable row */}
-                        <div className="flex items-center border-b border-gray-200 hover:bg-purple-50/50 transition-colors duration-150 bg-purple-50/20">
-                          <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-purple-50 z-20" style={{ paddingLeft: '32px' }}>
+                        <div className="flex items-center border-b border-gray-200">
+                          <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20" style={{ paddingLeft: '32px' }}>
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-gray-900 truncate">
                                 {deliverable.title || 'Untitled Deliverable'}
