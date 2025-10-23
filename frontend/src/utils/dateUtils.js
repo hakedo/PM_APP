@@ -71,3 +71,27 @@ export const extractDateForInput = (dateString) => {
   const day = String(date.getUTCDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
+
+/**
+ * Calculate the number of business days between two dates
+ * @param {Date|string} startDate - The start date
+ * @param {Date|string} endDate - The end date
+ * @returns {number} Number of business days between the dates
+ */
+export const getBusinessDaysBetween = (startDate, endDate) => {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  let count = 0;
+  const current = new Date(start);
+  
+  while (current <= end) {
+    const dayOfWeek = current.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
+      count++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return count;
+};

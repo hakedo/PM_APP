@@ -21,54 +21,30 @@ const taskSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
-    // Start date configuration
-    startDateMode: {
+    // Due date configuration
+    dueDateMode: {
       type: String,
-      enum: ['manual', 'relative'],
-      default: 'relative'
+      enum: ['date', 'afterStart', 'beforeEnd'], // 'date' = specific date, 'afterStart' = days after deliverable start, 'beforeEnd' = days before deliverable end
+      default: 'date'
     },
-    startDate: {
+    // Specific due date (used when dueDateMode is 'date')
+    dueDate: {
       type: Date,
       required: false
     },
-    // Days offset from deliverable start (used when startDateMode is 'relative')
-    startDateOffset: {
+    // Days offset (used when dueDateMode is 'afterStart' or 'beforeEnd')
+    dueDateOffset: {
       type: Number,
       default: 0
     },
-    // Offset type for start date: 'business' or 'calendar'
-    startDateOffsetType: {
+    // Offset type: 'business' or 'calendar'
+    dueDateOffsetType: {
       type: String,
       enum: ['business', 'calendar'],
       default: 'business'
     },
-    // End date configuration
-    endDateMode: {
-      type: String,
-      enum: ['manual', 'relative'],
-      default: 'relative'
-    },
-    endDate: {
-      type: Date,
-      required: false
-    },
-    // Days offset from deliverable start (used when endDateMode is 'relative')
-    endDateOffset: {
-      type: Number,
-      default: 0
-    },
-    // Offset type for end date: 'business' or 'calendar'
-    endDateOffsetType: {
-      type: String,
-      enum: ['business', 'calendar'],
-      default: 'business'
-    },
-    // Calculated dates (computed based on mode and settings)
-    calculatedStartDate: {
-      type: Date,
-      required: false
-    },
-    calculatedEndDate: {
+    // Calculated due date (computed based on mode and settings)
+    calculatedDueDate: {
       type: Date,
       required: false
     },

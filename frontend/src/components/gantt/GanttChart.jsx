@@ -458,20 +458,22 @@ function GanttChart({ milestones, onItemClick }) {
                             
                             {/* Task circles on top of deliverable bar */}
                             {deliverable.tasks && deliverable.tasks.map((task) => {
-                              if (!task.calculatedEndDate) return null;
+                              if (!task.calculatedDueDate) return null;
                               
-                              const taskEnd = new Date(task.calculatedEndDate);
-                              const endOffset = Math.max(0, (taskEnd - minDate) / (24 * 60 * 60 * 1000));
+                              const taskDue = new Date(task.calculatedDueDate);
+                              const dueOffset = Math.max(0, (taskDue - minDate) / (24 * 60 * 60 * 1000));
                               const pixelsPerDay = cellWidth / interval;
-                              const position = endOffset * pixelsPerDay;
+                              const position = dueOffset * pixelsPerDay;
+                              // Center the circle in the day column
+                              const centeredPosition = position + (pixelsPerDay / 2);
                               
                               return (
                                 <div
                                   key={task._id}
-                                  className="absolute top-1/2 -translate-y-1/2 cursor-pointer group z-10"
-                                  style={{ left: `${position}px` }}
+                                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer group z-10"
+                                  style={{ left: `${centeredPosition}px` }}
                                   onClick={() => onItemClick && onItemClick(task, 'task')}
-                                  title={`${task.title || 'Untitled Task'} - ${new Date(task.calculatedEndDate).toLocaleDateString()}`}
+                                  title={`${task.title || 'Untitled Task'} - Due: ${new Date(task.calculatedDueDate).toLocaleDateString()}`}
                                 >
                                   {/* Circle - filled if completed, hollow if not */}
                                   {task.completed ? (

@@ -12,7 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { GanttChart } from '../../components/gantt';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService, projectService } from '../../services';
-import { formatDateDisplay, extractDateForInput } from '../../utils/dateUtils';
+import { formatDateDisplay, extractDateForInput, getBusinessDaysBetween } from '../../utils/dateUtils';
 
 function ProjectDetails() {
   const { id } = useParams();
@@ -78,12 +78,10 @@ function ProjectDetails() {
   const [newTask, setNewTask] = useState({ 
     title: '', 
     description: '', 
-    startDateMode: 'relative',
-    startDateOffset: 0,
-    startDateOffsetType: 'business',
-    endDateMode: 'relative',
-    endDateOffset: 1,
-    endDateOffsetType: 'business'
+    dueDateMode: 'date', // 'date', 'afterStart', 'beforeEnd'
+    dueDate: '',
+    dueDateOffset: 1,
+    dueDateOffsetType: 'business'
   });
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
@@ -562,13 +560,21 @@ function ProjectDetails() {
       deliverableId: deliverableId,
       title: task.title,
       description: task.description || '',
-      startDate: task.startDate ? new Date(task.startDate).toISOString().split('T')[0] : '',
-      endDate: task.endDate ? new Date(task.endDate).toISOString().split('T')[0] : ''
+      dueDateMode: task.dueDateMode || 'date',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      dueDateOffset: task.dueDateOffset || 1,
+      dueDateOffsetType: task.dueDateOffsetType || 'business'
     });
   };
 
   const handleSaveEditedTask = async () => {
     if (!editedTask.title.trim()) return;
+    
+    // Validate due date is provided when in 'date' mode
+    if (editedTask.dueDateMode === 'date' && !editedTask.dueDate) {
+      alert('Please provide a due date');
+      return;
+    }
     
     try {
       const { milestoneId, deliverableId, ...taskData } = editedTask;
@@ -591,10 +597,23 @@ function ProjectDetails() {
   const handleAddTask = async (milestoneId, deliverableId) => {
     if (!newTask.title.trim()) return;
     
+    // Validate due date is provided when in 'date' mode
+    if (newTask.dueDateMode === 'date' && !newTask.dueDate) {
+      alert('Please provide a due date');
+      return;
+    }
+    
     try {
       await milestoneService.createTask(id, milestoneId, deliverableId, newTask);
       await refetch();
-      setNewTask({ title: '', description: '', startDate: '', endDate: '' });
+      setNewTask({ 
+        title: '', 
+        description: '', 
+        dueDateMode: 'date', 
+        dueDate: '', 
+        dueDateOffset: 1, 
+        dueDateOffsetType: 'business' 
+      });
       setAddingTaskToDeliverable(null);
     } catch (error) {
       console.error('Failed to add task:', error);
@@ -1742,129 +1761,126 @@ function ProjectDetails() {
                                                       />
                                                     </div>
                                                     
-                                                    {/* Start Date Configuration */}
-                                                    <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                                      <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
-                                                      
-                                                      {/* Related Date Display */}
-                                                      {deliverable.calculatedStartDate && (
-                                                        <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
-                                                          <span className="font-medium">Deliverable starts: </span>
-                                                          {formatDateDisplay(deliverable.calculatedStartDate)}
-                                                        </div>
-                                                      )}
-                                                      
-                                                      <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                          <Label className="text-xs">Days After Deliverable Start</Label>
-                                                          <Input
-                                                            type="number"
-                                                            min="0"
-                                                            value={editedTask.startDateOffset || 0}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                            className="h-8 text-xs"
-                                                          />
-                                                        </div>
-                                                        <div>
-                                                          <Label className="text-xs">Type</Label>
-                                                          <select
-                                                            value={editedTask.startDateOffsetType || 'business'}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, startDateOffsetType: e.target.value })}
-                                                            className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                          >
-                                                            <option value="business">Business Days</option>
-                                                            <option value="calendar">Calendar Days</option>
-                                                          </select>
-                                                        </div>
-                                                      </div>
-                                                      
-                                                      {/* Calculated Start Date */}
-                                                      {deliverable.calculatedStartDate && (() => {
-                                                        const startDate = editedTask.startDateOffsetType === 'business'
-                                                          ? addBusinessDays(deliverable.calculatedStartDate, editedTask.startDateOffset || 0)
-                                                          : addCalendarDays(deliverable.calculatedStartDate, editedTask.startDateOffset || 0);
-                                                        
-                                                        return (
-                                                          <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                            <span className="font-medium">Will start: </span>
-                                                            {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                          </div>
-                                                        );
-                                                      })()}
+                                                    <div>
+                                                      <Label className="text-xs text-gray-700">Description (optional)</Label>
+                                                      <Input
+                                                        value={editedTask.description}
+                                                        onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
+                                                        className="text-sm"
+                                                      />
                                                     </div>
 
-                                                    {/* End Date Configuration */}
+                                                    {/* Due Date Configuration */}
                                                     <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                                      <Label className="text-xs font-semibold text-gray-700">End Date</Label>
+                                                      <Label className="text-xs font-semibold text-gray-700">Due Date</Label>
                                                       
-                                                      <div className="grid grid-cols-2 gap-2">
+                                                      <div>
+                                                        <Label className="text-xs">Configuration</Label>
+                                                        <select
+                                                          value={editedTask.dueDateMode}
+                                                          onChange={(e) => setEditedTask({ ...editedTask, dueDateMode: e.target.value })}
+                                                          className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                        >
+                                                          <option value="date">Specific Date</option>
+                                                          <option value="afterStart">Days After Deliverable Start</option>
+                                                          <option value="beforeEnd">Days Before Deliverable End</option>
+                                                        </select>
+                                                      </div>
+
+                                                      {editedTask.dueDateMode === 'date' ? (
                                                         <div>
-                                                          <Label className="text-xs">Days After Deliverable Start</Label>
                                                           <Input
-                                                            type="number"
-                                                            min="0"
-                                                            value={editedTask.endDateOffset || 0}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                            className="h-8 text-xs"
+                                                            type="date"
+                                                            value={editedTask.dueDate}
+                                                            onChange={(e) => setEditedTask({ ...editedTask, dueDate: e.target.value })}
+                                                            min={deliverable.startDate || undefined}
+                                                            max={deliverable.endDate || undefined}
+                                                            className="text-sm"
                                                           />
                                                         </div>
-                                                        <div>
-                                                          <Label className="text-xs">Type</Label>
-                                                          <select
-                                                            value={editedTask.endDateOffsetType || 'business'}
-                                                            onChange={(e) => setEditedTask({ ...editedTask, endDateOffsetType: e.target.value })}
-                                                            className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                          >
-                                                            <option value="business">Business Days</option>
-                                                            <option value="calendar">Calendar Days</option>
-                                                          </select>
-                                                        </div>
-                                                      </div>
-                                                      
-                                                      {/* Calculated End Date */}
-                                                      {deliverable.calculatedStartDate && (() => {
-                                                        const endDate = editedTask.endDateOffsetType === 'business'
-                                                          ? addBusinessDays(deliverable.calculatedStartDate, editedTask.endDateOffset || 0)
-                                                          : addCalendarDays(deliverable.calculatedStartDate, editedTask.endDateOffset || 0);
-                                                        
-                                                        return (
-                                                          <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                            <span className="font-medium">Will end: </span>
-                                                            {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                      ) : (
+                                                        <>
+                                                          {/* Related Date Display */}
+                                                          {deliverable.startDate && deliverable.endDate && (
+                                                            <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                              <span className="font-medium">Deliverable: </span>
+                                                              {formatDateDisplay(deliverable.startDate)} → {formatDateDisplay(deliverable.endDate)}
+                                                              {(() => {
+                                                                const maxDays = editedTask.dueDateOffsetType === 'business'
+                                                                  ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                                  : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24));
+                                                                return ` (${maxDays} days)`;
+                                                              })()}
+                                                            </div>
+                                                          )}
+                                                          
+                                                          <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                              <Label className="text-xs">
+                                                                Days {editedTask.dueDateMode === 'afterStart' ? 'After Start' : 'Before End'}
+                                                                {deliverable.startDate && deliverable.endDate && (() => {
+                                                                  const maxDays = editedTask.dueDateOffsetType === 'business'
+                                                                    ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                                    : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24));
+                                                                  return ` (max: ${maxDays})`;
+                                                                })()}
+                                                              </Label>
+                                                              <Input
+                                                                type="number"
+                                                                min="1"
+                                                                max={deliverable.startDate && deliverable.endDate ? (() => {
+                                                                  return editedTask.dueDateOffsetType === 'business'
+                                                                    ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                                    : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24));
+                                                                })() : undefined}
+                                                                value={editedTask.dueDateOffset || 1}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, dueDateOffset: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                                className="h-8 text-xs"
+                                                              />
+                                                            </div>
+                                                            <div>
+                                                              <Label className="text-xs">Type</Label>
+                                                              <select
+                                                                value={editedTask.dueDateOffsetType || 'business'}
+                                                                onChange={(e) => setEditedTask({ ...editedTask, dueDateOffsetType: e.target.value })}
+                                                                className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                              >
+                                                                <option value="business">Business Days</option>
+                                                                <option value="calendar">Calendar Days</option>
+                                                              </select>
+                                                            </div>
                                                           </div>
-                                                        );
-                                                      })()}
+                                                          
+                                                          {/* Calculated Due Date */}
+                                                          {deliverable.startDate && deliverable.endDate && (() => {
+                                                            let dueDate;
+                                                            if (editedTask.dueDateMode === 'afterStart') {
+                                                              dueDate = editedTask.dueDateOffsetType === 'business'
+                                                                ? addBusinessDays(deliverable.startDate, editedTask.dueDateOffset || 1)
+                                                                : addCalendarDays(deliverable.startDate, editedTask.dueDateOffset || 1);
+                                                            } else {
+                                                              // beforeEnd
+                                                              dueDate = editedTask.dueDateOffsetType === 'business'
+                                                                ? addBusinessDays(deliverable.endDate, -(editedTask.dueDateOffset || 1))
+                                                                : addCalendarDays(deliverable.endDate, -(editedTask.dueDateOffset || 1));
+                                                            }
+                                                            
+                                                            return (
+                                                              <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                                <span className="font-medium">Will be due: </span>
+                                                                {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                              </div>
+                                                            );
+                                                          })()}
+                                                        </>
+                                                      )}
                                                     </div>
                                                     
-                                                    <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
-                                                      <div>
-                                                        <Label className="text-xs text-gray-600">Start Date (optional)</Label>
-                                                        <Input
-                                                          type="date"
-                                                          value={editedTask.startDate}
-                                                          onChange={(e) => setEditedTask({ ...editedTask, startDate: e.target.value })}
-                                                          min={deliverable.startDate || undefined}
-                                                          max={deliverable.endDate || undefined}
-                                                          className="text-sm"
-                                                        />
-                                                      </div>
-                                                      <div>
-                                                        <Label className="text-xs text-gray-600">End Date (optional)</Label>
-                                                        <Input
-                                                          type="date"
-                                                          value={editedTask.endDate}
-                                                          onChange={(e) => setEditedTask({ ...editedTask, endDate: e.target.value })}
-                                                          min={editedTask.startDate || deliverable.startDate || undefined}
-                                                          max={deliverable.endDate || undefined}
-                                                          className="text-sm"
-                                                        />
-                                                      </div>
-                                                    </div>
                                                     <div className="flex gap-2 pt-2">
                                                       <Button
                                                         size="sm"
                                                         onClick={handleSaveEditedTask}
-                                                        disabled={!editedTask.title.trim()}
+                                                        disabled={!editedTask.title.trim() || (editedTask.dueDateMode === 'date' && !editedTask.dueDate)}
                                                       >
                                                         Save
                                                       </Button>
@@ -1898,25 +1914,12 @@ function ProjectDetails() {
                                                     {task.description && (
                                                       <p className="text-xs text-gray-500 mt-1">{task.description}</p>
                                                     )}
-                                                    {(task.calculatedStartDate || task.calculatedEndDate || task.startDate || task.endDate) && (
+                                                    {(task.calculatedDueDate || task.dueDate) && (
                                                       <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                                        {(task.calculatedStartDate || task.startDate) && (
-                                                          <div className="flex items-center gap-1">
-                                                            <Calendar className="w-3 h-3" />
-                                                            <span>{formatDate(task.calculatedStartDate || task.startDate)}</span>
-                                                          </div>
-                                                        )}
-                                                        {(task.calculatedEndDate || task.endDate) && (
-                                                          <div className="flex items-center gap-1">
-                                                            <Clock className="w-3 h-3" />
-                                                            <span>{formatDate(task.calculatedEndDate || task.endDate)}</span>
-                                                          </div>
-                                                        )}
-                                                        {(task.calculatedStartDate || task.startDate) && (task.calculatedEndDate || task.endDate) && (
-                                                          <span className="text-gray-400">
-                                                            ({Math.ceil((new Date(task.calculatedEndDate || task.endDate) - new Date(task.calculatedStartDate || task.startDate)) / (1000 * 60 * 60 * 24))} days)
-                                                          </span>
-                                                        )}
+                                                        <div className="flex items-center gap-1">
+                                                          <Clock className="w-3 h-3" />
+                                                          <span>Due: {formatDate(task.calculatedDueDate || task.dueDate)}</span>
+                                                        </div>
                                                       </div>
                                                     )}
                                                   </div>
@@ -1981,129 +1984,153 @@ function ProjectDetails() {
                                             className="text-sm"
                                           />
                                           
-                                          {/* Start Date Configuration */}
+                                          {/* Due Date Configuration */}
                                           <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                            <Label className="text-xs font-semibold text-gray-700">Start Date</Label>
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Label className="text-xs font-semibold text-gray-700">Due Date</Label>
+                                              <select
+                                                value={newTask.dueDateMode}
+                                                onChange={(e) => setNewTask({ ...newTask, dueDateMode: e.target.value })}
+                                                className="text-xs px-2 py-1 border border-gray-200 rounded"
+                                              >
+                                                <option value="date">Specific Date</option>
+                                                <option value="afterStart">Days After Deliverable Start</option>
+                                                <option value="beforeEnd">Days Before Deliverable End</option>
+                                              </select>
+                                            </div>
                                             
-                                            {/* Related Date Display */}
-                                            {deliverable.calculatedStartDate && (
-                                              <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
-                                                <span className="font-medium">Deliverable starts: </span>
-                                                {formatDateDisplay(deliverable.calculatedStartDate)}
+                                            {newTask.dueDateMode === 'date' ? (
+                                              <div>
+                                                <Input
+                                                  type="date"
+                                                  value={newTask.dueDate}
+                                                  onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                                                  min={deliverable.startDate ? new Date(deliverable.startDate).toISOString().split('T')[0] : undefined}
+                                                  max={deliverable.endDate ? new Date(deliverable.endDate).toISOString().split('T')[0] : undefined}
+                                                  className="h-8 text-xs"
+                                                />
+                                              </div>
+                                            ) : newTask.dueDateMode === 'afterStart' ? (
+                                              <div className="space-y-2">
+                                                {deliverable.startDate && (
+                                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                    <span className="font-medium">Deliverable starts: </span>
+                                                    {formatDateDisplay(deliverable.startDate)}
+                                                  </div>
+                                                )}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                  <div>
+                                                    <Label className="text-xs">Days After Start</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      max={deliverable.startDate && deliverable.endDate ? (
+                                                        newTask.dueDateOffsetType === 'business'
+                                                          ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                          : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))
+                                                      ) : undefined}
+                                                      value={newTask.dueDateOffset}
+                                                      onChange={(e) => setNewTask({ ...newTask, dueDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                    {deliverable.startDate && deliverable.endDate && (
+                                                      <p className="text-[10px] text-gray-500 mt-0.5">
+                                                        Max: {newTask.dueDateOffsetType === 'business'
+                                                          ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                          : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))
+                                                        } days
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                  <div>
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={newTask.dueDateOffsetType}
+                                                      onChange={(e) => setNewTask({ ...newTask, dueDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business Days</option>
+                                                      <option value="calendar">Calendar Days</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                                {deliverable.startDate && (() => {
+                                                  const dueDate = newTask.dueDateOffsetType === 'business'
+                                                    ? addBusinessDays(deliverable.startDate, newTask.dueDateOffset || 0)
+                                                    : addCalendarDays(deliverable.startDate, newTask.dueDateOffset || 0);
+                                                  return (
+                                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                      <span className="font-medium">Due: </span>
+                                                      {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                  );
+                                                })()}
+                                              </div>
+                                            ) : (
+                                              <div className="space-y-2">
+                                                {deliverable.endDate && (
+                                                  <div className="text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded px-2 py-1.5">
+                                                    <span className="font-medium">Deliverable ends: </span>
+                                                    {formatDateDisplay(deliverable.endDate)}
+                                                  </div>
+                                                )}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                  <div>
+                                                    <Label className="text-xs">Days Before End</Label>
+                                                    <Input
+                                                      type="number"
+                                                      min="0"
+                                                      max={deliverable.startDate && deliverable.endDate ? (
+                                                        newTask.dueDateOffsetType === 'business'
+                                                          ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                          : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))
+                                                      ) : undefined}
+                                                      value={newTask.dueDateOffset}
+                                                      onChange={(e) => setNewTask({ ...newTask, dueDateOffset: parseInt(e.target.value) || 0 })}
+                                                      className="h-8 text-xs"
+                                                    />
+                                                    {deliverable.startDate && deliverable.endDate && (
+                                                      <p className="text-[10px] text-gray-500 mt-0.5">
+                                                        Max: {newTask.dueDateOffsetType === 'business'
+                                                          ? getBusinessDaysBetween(deliverable.startDate, deliverable.endDate)
+                                                          : Math.ceil((new Date(deliverable.endDate) - new Date(deliverable.startDate)) / (1000 * 60 * 60 * 24))
+                                                        } days
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                  <div>
+                                                    <Label className="text-xs">Type</Label>
+                                                    <select
+                                                      value={newTask.dueDateOffsetType}
+                                                      onChange={(e) => setNewTask({ ...newTask, dueDateOffsetType: e.target.value })}
+                                                      className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
+                                                    >
+                                                      <option value="business">Business Days</option>
+                                                      <option value="calendar">Calendar Days</option>
+                                                    </select>
+                                                  </div>
+                                                </div>
+                                                {deliverable.endDate && (() => {
+                                                  const endDate = new Date(deliverable.endDate);
+                                                  const dueDate = newTask.dueDateOffsetType === 'business'
+                                                    ? addBusinessDays(endDate, -(newTask.dueDateOffset || 0))
+                                                    : addCalendarDays(endDate, -(newTask.dueDateOffset || 0));
+                                                  return (
+                                                    <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
+                                                      <span className="font-medium">Due: </span>
+                                                      {dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </div>
+                                                  );
+                                                })()}
                                               </div>
                                             )}
-                                            
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <div>
-                                                <Label className="text-xs">Days After Deliverable Start</Label>
-                                                <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={newTask.startDateOffset}
-                                                  onChange={(e) => setNewTask({ ...newTask, startDateOffset: parseInt(e.target.value) || 0 })}
-                                                  className="h-8 text-xs"
-                                                />
-                                              </div>
-                                              <div>
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={newTask.startDateOffsetType}
-                                                  onChange={(e) => setNewTask({ ...newTask, startDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Calculated Start Date */}
-                                            {deliverable.calculatedStartDate && (() => {
-                                              const startDate = newTask.startDateOffsetType === 'business'
-                                                ? addBusinessDays(deliverable.calculatedStartDate, newTask.startDateOffset || 0)
-                                                : addCalendarDays(deliverable.calculatedStartDate, newTask.startDateOffset || 0);
-                                              
-                                              return (
-                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                  <span className="font-medium">Will start: </span>
-                                                  {startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </div>
-                                              );
-                                            })()}
-                                          </div>
-
-                                          {/* End Date Configuration */}
-                                          <div className="space-y-2 p-2 bg-white rounded border border-gray-200">
-                                            <Label className="text-xs font-semibold text-gray-700">End Date</Label>
-                                            
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <div>
-                                                <Label className="text-xs">Days After Deliverable Start</Label>
-                                                <Input
-                                                  type="number"
-                                                  min="0"
-                                                  value={newTask.endDateOffset}
-                                                  onChange={(e) => setNewTask({ ...newTask, endDateOffset: parseInt(e.target.value) || 0 })}
-                                                  className="h-8 text-xs"
-                                                />
-                                              </div>
-                                              <div>
-                                                <Label className="text-xs">Type</Label>
-                                                <select
-                                                  value={newTask.endDateOffsetType}
-                                                  onChange={(e) => setNewTask({ ...newTask, endDateOffsetType: e.target.value })}
-                                                  className="w-full h-8 px-2 text-xs border border-gray-200 rounded-md"
-                                                >
-                                                  <option value="business">Business Days</option>
-                                                  <option value="calendar">Calendar Days</option>
-                                                </select>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Calculated End Date */}
-                                            {deliverable.calculatedStartDate && (() => {
-                                              const endDate = newTask.endDateOffsetType === 'business'
-                                                ? addBusinessDays(deliverable.calculatedStartDate, newTask.endDateOffset || 0)
-                                                : addCalendarDays(deliverable.calculatedStartDate, newTask.endDateOffset || 0);
-                                              
-                                              return (
-                                                <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1.5">
-                                                  <span className="font-medium">Will end: </span>
-                                                  {endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </div>
-                                              );
-                                            })()}
                                           </div>
                                           
-                                          <div className="grid grid-cols-2 gap-2" style={{ display: 'none' }}>
-                                            <div>
-                                              <Label className="text-xs text-gray-600">Start Date (optional)</Label>
-                                              <Input
-                                                type="date"
-                                                value={newTask.startDate}
-                                                onChange={(e) => setNewTask({ ...newTask, startDate: e.target.value })}
-                                                min={deliverable.startDate || undefined}
-                                                max={deliverable.endDate || undefined}
-                                                className="text-sm"
-                                              />
-                                            </div>
-                                            <div>
-                                              <Label className="text-xs text-gray-600">End Date (optional)</Label>
-                                              <Input
-                                                type="date"
-                                                value={newTask.endDate}
-                                                onChange={(e) => setNewTask({ ...newTask, endDate: e.target.value })}
-                                                min={newTask.startDate || deliverable.startDate || undefined}
-                                                max={deliverable.endDate || undefined}
-                                                className="text-sm"
-                                              />
-                                            </div>
-                                          </div>
                                           <div className="flex gap-2">
                                             <Button
                                               size="sm"
                                               onClick={() => handleAddTask(milestone._id, deliverable._id)}
-                                              disabled={!newTask.title.trim()}
+                                              disabled={!newTask.title.trim() || (newTask.dueDateMode === 'date' && !newTask.dueDate)}
                                             >
                                               Add
                                             </Button>
@@ -2115,14 +2142,10 @@ function ProjectDetails() {
                                                 setNewTask({ 
                                                   title: '', 
                                                   description: '', 
-                                                  startDateMode: 'manual',
-                                                  startDate: '', 
-                                                  startDateOffset: 0,
-                                                  startDateOffsetType: 'business',
-                                                  endDateMode: 'manual',
-                                                  endDate: '',
-                                                  endDateOffset: 0,
-                                                  endDateOffsetType: 'business'
+                                                  dueDateMode: 'date',
+                                                  dueDate: '',
+                                                  dueDateOffset: 1,
+                                                  dueDateOffsetType: 'business'
                                                 });
                                               }}
                                             >

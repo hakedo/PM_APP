@@ -64,8 +64,8 @@ function GanttRow({
           onClick={() => onBarClick && onBarClick(item, type)}
           title={`${getItemTitle()}\n${formatDate(item.calculatedStartDate)} - ${formatDate(item.calculatedEndDate)}`}
         >
-          {/* Bar label with better visibility */}
-          {width > 60 && (
+          {/* Bar label with better visibility - hide for deliverables */}
+          {width > 60 && type !== 'deliverable' && (
             <div className="absolute inset-0 flex items-center px-4 text-white text-xs font-semibold truncate drop-shadow-sm">
               {item.abbreviation || getItemTitle()}
             </div>

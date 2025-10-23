@@ -803,32 +803,26 @@ router.post('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks', as
       deliverableId: req.params.deliverableId,
       completed: false,
       order: taskCount,
-      startDateMode: req.body.startDateMode || 'manual',
-      startDate: req.body.startDate,
-      startDateOffset: req.body.startDateOffset || 0,
-      startDateOffsetType: req.body.startDateOffsetType || 'business',
-      endDateMode: req.body.endDateMode || 'manual',
-      endDate: req.body.endDate,
-      endDateOffset: req.body.endDateOffset || 0,
-      endDateOffsetType: req.body.endDateOffsetType || 'business'
+      dueDateMode: req.body.dueDateMode || 'date',
+      dueDate: req.body.dueDate,
+      dueDateOffset: req.body.dueDateOffset || 0,
+      dueDateOffsetType: req.body.dueDateOffsetType || 'business'
     });
 
-    // Calculate dates if in relative mode
+    // Calculate due date based on mode
     const deliverableStartDate = deliverable.calculatedStartDate || deliverable.startDate;
-    if (deliverableStartDate) {
-      const taskWithDates = recalculateTaskDates(task.toObject(), deliverableStartDate);
-      task.calculatedStartDate = taskWithDates.calculatedStartDate;
-      task.calculatedEndDate = taskWithDates.calculatedEndDate;
-    }
-
-    // Validate dates are within deliverable bounds
-    try {
-      await task.validateDatesWithinDeliverable();
-    } catch (validationError) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        message: validationError.message
-      });
+    const deliverableEndDate = deliverable.calculatedEndDate || deliverable.endDate;
+    
+    if (task.dueDateMode === 'date') {
+      task.calculatedDueDate = task.dueDate;
+    } else if (task.dueDateMode === 'afterStart' && deliverableStartDate) {
+      const { addBusinessDays, addDays } = require('../utils/milestoneUtils');
+      const addFunc = task.dueDateOffsetType === 'business' ? addBusinessDays : addDays;
+      task.calculatedDueDate = addFunc(new Date(deliverableStartDate), task.dueDateOffset);
+    } else if (task.dueDateMode === 'beforeEnd' && deliverableEndDate) {
+      const { addBusinessDays, addDays } = require('../utils/milestoneUtils');
+      const addFunc = task.dueDateOffsetType === 'business' ? addBusinessDays : addDays;
+      task.calculatedDueDate = addFunc(new Date(deliverableEndDate), -task.dueDateOffset);
     }
 
     await task.save();
@@ -932,33 +926,25 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId/tasks/:task
     if (req.body.description !== undefined) task.description = req.body.description;
     if (req.body.completed !== undefined) task.completed = req.body.completed;
     if (req.body.order !== undefined) task.order = req.body.order;
-    if (req.body.startDateMode !== undefined) task.startDateMode = req.body.startDateMode;
-    if (req.body.startDate !== undefined) task.startDate = req.body.startDate;
-    if (req.body.startDateOffset !== undefined) task.startDateOffset = req.body.startDateOffset;
-    if (req.body.startDateOffsetType !== undefined) task.startDateOffsetType = req.body.startDateOffsetType;
-    if (req.body.endDateMode !== undefined) task.endDateMode = req.body.endDateMode;
-    if (req.body.endDate !== undefined) task.endDate = req.body.endDate;
-    if (req.body.endDateOffset !== undefined) task.endDateOffset = req.body.endDateOffset;
-    if (req.body.endDateOffsetType !== undefined) task.endDateOffsetType = req.body.endDateOffsetType;
+    if (req.body.dueDateMode !== undefined) task.dueDateMode = req.body.dueDateMode;
+    if (req.body.dueDate !== undefined) task.dueDate = req.body.dueDate;
+    if (req.body.dueDateOffset !== undefined) task.dueDateOffset = req.body.dueDateOffset;
+    if (req.body.dueDateOffsetType !== undefined) task.dueDateOffsetType = req.body.dueDateOffsetType;
 
-    // Recalculate dates if in relative mode
+    // Recalculate due date based on mode
     const deliverableStartDate = deliverable.calculatedStartDate || deliverable.startDate;
-    if (deliverableStartDate) {
-      const taskWithDates = recalculateTaskDates(task.toObject(), deliverableStartDate);
-      task.calculatedStartDate = taskWithDates.calculatedStartDate;
-      task.calculatedEndDate = taskWithDates.calculatedEndDate;
-    }
-
-    // Validate dates are within deliverable bounds if dates are being updated
-    if (req.body.startDate !== undefined || req.body.endDate !== undefined || req.body.startDateMode !== undefined || req.body.endDateMode !== undefined) {
-      try {
-        await task.validateDatesWithinDeliverable();
-      } catch (validationError) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          message: validationError.message
-        });
-      }
+    const deliverableEndDate = deliverable.calculatedEndDate || deliverable.endDate;
+    
+    if (task.dueDateMode === 'date') {
+      task.calculatedDueDate = task.dueDate;
+    } else if (task.dueDateMode === 'afterStart' && deliverableStartDate) {
+      const { addBusinessDays, addDays } = require('../utils/milestoneUtils');
+      const addFunc = task.dueDateOffsetType === 'business' ? addBusinessDays : addDays;
+      task.calculatedDueDate = addFunc(new Date(deliverableStartDate), task.dueDateOffset);
+    } else if (task.dueDateMode === 'beforeEnd' && deliverableEndDate) {
+      const { addBusinessDays, addDays } = require('../utils/milestoneUtils');
+      const addFunc = task.dueDateOffsetType === 'business' ? addBusinessDays : addDays;
+      task.calculatedDueDate = addFunc(new Date(deliverableEndDate), -task.dueDateOffset);
     }
 
     await task.save();
