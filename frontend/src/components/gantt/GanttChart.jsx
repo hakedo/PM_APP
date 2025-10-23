@@ -73,24 +73,11 @@ function GanttChart({ milestones, onItemClick }) {
     }));
   };
 
-  // Toggle expand/collapse for a deliverable
-  const toggleDeliverableExpand = (deliverableId) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [`deliverable-${deliverableId}`]: !prev[`deliverable-${deliverableId}`]
-    }));
-  };
-
   // Expand all items
   const expandAll = () => {
     const expanded = {};
     milestones.forEach(milestone => {
       expanded[milestone._id] = true;
-      if (milestone.deliverables) {
-        milestone.deliverables.forEach(deliverable => {
-          expanded[`deliverable-${deliverable._id}`] = true;
-        });
-      }
     });
     setExpandedItems(expanded);
   };
@@ -323,9 +310,40 @@ function GanttChart({ milestones, onItemClick }) {
 
           {/* Milestone rows */}
           {milestones.map((milestone) => (
-            <div key={milestone._id}>
+            <div key={milestone._id} className="relative">
+              {/* Milestone container bar background - spans across all children */}
+              {milestone.calculatedStartDate && milestone.calculatedEndDate && (
+                <div 
+                  className="absolute left-[280px] top-0 bottom-0 pointer-events-none z-0"
+                  style={{ 
+                    marginLeft: `${(() => {
+                      const start = new Date(milestone.calculatedStartDate);
+                      const startOffset = Math.max(0, (start - minDate) / (24 * 60 * 60 * 1000));
+                      const pixelsPerDay = cellWidth / interval;
+                      return startOffset * pixelsPerDay;
+                    })()}px`,
+                    width: `${(() => {
+                      const start = new Date(milestone.calculatedStartDate);
+                      const end = new Date(milestone.calculatedEndDate);
+                      const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000));
+                      const pixelsPerDay = cellWidth / interval;
+                      return duration * pixelsPerDay;
+                    })()}px`
+                  }}
+                >
+                  {/* Strong container with borders and background */}
+                  <div className="absolute inset-0 bg-blue-100/60 border-l-[6px] border-r-[6px] border-t-2 border-b-2 border-blue-500/70 rounded-md shadow-sm"></div>
+                  {/* Top label bar */}
+                  <div className="absolute top-0 left-0 right-0 h-6 bg-blue-500/20 border-b-2 border-blue-500/40 flex items-center px-2">
+                    <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wide truncate">
+                      {milestone.name || 'Untitled Milestone'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               {/* Milestone row with expand/collapse */}
-              <div className="flex items-center border-b border-gray-200 hover:bg-blue-50/50 transition-colors duration-150">
+              <div className="flex items-center border-b border-gray-200 hover:bg-blue-50/50 transition-colors duration-150 relative z-10">
                 <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20">
                   <button
                     onClick={() => toggleExpand(milestone._id)}
@@ -358,9 +376,9 @@ function GanttChart({ milestones, onItemClick }) {
                   </div>
                 </div>
 
-                {/* Empty timeline area for milestone (no bar) */}
+                {/* Empty timeline area for milestone header */}
                 <div className="relative" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
-                  {/* No milestone bar - just empty space */}
+                  {/* Container is in the background of entire milestone group */}
                 </div>
               </div>
 
@@ -375,25 +393,9 @@ function GanttChart({ milestones, onItemClick }) {
                   >
                     {milestone.deliverables.map((deliverable) => (
                       <div key={deliverable._id}>
-                        {/* Deliverable row with expand/collapse */}
+                        {/* Deliverable row */}
                         <div className="flex items-center border-b border-gray-200 hover:bg-purple-50/50 transition-colors duration-150 bg-purple-50/20">
                           <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-purple-50 z-20" style={{ paddingLeft: '32px' }}>
-                            <button
-                              onClick={() => toggleDeliverableExpand(deliverable._id)}
-                              className="p-0.5 hover:bg-purple-100 rounded transition-all duration-150"
-                              disabled={!deliverable.tasks || deliverable.tasks.length === 0}
-                            >
-                              {deliverable.tasks && deliverable.tasks.length > 0 ? (
-                                expandedItems[`deliverable-${deliverable._id}`] ? (
-                                  <ChevronDown className="w-3.5 h-3.5 text-gray-600" />
-                                ) : (
-                                  <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
-                                )
-                              ) : (
-                                <div className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            
                             <div className="flex-1 min-w-0">
                               <div className="text-sm font-medium text-gray-900 truncate">
                                 {deliverable.title || 'Untitled Deliverable'}
@@ -409,57 +411,48 @@ function GanttChart({ milestones, onItemClick }) {
                             </div>
                           </div>
 
-                          <GanttRow
-                            item={deliverable}
-                            type="deliverable"
-                            minDate={minDate}
-                            totalDays={totalDays}
-                            cellWidth={cellWidth}
-                            interval={interval}
-                            totalWidth={totalWidth}
-                            level={1}
-                            onBarClick={onItemClick}
-                          />
-                        </div>
-
-                        {/* Tasks (expanded) */}
-                        <AnimatePresence>
-                          {expandedItems[`deliverable-${deliverable._id}`] && deliverable.tasks && deliverable.tasks.length > 0 && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              {deliverable.tasks.map((task) => (
-                                <div key={task._id} className="flex items-center border-b border-gray-200 hover:bg-amber-50/50 transition-colors duration-150 bg-amber-50/20">
-                                  <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-amber-50 z-20" style={{ paddingLeft: '52px' }}>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-900 truncate">
-                                        {task.title || 'Untitled Task'}
-                                      </div>
-                                      <div className="text-[10px] text-amber-600 font-medium">
-                                        TASK
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <GanttRow
-                                    item={task}
-                                    type="task"
-                                    minDate={minDate}
-                                    totalDays={totalDays}
-                                    cellWidth={cellWidth}
-                                    interval={interval}
-                                    totalWidth={totalWidth}
-                                    level={2}
-                                    onBarClick={onItemClick}
-                                  />
+                          {/* Deliverable bar with task circles */}
+                          <div className="relative" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
+                            <GanttRow
+                              item={deliverable}
+                              type="deliverable"
+                              minDate={minDate}
+                              totalDays={totalDays}
+                              cellWidth={cellWidth}
+                              interval={interval}
+                              totalWidth={totalWidth}
+                              level={1}
+                              onBarClick={onItemClick}
+                            />
+                            
+                            {/* Task circles on top of deliverable bar */}
+                            {deliverable.tasks && deliverable.tasks.map((task) => {
+                              if (!task.calculatedEndDate) return null;
+                              
+                              const taskEnd = new Date(task.calculatedEndDate);
+                              const endOffset = Math.max(0, (taskEnd - minDate) / (24 * 60 * 60 * 1000));
+                              const pixelsPerDay = cellWidth / interval;
+                              const position = endOffset * pixelsPerDay;
+                              
+                              return (
+                                <div
+                                  key={task._id}
+                                  className="absolute top-1/2 -translate-y-1/2 cursor-pointer group z-10"
+                                  style={{ left: `${position}px` }}
+                                  onClick={() => onItemClick && onItemClick(task, 'task')}
+                                  title={`${task.title || 'Untitled Task'} - ${new Date(task.calculatedEndDate).toLocaleDateString()}`}
+                                >
+                                  {/* Circle - filled if completed, hollow if not */}
+                                  {task.completed ? (
+                                    <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow-md group-hover:scale-125 transition-transform duration-150"></div>
+                                  ) : (
+                                    <div className="w-4 h-4 rounded-full bg-white border-2 border-amber-500 shadow-md group-hover:scale-125 transition-transform duration-150"></div>
+                                  )}
                                 </div>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </motion.div>
