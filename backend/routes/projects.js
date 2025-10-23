@@ -69,10 +69,18 @@ router.get('/:id', async (req, res, next) => {
       };
     });
     
+    // Sort milestones by calculated start date (earliest first)
+    const sortedMilestones = milestonesWithData.sort((a, b) => {
+      if (!a.calculatedStartDate && !b.calculatedStartDate) return 0;
+      if (!a.calculatedStartDate) return 1; // Put milestones without dates at the end
+      if (!b.calculatedStartDate) return -1;
+      return new Date(a.calculatedStartDate) - new Date(b.calculatedStartDate);
+    });
+    
     // Add milestones to project response
     const projectWithMilestones = {
       ...project.toObject(),
-      milestones: milestonesWithData
+      milestones: sortedMilestones
     };
     
     res.json(projectWithMilestones);
@@ -553,10 +561,18 @@ router.post('/:id/milestones/:milestoneId/deliverables', async (req, res, next) 
         });
       return { ...m, deliverables: milestoneDeliverables };
     });
+    
+    // Sort milestones by calculated start date (earliest first)
+    const sortedMilestones = milestonesWithData.sort((a, b) => {
+      if (!a.calculatedStartDate && !b.calculatedStartDate) return 0;
+      if (!a.calculatedStartDate) return 1;
+      if (!b.calculatedStartDate) return -1;
+      return new Date(a.calculatedStartDate) - new Date(b.calculatedStartDate);
+    });
 
     const projectWithMilestones = {
       ...project.toObject(),
-      milestones: milestonesWithData
+      milestones: sortedMilestones
     };
 
     res.status(201).json(projectWithMilestones);
@@ -655,10 +671,18 @@ router.put('/:id/milestones/:milestoneId/deliverables/:deliverableId', async (re
         });
       return { ...m, deliverables: milestoneDeliverables };
     });
+    
+    // Sort milestones by calculated start date (earliest first)
+    const sortedMilestones = milestonesWithData.sort((a, b) => {
+      if (!a.calculatedStartDate && !b.calculatedStartDate) return 0;
+      if (!a.calculatedStartDate) return 1;
+      if (!b.calculatedStartDate) return -1;
+      return new Date(a.calculatedStartDate) - new Date(b.calculatedStartDate);
+    });
 
     const projectWithMilestones = {
       ...project.toObject(),
-      milestones: milestonesWithData
+      milestones: sortedMilestones
     };
 
     res.json(projectWithMilestones);
