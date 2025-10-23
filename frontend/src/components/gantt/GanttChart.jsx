@@ -16,7 +16,7 @@ import {
 function GanttChart({ milestones, onItemClick }) {
   const [expandedItems, setExpandedItems] = useState({});
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [viewMode, setViewMode] = useState('auto'); // 'day', 'week', 'month', 'auto'
+  const [viewMode, setViewMode] = useState('day'); // 'day', 'week', 'month'
   const scrollContainerRef = useRef(null);
 
   // Calculate date range for the entire chart (recalculates when viewMode changes)
@@ -153,16 +153,6 @@ function GanttChart({ milestones, onItemClick }) {
               }`}
             >
               Month
-            </button>
-            <button
-              onClick={() => setViewMode('auto')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
-                viewMode === 'auto' 
-                  ? 'bg-white text-gray-800 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
-              }`}
-            >
-              Auto
             </button>
           </div>
 
