@@ -19,10 +19,6 @@ const milestoneSchema = new mongoose.Schema(
       trim: true,
       maxlength: [1000, 'Milestone description cannot exceed 1000 characters']
     },
-    teamMember: {
-      type: String,
-      trim: true
-    },
     order: {
       type: Number,
       default: 0

@@ -58,7 +58,6 @@ function ProjectDetails() {
     name: '',
     abbreviation: '',
     description: '',
-    teamMember: '',
     dateMode: 'auto',
     endDateMode: 'duration',
     durationDays: 7,
@@ -362,7 +361,6 @@ function ProjectDetails() {
         name: '',
         abbreviation: '',
         description: '',
-        teamMember: '',
         dateMode: 'auto',
         endDateMode: 'duration',
         durationDays: 7,
@@ -404,7 +402,6 @@ function ProjectDetails() {
       name: milestone.name,
       abbreviation: milestone.abbreviation || '',
       description: milestone.description || '',
-      teamMember: milestone.teamMember || '',
       dateMode: milestone.dateMode,
       endDateMode: milestone.endDateMode,
       durationDays: milestone.durationDays,
@@ -1152,21 +1149,6 @@ function ProjectDetails() {
                                 className="min-h-[60px] resize-none border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                               />
                             </div>
-
-                            {/* Team Assignment */}
-                            <div className="space-y-1.5">
-                              <Label htmlFor="team-member" className="text-xs font-medium text-gray-600 flex items-center gap-1.5">
-                                <User className="w-3 h-3" />
-                                Team Member
-                              </Label>
-                              <Input
-                                id="team-member"
-                                placeholder="Assign team member"
-                                value={newMilestone.teamMember}
-                                onChange={(e) => setNewMilestone({ ...newMilestone, teamMember: e.target.value })}
-                                className="border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                              />
-                            </div>
                           </div>
 
                           {/* Right Column - Date Configuration */}
@@ -1305,7 +1287,6 @@ function ProjectDetails() {
                                 name: '',
                                 abbreviation: '',
                                 description: '',
-                                teamMember: '',
                                 dateMode: 'auto',
                                 endDateMode: 'duration',
                                 durationDays: 7,
@@ -1384,17 +1365,6 @@ function ProjectDetails() {
                                   value={editedMilestone.description}
                                   onChange={(e) => setEditedMilestone({ ...editedMilestone, description: e.target.value })}
                                   className="min-h-[50px] text-sm"
-                                />
-                              </div>
-
-                              {/* Team Member */}
-                              <div>
-                                <Label htmlFor="edit-team" className="text-xs">Team Member</Label>
-                                <Input
-                                  id="edit-team"
-                                  value={editedMilestone.teamMember}
-                                  onChange={(e) => setEditedMilestone({ ...editedMilestone, teamMember: e.target.value })}
-                                  className="h-8 text-sm"
                                 />
                               </div>
 
