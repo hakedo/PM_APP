@@ -358,17 +358,10 @@ function GanttChart({ milestones, onItemClick }) {
                   </div>
                 </div>
 
-                <GanttRow
-                  item={milestone}
-                  type="milestone"
-                  minDate={minDate}
-                  totalDays={totalDays}
-                  cellWidth={cellWidth}
-                  interval={interval}
-                  totalWidth={totalWidth}
-                  level={0}
-                  onBarClick={onItemClick}
-                />
+                {/* Empty timeline area for milestone (no bar) */}
+                <div className="relative" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
+                  {/* No milestone bar - just empty space */}
+                </div>
               </div>
 
               {/* Deliverables (expanded) */}
