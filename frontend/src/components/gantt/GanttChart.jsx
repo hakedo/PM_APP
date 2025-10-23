@@ -39,6 +39,17 @@ function GanttChart({ milestones, onItemClick }) {
     [minDate, cellWidth, interval]
   );
 
+  // Calculate today's column index for day view
+  const todayColumnIndex = useMemo(() => {
+    if (viewMode !== 'day' && !(viewMode === 'auto' && interval === 1)) {
+      return -1; // Not in day view
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayOffset = Math.floor((today - minDate) / (24 * 60 * 60 * 1000));
+    return dayOffset >= 0 ? dayOffset : -1;
+  }, [minDate, viewMode, interval]);
+
   // Scroll to position today's line at 1/3 of viewport width on load
   useEffect(() => {
     if (scrollContainerRef.current && todayPosition >= 0) {
@@ -200,18 +211,19 @@ function GanttChart({ milestones, onItemClick }) {
       </div>
 
       {/* Gantt Chart */}
-      <div ref={scrollContainerRef} className={`overflow-x-auto overflow-y-auto ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'max-h-[600px]'}`}>
-        {/* Date Header */}
-        <div className="sticky top-0 z-10 bg-white">
-          {/* Primary Header Row (Months/Years) */}
-          <div className="flex">
-            <div className="w-[280px] flex-shrink-0 border-r border-b border-gray-300 bg-gradient-to-b from-gray-50 to-white sticky left-0 z-30">
-              <div className="h-10 flex items-center px-4 font-semibold text-sm text-gray-700">
-                Name
+      <div ref={scrollContainerRef} className={`overflow-auto ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'max-h-[600px]'}`}>
+        <div style={{ minWidth: `${280 + totalWidth}px` }}>
+          {/* Date Header */}
+          <div className="sticky top-0 z-10 bg-white">
+            {/* Primary Header Row (Months/Years) */}
+            <div className="flex">
+              <div className="w-[280px] flex-shrink-0 border-r border-b border-gray-300 bg-white sticky left-0 z-30">
+                <div className="h-9 flex items-center px-3 font-semibold text-sm text-gray-700">
+                  Name
+                </div>
               </div>
-            </div>
-            <div className="relative bg-gradient-to-b from-gray-50 to-white border-b border-gray-300" style={{ minWidth: `${totalWidth}px` }}>
-              <div className="relative h-10">
+            <div className="flex-1 bg-white border-b border-gray-300" style={{ minWidth: `${totalWidth}px` }}>
+              <div className="relative h-9">
                 {headers.primary && headers.primary.map((header, index) => (
                   <div
                     key={index}
@@ -231,17 +243,17 @@ function GanttChart({ milestones, onItemClick }) {
           
           {/* Secondary Header Row (Days/Weeks/Months) */}
           <div className="flex">
-            <div className="w-[280px] flex-shrink-0 border-r border-b border-gray-200 bg-white sticky left-0 z-30">
+            <div className="w-[280px] flex-shrink-0 border-r border-b border-gray-300 bg-white sticky left-0 z-30">
               {/* Empty space to align with name column */}
             </div>
-            <div className="relative bg-white border-b border-gray-200" style={{ minWidth: `${totalWidth}px` }}>
-              <div className="relative h-9">
+            <div className="flex-1 bg-white border-b border-gray-300" style={{ minWidth: `${totalWidth}px` }}>
+              <div className="relative h-8">
                 {headers.secondary ? (
                   // Month view: Show month names as secondary header
                   headers.secondary.map((header, index) => (
                     <div
                       key={index}
-                      className="absolute flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-200/60 bg-gray-50/30"
+                      className="absolute flex items-center justify-center text-xs font-semibold text-gray-700 border-r border-gray-300"
                       style={{ 
                         left: `${header.left}px`,
                         width: `${header.width}px`,
@@ -258,7 +270,11 @@ function GanttChart({ milestones, onItemClick }) {
                       <div
                         key={index}
                         className={`flex-shrink-0 flex items-center justify-center text-xs font-medium border-r border-gray-200/50 ${
-                          label.isWeekend ? 'bg-gray-100/60 text-gray-500' : 'bg-white text-gray-700'
+                          index === todayColumnIndex
+                            ? 'bg-red-100 text-red-700 font-semibold'
+                            : label.isWeekend 
+                            ? 'bg-gray-100/60 text-gray-500' 
+                            : 'bg-white text-gray-700'
                         }`}
                         style={{ width: `${cellWidth}px` }}
                       >
@@ -274,20 +290,26 @@ function GanttChart({ milestones, onItemClick }) {
 
         {/* Chart Rows */}
         <div className="relative">
-          {/* Today indicator line */}
-          {todayPosition >= 0 && (
+          {/* Today indicator - line for week/month view, column for day view */}
+          {todayPosition >= 0 && todayColumnIndex < 0 && (
             <div 
               className="absolute top-0 bottom-0 w-0.5 bg-red-400/80 z-10 pointer-events-none"
               style={{ left: `${280 + todayPosition}px` }}
-            >
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-1 bg-red-400/90 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                Today
-              </div>
-            </div>
+            />
           )}
 
-          {/* Vertical grid lines for rows */}
+          {/* Vertical grid lines and today's column background for rows */}
           <div className="absolute left-[280px] top-0 bottom-0 pointer-events-none" style={{ width: `${totalWidth}px` }}>
+            {/* Today's column background (behind everything) - only in day view */}
+            {todayColumnIndex >= 0 && (
+              <div
+                className="absolute top-0 bottom-0 bg-red-100/60"
+                style={{ 
+                  left: `${todayColumnIndex * cellWidth}px`,
+                  width: `${cellWidth}px`
+                }}
+              />
+            )}
             {dateLabels.map((label, index) => (
               <div
                 key={index}
@@ -313,18 +335,18 @@ function GanttChart({ milestones, onItemClick }) {
           {milestones.map((milestone) => (
             <div key={milestone._id}>
               {/* Milestone row with expand/collapse */}
-              <div className="flex items-center border-b border-gray-100/60 hover:bg-gray-50/40 transition-colors duration-150">
-                <div className="w-[280px] flex-shrink-0 px-4 py-2.5 border-r border-gray-100/60 flex items-center gap-2 sticky left-0 bg-white z-20">
+              <div className="flex items-center border-b border-gray-200 hover:bg-blue-50/50 transition-colors duration-150">
+                <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20">
                   <button
                     onClick={() => toggleExpand(milestone._id)}
-                    className="p-0.5 hover:bg-gray-200/60 rounded transition-all duration-150"
+                    className="p-0.5 hover:bg-gray-200 rounded transition-all duration-150"
                     disabled={!milestone.deliverables || milestone.deliverables.length === 0}
                   >
                     {milestone.deliverables && milestone.deliverables.length > 0 ? (
                       expandedItems[milestone._id] ? (
-                        <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-600" />
                       ) : (
-                        <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                        <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                       )
                     ) : (
                       <div className="w-3.5 h-3.5" />
@@ -332,11 +354,11 @@ function GanttChart({ milestones, onItemClick }) {
                   </button>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-800 truncate">
+                    <div className="text-sm font-semibold text-gray-900 truncate">
                       {milestone.name || 'Untitled Milestone'}
                     </div>
-                    <div className="text-[11px] text-gray-500 font-normal">
-                      Milestone
+                    <div className="text-[10px] text-gray-600 font-medium">
+                      MILESTONE
                       {milestone.deliverables && milestone.deliverables.length > 0 && (
                         <span className="ml-1">
                           · {milestone.deliverables.length} deliverable{milestone.deliverables.length !== 1 ? 's' : ''}
@@ -371,18 +393,18 @@ function GanttChart({ milestones, onItemClick }) {
                     {milestone.deliverables.map((deliverable) => (
                       <div key={deliverable._id}>
                         {/* Deliverable row with expand/collapse */}
-                        <div className="flex items-center border-b border-gray-100/40 hover:bg-gray-50/30 transition-colors duration-150 bg-gray-50/20">
-                          <div className="w-[280px] flex-shrink-0 px-4 py-2.5 border-r border-gray-100/60 flex items-center gap-2 sticky left-0 bg-gray-50/20 z-20" style={{ paddingLeft: '42px' }}>
+                        <div className="flex items-center border-b border-gray-200 hover:bg-purple-50/50 transition-colors duration-150 bg-purple-50/20">
+                          <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-purple-50 z-20" style={{ paddingLeft: '32px' }}>
                             <button
                               onClick={() => toggleDeliverableExpand(deliverable._id)}
-                              className="p-0.5 hover:bg-gray-200/60 rounded transition-all duration-150"
+                              className="p-0.5 hover:bg-purple-100 rounded transition-all duration-150"
                               disabled={!deliverable.tasks || deliverable.tasks.length === 0}
                             >
                               {deliverable.tasks && deliverable.tasks.length > 0 ? (
                                 expandedItems[`deliverable-${deliverable._id}`] ? (
-                                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                                  <ChevronDown className="w-3.5 h-3.5 text-gray-600" />
                                 ) : (
-                                  <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                  <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                                 )
                               ) : (
                                 <div className="w-3.5 h-3.5" />
@@ -390,11 +412,11 @@ function GanttChart({ milestones, onItemClick }) {
                             </button>
                             
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-800 truncate">
+                              <div className="text-sm font-medium text-gray-900 truncate">
                                 {deliverable.title || 'Untitled Deliverable'}
                               </div>
-                              <div className="text-[11px] text-gray-500 font-normal">
-                                Deliverable
+                              <div className="text-[10px] text-purple-600 font-medium">
+                                DELIVERABLE
                                 {deliverable.tasks && deliverable.tasks.length > 0 && (
                                   <span className="ml-1">
                                     · {deliverable.tasks.length} task{deliverable.tasks.length !== 1 ? 's' : ''}
@@ -427,14 +449,14 @@ function GanttChart({ milestones, onItemClick }) {
                               transition={{ duration: 0.2 }}
                             >
                               {deliverable.tasks.map((task) => (
-                                <div key={task._id} className="flex items-center border-b border-gray-100/40 hover:bg-gray-50/30 transition-colors duration-150 bg-gray-50/10">
-                                  <div className="w-[280px] flex-shrink-0 px-4 py-2.5 border-r border-gray-100/60 flex items-center gap-2 sticky left-0 bg-gray-50/10 z-20" style={{ paddingLeft: '70px' }}>
+                                <div key={task._id} className="flex items-center border-b border-gray-200 hover:bg-amber-50/50 transition-colors duration-150 bg-amber-50/20">
+                                  <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-amber-50 z-20" style={{ paddingLeft: '52px' }}>
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-800 truncate">
+                                      <div className="text-sm font-medium text-gray-900 truncate">
                                         {task.title || 'Untitled Task'}
                                       </div>
-                                      <div className="text-[11px] text-gray-500 font-normal">
-                                        Task
+                                      <div className="text-[10px] text-amber-600 font-medium">
+                                        TASK
                                       </div>
                                     </div>
                                   </div>
@@ -462,6 +484,7 @@ function GanttChart({ milestones, onItemClick }) {
               </AnimatePresence>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>
