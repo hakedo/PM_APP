@@ -8,3 +8,5 @@ export { default as teamService } from './teamService';
 export { default as teamRoleService } from './teamRoleService';
 export { deliverableService } from './deliverableService';
 export { deliverableGroupService } from './deliverableGroupService';
+export { financeItemService } from './financeItemService';
+export { financeGroupService } from './financeGroupService';

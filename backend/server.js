@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import config from './config/index.js';
 import connectDB from './config/database.js';
-import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes, teamRoutes, teamRoleRoutes, deliverableRoutes, deliverableGroupRoutes } from './routes/index.js';
+import { projectRoutes, templateRoutes, clientRoutes, clientProjectAssignmentRoutes, teamRoutes, teamRoleRoutes, deliverableRoutes, deliverableGroupRoutes, financeItemRoutes, financeGroupRoutes } from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
 import logger from './utils/logger.js';
@@ -47,6 +47,8 @@ app.use('/team', teamRoutes);
 app.use('/team-roles', teamRoleRoutes);
 app.use('/deliverables', deliverableRoutes);
 app.use('/deliverable-groups', deliverableGroupRoutes);
+app.use('/finance-items', financeItemRoutes);
+app.use('/finance-groups', financeGroupRoutes);
 
 // Error handlers (must be last)
 app.use(notFoundHandler);

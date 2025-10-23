@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { LoadingSpinner, EmptyState, CollapsibleInfoCard } from '../../components/ui';
 import { ClientAssignmentSection, MilestonesSection, TimelineDialog, DeliverablesSection } from '../../components/project-details';
 import { GanttChart } from '../../components/gantt';
+import { FinancesSection } from '../../components/finances';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService, milestoneService } from '../../services';
 import { extractDateForInput } from '../../utils/dateUtils';
@@ -714,12 +715,22 @@ function ProjectDetails() {
           />
         </motion.div>
 
+        {/* Finances Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="mt-6"
+        >
+          <FinancesSection projectId={id} />
+        </motion.div>
+
         {/* Gantt Chart Toggle */}
         {milestones.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.6 }}
+            transition={{ duration: 0.4, delay: 0.7 }}
             className="mt-6"
           >
             <Button

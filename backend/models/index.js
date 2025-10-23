@@ -10,5 +10,8 @@ import TeamRole from './TeamRole.js';
 import DeliverableNew from './DeliverableNew.js';
 import TaskNew from './TaskNew.js';
 import DeliverableGroup from './DeliverableGroup.js';
+import FinanceGroup from './FinanceGroup.js';
+import FinanceItem from './FinanceItem.js';
+import FinanceSubItem from './FinanceSubItem.js';
 
-export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole, DeliverableNew, TaskNew, DeliverableGroup };
+export { Project, Template, Client, ClientProjectAssignment, Milestone, Deliverable, Task, TeamMember, TeamRole, DeliverableNew, TaskNew, DeliverableGroup, FinanceGroup, FinanceItem, FinanceSubItem };
