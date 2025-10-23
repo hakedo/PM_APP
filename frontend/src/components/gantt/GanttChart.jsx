@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, Calendar, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Maximize2, Minimize2, Plus } from 'lucide-react';
 import PropTypes from 'prop-types';
 import GanttRow from './GanttRow';
 import { 
@@ -13,7 +13,7 @@ import {
  * GanttChart Component
  * Main component for rendering a Gantt chart visualization
  */
-function GanttChart({ milestones, onItemClick }) {
+function GanttChart({ milestones, onItemClick, onAddMilestone, onAddDeliverable, onAddTask }) {
   const [expandedItems, setExpandedItems] = useState({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [viewMode, setViewMode] = useState('day'); // 'day', 'week', 'month'
@@ -119,6 +119,20 @@ function GanttChart({ milestones, onItemClick }) {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* Add Milestone Button */}
+          {onAddMilestone && (
+            <>
+              <button
+                onClick={onAddMilestone}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-all duration-150 flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Milestone
+              </button>
+              <div className="w-px h-4 bg-gray-200/60"></div>
+            </>
+          )}
+
           {/* View Mode Selector - Notion Style */}
           <div className="flex items-center gap-0.5 bg-gray-50 border border-gray-200/60 rounded-lg p-0.5">
             <button
@@ -374,7 +388,7 @@ function GanttChart({ milestones, onItemClick }) {
               )}
               
               {/* Milestone row with expand/collapse */}
-              <div className="flex items-center border-b border-gray-200 relative z-10">
+              <div className="flex items-center border-b border-gray-200 relative z-10 group">
                 <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20">
                   <button
                     onClick={() => toggleExpand(milestone._id)}
@@ -392,23 +406,41 @@ function GanttChart({ milestones, onItemClick }) {
                     )}
                   </button>
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-900 truncate">
-                      {milestone.name || 'Untitled Milestone'}
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-gray-900 truncate">
+                        {milestone.name || 'Untitled Milestone'}
+                      </div>
+                      <div className="text-[10px] text-gray-600 font-medium">
+                        MILESTONE
+                        {milestone.deliverables && milestone.deliverables.length > 0 && (
+                          <span className="ml-1">
+                            · {milestone.deliverables.length} deliverable{milestone.deliverables.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-gray-600 font-medium">
-                      MILESTONE
-                      {milestone.deliverables && milestone.deliverables.length > 0 && (
-                        <span className="ml-1">
-                          · {milestone.deliverables.length} deliverable{milestone.deliverables.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
+                    {onAddDeliverable && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddDeliverable(milestone);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all duration-150"
+                        title="Add deliverable"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-gray-600" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Empty timeline area for milestone header */}
-                <div className="relative" style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}>
+                {/* Empty timeline area for milestone header - clickable */}
+                <div 
+                  className="relative cursor-pointer hover:bg-blue-50/30 transition-colors duration-150" 
+                  style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}
+                  onClick={() => onItemClick && onItemClick(milestone, 'milestone')}
+                >
                   {/* Container is in the background of entire milestone group */}
                 </div>
               </div>
@@ -425,20 +457,34 @@ function GanttChart({ milestones, onItemClick }) {
                     {milestone.deliverables.map((deliverable) => (
                       <div key={deliverable._id}>
                         {/* Deliverable row */}
-                        <div className="flex items-center border-b border-gray-200">
+                        <div className="flex items-center border-b border-gray-200 group">
                           <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20" style={{ paddingLeft: '32px' }}>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-900 truncate">
-                                {deliverable.title || 'Untitled Deliverable'}
+                            <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {deliverable.title || 'Untitled Deliverable'}
+                                </div>
+                                <div className="text-[10px] text-purple-600 font-medium">
+                                  DELIVERABLE
+                                  {deliverable.tasks && deliverable.tasks.length > 0 && (
+                                    <span className="ml-1">
+                                      · {deliverable.tasks.length} task{deliverable.tasks.length !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-[10px] text-purple-600 font-medium">
-                                DELIVERABLE
-                                {deliverable.tasks && deliverable.tasks.length > 0 && (
-                                  <span className="ml-1">
-                                    · {deliverable.tasks.length} task{deliverable.tasks.length !== 1 ? 's' : ''}
-                                  </span>
-                                )}
-                              </div>
+                              {onAddTask && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAddTask(milestone, deliverable);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all duration-150"
+                                  title="Add task"
+                                >
+                                  <Plus className="w-3.5 h-3.5 text-gray-600" />
+                                </button>
+                              )}
                             </div>
                           </div>
 
@@ -453,7 +499,7 @@ function GanttChart({ milestones, onItemClick }) {
                               interval={interval}
                               totalWidth={totalWidth}
                               level={1}
-                              onBarClick={onItemClick}
+                              onBarClick={(item, type) => onItemClick && onItemClick(item, type, milestone)}
                             />
                             
                             {/* Task circles on top of deliverable bar */}
@@ -472,7 +518,10 @@ function GanttChart({ milestones, onItemClick }) {
                                   key={task._id}
                                   className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer group z-10"
                                   style={{ left: `${centeredPosition}px` }}
-                                  onClick={() => onItemClick && onItemClick(task, 'task')}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onItemClick && onItemClick(task, 'task', milestone, deliverable);
+                                  }}
                                   title={`${task.title || 'Untitled Task'} - Due: ${new Date(task.calculatedDueDate).toLocaleDateString()}`}
                                 >
                                   {/* Circle - filled if completed, hollow if not */}
@@ -493,6 +542,19 @@ function GanttChart({ milestones, onItemClick }) {
               </AnimatePresence>
             </div>
           ))}
+          
+          {/* Add Milestone button at the bottom */}
+          {onAddMilestone && (
+            <div className="flex items-center border-b border-gray-200 relative z-10 hover:bg-gray-50 transition-colors duration-150">
+              <button
+                onClick={onAddMilestone}
+                className="w-full flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors duration-150"
+              >
+                <Plus className="w-4 h-4 ml-7" />
+                <span className="text-sm font-medium">Add Milestone</span>
+              </button>
+            </div>
+          )}
         </div>
         </div>
       </div>
@@ -518,12 +580,18 @@ GanttChart.propTypes = {
       )
     })
   ),
-  onItemClick: PropTypes.func
+  onItemClick: PropTypes.func,
+  onAddMilestone: PropTypes.func,
+  onAddDeliverable: PropTypes.func,
+  onAddTask: PropTypes.func
 };
 
 GanttChart.defaultProps = {
   milestones: [],
-  onItemClick: null
+  onItemClick: null,
+  onAddMilestone: null,
+  onAddDeliverable: null,
+  onAddTask: null
 };
 
 export default GanttChart;

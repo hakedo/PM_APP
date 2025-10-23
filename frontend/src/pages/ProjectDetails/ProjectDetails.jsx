@@ -86,6 +86,13 @@ function ProjectDetails() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editedTask, setEditedTask] = useState(null);
 
+  // Timeline popup state
+  const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
+  const [timelineDialogType, setTimelineDialogType] = useState(null); // 'milestone', 'deliverable', 'task'
+  const [timelineDialogMode, setTimelineDialogMode] = useState('add'); // 'add' or 'edit'
+  const [timelineDialogData, setTimelineDialogData] = useState(null);
+  const [timelineDialogParent, setTimelineDialogParent] = useState(null); // parent milestone/deliverable
+
   // Helper function to add business days to a date
   // Handles both Date objects and UTC date strings from database
   const addBusinessDays = (startDate, days) => {
@@ -649,6 +656,210 @@ function ProjectDetails() {
     }
   };
 
+  // Timeline dialog handlers
+  const handleTimelineItemClick = (item, type, parentMilestone = null, parentDeliverable = null) => {
+    console.log('Timeline item clicked:', { type, item, parentMilestone, parentDeliverable });
+    
+    setTimelineDialogType(type);
+    setTimelineDialogMode('edit');
+    
+    // Format data for editing based on type
+    let formattedData = { ...item };
+    if (type === 'deliverable' && item.startDate && item.endDate) {
+      formattedData = {
+        ...item,
+        startDate: new Date(item.startDate).toISOString().split('T')[0],
+        endDate: new Date(item.endDate).toISOString().split('T')[0],
+        endDateMode: 'date',
+        durationDays: 1,
+        durationType: 'business'
+      };
+    } else if (type === 'task' && item.dueDate) {
+      formattedData = {
+        ...item,
+        dueDate: new Date(item.dueDate).toISOString().split('T')[0],
+        dueDateMode: item.dueDateMode || 'date',
+        dueDateOffset: item.dueDateOffset || 1,
+        dueDateOffsetType: item.dueDateOffsetType || 'business'
+      };
+    }
+    
+    setTimelineDialogData(formattedData);
+    
+    if (type === 'deliverable') {
+      setTimelineDialogParent({ milestone: parentMilestone });
+    } else if (type === 'task') {
+      setTimelineDialogParent({ milestone: parentMilestone, deliverable: parentDeliverable });
+    }
+    
+    setTimelineDialogOpen(true);
+  };
+
+  const handleTimelineAddMilestone = () => {
+    setTimelineDialogType('milestone');
+    setTimelineDialogMode('add');
+    setTimelineDialogData({
+      name: '',
+      abbreviation: '',
+      description: '',
+      teamMember: ''
+    });
+    setTimelineDialogParent(null);
+    setTimelineDialogOpen(true);
+  };
+
+  const handleTimelineAddDeliverable = (milestone) => {
+    setTimelineDialogType('deliverable');
+    setTimelineDialogMode('add');
+    setTimelineDialogData({
+      title: '',
+      description: '',
+      startDate: '',
+      endDateMode: 'date',
+      endDate: '',
+      durationDays: 1,
+      durationType: 'business'
+    });
+    setTimelineDialogParent({ milestone });
+    setTimelineDialogOpen(true);
+  };
+
+  const handleTimelineAddTask = (milestone, deliverable) => {
+    setTimelineDialogType('task');
+    setTimelineDialogMode('add');
+    setTimelineDialogData({
+      title: '',
+      description: '',
+      dueDateMode: 'date',
+      dueDate: '',
+      dueDateOffset: 1,
+      dueDateOffsetType: 'business'
+    });
+    setTimelineDialogParent({ milestone, deliverable });
+    setTimelineDialogOpen(true);
+  };
+
+  const handleTimelineDialogClose = () => {
+    setTimelineDialogOpen(false);
+    setTimelineDialogType(null);
+    setTimelineDialogMode('add');
+    setTimelineDialogData(null);
+    setTimelineDialogParent(null);
+  };
+
+  const handleTimelineDialogSave = async () => {
+    try {
+      if (timelineDialogType === 'milestone') {
+        if (timelineDialogMode === 'add') {
+          await milestoneService.createMilestone(id, timelineDialogData);
+        } else {
+          await milestoneService.updateMilestone(id, timelineDialogData._id, {
+            name: timelineDialogData.name,
+            abbreviation: timelineDialogData.abbreviation,
+            description: timelineDialogData.description,
+            teamMember: timelineDialogData.teamMember
+          });
+        }
+      } else if (timelineDialogType === 'deliverable') {
+        const milestoneId = timelineDialogParent.milestone._id;
+        
+        if (timelineDialogMode === 'add') {
+          const dataToSend = {
+            title: timelineDialogData.title,
+            description: timelineDialogData.description,
+            startDate: timelineDialogData.startDate
+          };
+
+          if (timelineDialogData.endDateMode === 'date') {
+            if (!timelineDialogData.endDate) {
+              alert('Please provide an end date');
+              return;
+            }
+            dataToSend.endDate = timelineDialogData.endDate;
+          } else {
+            const startDate = new Date(timelineDialogData.startDate);
+            const endDate = timelineDialogData.durationType === 'business'
+              ? addBusinessDays(startDate, timelineDialogData.durationDays || 1)
+              : addCalendarDays(startDate, timelineDialogData.durationDays || 1);
+            dataToSend.endDate = endDate.toISOString().split('T')[0];
+          }
+
+          await milestoneService.createDeliverable(id, milestoneId, dataToSend);
+        } else {
+          const deliverableData = {
+            title: timelineDialogData.title,
+            description: timelineDialogData.description,
+            startDate: timelineDialogData.startDate
+          };
+
+          if (timelineDialogData.endDateMode === 'date') {
+            if (!timelineDialogData.endDate) {
+              alert('Please provide an end date');
+              return;
+            }
+            deliverableData.endDate = timelineDialogData.endDate;
+          } else {
+            const startDate = new Date(timelineDialogData.startDate);
+            const endDate = timelineDialogData.durationType === 'business'
+              ? addBusinessDays(startDate, timelineDialogData.durationDays || 1)
+              : addCalendarDays(startDate, timelineDialogData.durationDays || 1);
+            deliverableData.endDate = endDate.toISOString().split('T')[0];
+          }
+
+          await milestoneService.updateDeliverable(id, milestoneId, timelineDialogData._id, deliverableData);
+        }
+      } else if (timelineDialogType === 'task') {
+        const milestoneId = timelineDialogParent.milestone._id;
+        const deliverableId = timelineDialogParent.deliverable._id;
+
+        if (timelineDialogMode === 'add') {
+          await milestoneService.createTask(id, milestoneId, deliverableId, timelineDialogData);
+        } else {
+          const taskData = {
+            title: timelineDialogData.title,
+            description: timelineDialogData.description,
+            dueDateMode: timelineDialogData.dueDateMode,
+            dueDate: timelineDialogData.dueDate,
+            dueDateOffset: timelineDialogData.dueDateOffset,
+            dueDateOffsetType: timelineDialogData.dueDateOffsetType
+          };
+          await milestoneService.updateTask(id, milestoneId, deliverableId, timelineDialogData._id, taskData);
+        }
+      }
+
+      await refetch();
+      handleTimelineDialogClose();
+    } catch (error) {
+      console.error('Failed to save:', error);
+      alert(error.response?.data?.message || error.data?.message || error.message || 'Failed to save');
+    }
+  };
+
+  const handleTimelineDialogDelete = async () => {
+    if (!window.confirm(`Delete this ${timelineDialogType}?`)) return;
+
+    try {
+      if (timelineDialogType === 'milestone') {
+        await milestoneService.deleteMilestone(id, timelineDialogData._id);
+      } else if (timelineDialogType === 'deliverable') {
+        await milestoneService.deleteDeliverable(id, timelineDialogParent.milestone._id, timelineDialogData._id);
+      } else if (timelineDialogType === 'task') {
+        await milestoneService.deleteTask(
+          id,
+          timelineDialogParent.milestone._id,
+          timelineDialogParent.deliverable._id,
+          timelineDialogData._id
+        );
+      }
+
+      await refetch();
+      handleTimelineDialogClose();
+    } catch (error) {
+      console.error('Failed to delete:', error);
+      alert(`Failed to delete ${timelineDialogType}`);
+    }
+  };
+
   // Use formatDateDisplay from dateUtils for consistency
   const formatDate = (dateString) => {
     if (!dateString) return '';
@@ -1112,9 +1323,10 @@ function ProjectDetails() {
                     <CardContent className="pt-0 p-0">
                       <GanttChart 
                         milestones={milestones}
-                        onItemClick={(item, type) => {
-                          console.log('Clicked item:', type, item);
-                        }}
+                        onItemClick={handleTimelineItemClick}
+                        onAddMilestone={handleTimelineAddMilestone}
+                        onAddDeliverable={handleTimelineAddDeliverable}
+                        onAddTask={handleTimelineAddTask}
                       />
                     </CardContent>
                   </motion.div>
@@ -2514,6 +2726,245 @@ function ProjectDetails() {
           </Dialog>
         )}
       </AnimatePresence>
+
+      {/* Timeline Dialog - Unified dialog for adding/editing from timeline */}
+      <Dialog open={timelineDialogOpen} onOpenChange={handleTimelineDialogClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {timelineDialogMode === 'add' ? 'Add' : 'Edit'} {timelineDialogType === 'milestone' ? 'Milestone' : timelineDialogType === 'deliverable' ? 'Deliverable' : 'Task'}
+            </DialogTitle>
+            {timelineDialogParent?.milestone && (
+              <DialogDescription>
+                {timelineDialogType === 'deliverable' && `Milestone: ${timelineDialogParent.milestone.name}`}
+                {timelineDialogType === 'task' && `Milestone: ${timelineDialogParent.milestone.name} • Deliverable: ${timelineDialogParent.deliverable.title}`}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {timelineDialogData && (
+            <div className="space-y-4 py-4">
+              {/* Milestone Fields */}
+              {timelineDialogType === 'milestone' && (
+                <>
+                  <div>
+                    <Label htmlFor="timeline-milestone-name">Milestone Name *</Label>
+                    <Input
+                      id="timeline-milestone-name"
+                      value={timelineDialogData.name || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, name: e.target.value })}
+                      placeholder="Enter milestone name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timeline-milestone-abbrev">Abbreviation</Label>
+                    <Input
+                      id="timeline-milestone-abbrev"
+                      value={timelineDialogData.abbreviation || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, abbreviation: e.target.value })}
+                      placeholder="e.g., MS1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timeline-milestone-desc">Description</Label>
+                    <Textarea
+                      id="timeline-milestone-desc"
+                      value={timelineDialogData.description || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, description: e.target.value })}
+                      placeholder="Enter description"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Deliverable Fields */}
+              {timelineDialogType === 'deliverable' && (
+                <>
+                  <div>
+                    <Label htmlFor="timeline-deliverable-title">Title *</Label>
+                    <Input
+                      id="timeline-deliverable-title"
+                      value={timelineDialogData.title || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, title: e.target.value })}
+                      placeholder="Enter deliverable title"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timeline-deliverable-desc">Description</Label>
+                    <Textarea
+                      id="timeline-deliverable-desc"
+                      value={timelineDialogData.description || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, description: e.target.value })}
+                      placeholder="Enter description"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timeline-deliverable-start">Start Date *</Label>
+                    <Input
+                      id="timeline-deliverable-start"
+                      type="date"
+                      value={timelineDialogData.startDate || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, startDate: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>End Date</Label>
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={timelineDialogData.endDateMode === 'date' ? 'default' : 'outline'}
+                        onClick={() => setTimelineDialogData({ ...timelineDialogData, endDateMode: 'date' })}
+                      >
+                        Specific Date
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={timelineDialogData.endDateMode === 'duration' ? 'default' : 'outline'}
+                        onClick={() => setTimelineDialogData({ ...timelineDialogData, endDateMode: 'duration' })}
+                      >
+                        Duration
+                      </Button>
+                    </div>
+                    {timelineDialogData.endDateMode === 'date' ? (
+                      <Input
+                        type="date"
+                        value={timelineDialogData.endDate || ''}
+                        onChange={(e) => setTimelineDialogData({ ...timelineDialogData, endDate: e.target.value })}
+                      />
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={timelineDialogData.durationDays || 1}
+                          onChange={(e) => setTimelineDialogData({ ...timelineDialogData, durationDays: parseInt(e.target.value) || 1 })}
+                          className="w-24"
+                        />
+                        <select
+                          value={timelineDialogData.durationType || 'business'}
+                          onChange={(e) => setTimelineDialogData({ ...timelineDialogData, durationType: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="business">Business Days</option>
+                          <option value="calendar">Calendar Days</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Task Fields */}
+              {timelineDialogType === 'task' && (
+                <>
+                  <div>
+                    <Label htmlFor="timeline-task-title">Title *</Label>
+                    <Input
+                      id="timeline-task-title"
+                      value={timelineDialogData.title || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, title: e.target.value })}
+                      placeholder="Enter task title"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="timeline-task-desc">Description</Label>
+                    <Textarea
+                      id="timeline-task-desc"
+                      value={timelineDialogData.description || ''}
+                      onChange={(e) => setTimelineDialogData({ ...timelineDialogData, description: e.target.value })}
+                      placeholder="Enter description"
+                    />
+                  </div>
+                  <div>
+                    <Label>Due Date</Label>
+                    <div className="flex gap-2 mb-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={timelineDialogData.dueDateMode === 'date' ? 'default' : 'outline'}
+                        onClick={() => setTimelineDialogData({ ...timelineDialogData, dueDateMode: 'date' })}
+                      >
+                        Specific Date
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={timelineDialogData.dueDateMode === 'afterStart' ? 'default' : 'outline'}
+                        onClick={() => setTimelineDialogData({ ...timelineDialogData, dueDateMode: 'afterStart' })}
+                      >
+                        After Start
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={timelineDialogData.dueDateMode === 'beforeEnd' ? 'default' : 'outline'}
+                        onClick={() => setTimelineDialogData({ ...timelineDialogData, dueDateMode: 'beforeEnd' })}
+                      >
+                        Before End
+                      </Button>
+                    </div>
+                    {timelineDialogData.dueDateMode === 'date' ? (
+                      <Input
+                        type="date"
+                        value={timelineDialogData.dueDate || ''}
+                        onChange={(e) => setTimelineDialogData({ ...timelineDialogData, dueDate: e.target.value })}
+                      />
+                    ) : (
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={timelineDialogData.dueDateOffset || 1}
+                          onChange={(e) => setTimelineDialogData({ ...timelineDialogData, dueDateOffset: parseInt(e.target.value) || 1 })}
+                          className="w-24"
+                        />
+                        <select
+                          value={timelineDialogData.dueDateOffsetType || 'business'}
+                          onChange={(e) => setTimelineDialogData({ ...timelineDialogData, dueDateOffsetType: e.target.value })}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                        >
+                          <option value="business">Business Days</option>
+                          <option value="calendar">Calendar Days</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            {timelineDialogMode === 'edit' && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleTimelineDialogDelete}
+                className="mr-auto"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTimelineDialogClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleTimelineDialogSave}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
