@@ -59,10 +59,13 @@ export function FinancesSection({ projectId }) {
 
   // Group handlers
   const handleAddGroup = async () => {
+    const name = prompt('Enter group name:');
+    if (!name || !name.trim()) return;
+    
     try {
       const newGroup = await financeGroupService.create({
         project: projectId,
-        name: 'New Finance Group',
+        name: name.trim(),
         order: groups.length
       });
       
@@ -71,6 +74,7 @@ export function FinancesSection({ projectId }) {
       }
     } catch (error) {
       console.error('Error creating finance group:', error);
+      alert('Failed to create group. Please try again.');
     }
   };
 
