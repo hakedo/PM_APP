@@ -394,11 +394,11 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
         </CardHeader>
 
         {/* Content */}
-        <CardContent className="p-0">
+        <CardContent className="p-6 bg-gray-50">
           {viewMode === 'table' ? (
             // Table View
             groups && groups.length > 0 ? (
-              <div className="divide-y divide-gray-200">
+              <div className="space-y-6">
                 {groups
                   .filter(group => group && group._id)
                   .map((group, index) => (

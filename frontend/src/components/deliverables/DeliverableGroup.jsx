@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, MoreVertical, Trash2, Plus } from 'lucide-react';
+import { ChevronUp, ChevronDown, MoreVertical, Trash2, Plus, FolderOpen, Folder } from 'lucide-react';
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input } from '../ui';
 import { DeliverableRow } from './DeliverableRow';
 import { cn } from '@/lib/utils';
@@ -44,22 +44,18 @@ export function DeliverableGroup({
   };
 
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden rounded-xl border-2 border-blue-200 bg-white shadow-lg">
       {/* Group Header */}
-      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between group/header border-b border-gray-200">
+      <div className="bg-gradient-to-r from-blue-50 to-blue-25 px-6 py-4 flex items-center justify-between group/header border-b-2 border-blue-200 hover:from-blue-100 hover:to-blue-50 transition-colors">
         <div 
-          className="flex items-center gap-2 flex-1 cursor-pointer"
+          className="flex items-center gap-3 flex-1 cursor-pointer"
           onClick={() => setIsCollapsed(!isCollapsed)}
         >
-          <button
-            className="hover:bg-gray-200 p-1 rounded transition-colors"
-          >
-            {isCollapsed ? (
-              <ChevronDown className="w-4 h-4 text-gray-600" />
-            ) : (
-              <ChevronUp className="w-4 h-4 text-gray-600" />
-            )}
-          </button>
+          {isCollapsed ? (
+            <Folder className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          ) : (
+            <FolderOpen className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          )}
           
           {isEditing ? (
             <Input
@@ -67,13 +63,13 @@ export function DeliverableGroup({
               onChange={(e) => setEditName(e.target.value)}
               onBlur={handleRename}
               onKeyDown={handleKeyDown}
-              className="h-7 w-64"
+              className="h-8 w-64 font-semibold"
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <h3 
-              className="font-semibold text-gray-900 hover:text-gray-600"
+              className="font-bold text-base text-gray-900 hover:text-blue-700 transition-colors"
               onDoubleClick={(e) => {
                 e.stopPropagation();
                 setIsEditing(true);
@@ -83,39 +79,51 @@ export function DeliverableGroup({
             </h3>
           )}
           
-          <span className="text-sm text-gray-500">
-            ({deliverables.length})
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+              {deliverables.length} {deliverables.length === 1 ? 'item' : 'items'}
+            </span>
+            <button
+              className="hover:bg-blue-200 p-1.5 rounded-full transition-colors"
+            >
+              {isCollapsed ? (
+                <ChevronDown className="w-4 h-4 text-blue-700" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-blue-700" />
+              )}
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onAddDeliverable(group._id)}
-            className="h-7 w-7 p-0"
+            className="h-8 px-3 bg-blue-600 text-white hover:bg-blue-700 hover:text-white gap-1.5"
           >
             <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">Add Item</span>
           </Button>
 
-          <div className="inline-flex" role="group">
+          <div className="inline-flex border border-gray-300 rounded-md" role="group">
             <Button
               variant="ghost"
               size="sm"
               onClick={onMoveUp}
               disabled={isFirst}
-              className="h-7 w-7 p-0 rounded-r-none"
+              className="h-8 w-8 p-0 rounded-r-none border-r border-gray-300 hover:bg-blue-100"
             >
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="w-4 h-4" />
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={onMoveDown}
               disabled={isLast}
-              className="h-7 w-7 p-0 rounded-l-none border-l border-gray-200"
+              className="h-8 w-8 p-0 rounded-l-none hover:bg-blue-100"
             >
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="w-4 h-4" />
             </Button>
           </div>
 
@@ -124,14 +132,14 @@ export function DeliverableGroup({
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="h-7 w-7 p-0"
+                className="h-8 w-8 p-0 hover:bg-blue-100"
               >
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                Rename
+                Rename Group
               </DropdownMenuItem>
               <DropdownMenuItem 
                 onClick={() => onDelete(group._id)}
@@ -147,37 +155,42 @@ export function DeliverableGroup({
 
       {/* Group Content */}
       {!isCollapsed && (
-        <div className="bg-white">
+        <div className="bg-gray-50/50 p-4">
           {/* Table Header */}
-          <div className="bg-gray-50/50 border-b border-gray-100">
-            <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-              <div className="w-6" /> {/* Space for expand button */}
-              <div className="flex-1">Name</div>
-              <div className="w-48">Timeline</div>
-              <div className="w-32">Status</div>
-              <div className="w-32">Assignee</div>
-              <div className="w-20 text-center">Tasks</div>
-              <div className="w-10" /> {/* Space for actions */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-3 overflow-hidden">
+            <div className="flex items-center px-4 py-2.5 text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 border-l-4 border-transparent">
+              <div className="w-8 mr-2 flex-shrink-0" /> {/* Space for expand button */}
+              <div className="flex-1 min-w-0 pr-4 mr-2 border-r border-gray-300">Deliverable Name</div>
+              <div className="w-48 px-4 mr-2 border-r border-gray-300 text-center flex-shrink-0">Timeline</div>
+              <div className="w-32 mr-2 border-r border-gray-300 text-center flex-shrink-0">Status</div>
+              <div className="w-32 mr-2 border-r border-gray-300 text-center flex-shrink-0">Assignee</div>
+              <div className="w-20 mr-2 border-r border-gray-300 text-center flex-shrink-0">Tasks</div>
+              <div className="w-10 flex-shrink-0" /> {/* Space for actions */}
             </div>
           </div>
 
           {/* Deliverables */}
-          <div className="divide-y divide-gray-200">
+          <div className="space-y-6">
             {deliverables.length === 0 ? (
-              <div className="px-4 py-8 text-center">
-                <p className="text-sm text-gray-500 mb-3">No deliverables in this group yet</p>
-                <Button 
-                  onClick={() => onAddDeliverable(group._id)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Deliverable
-                </Button>
+              <div className="px-4 py-12 text-center bg-white rounded-lg border-2 border-dashed border-blue-200">
+                <div className="max-w-sm mx-auto">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Plus className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4 font-medium">No deliverables in this group yet</p>
+                  <Button 
+                    onClick={() => onAddDeliverable(group._id)}
+                    variant="outline"
+                    size="default"
+                    className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add First Deliverable
+                  </Button>
+                </div>
               </div>
             ) : (
-              deliverables.map((deliverable) => (
+              deliverables.map((deliverable, index) => (
                 <DeliverableRow
                   key={deliverable._id}
                   deliverable={deliverable}
@@ -189,6 +202,7 @@ export function DeliverableGroup({
                   onEditTask={onEditTask}
                   onDeleteTask={onDeleteTask}
                   onUpdateField={onUpdateField}
+                  isLast={index === deliverables.length - 1}
                 />
               ))
             )}

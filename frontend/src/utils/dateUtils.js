@@ -44,6 +44,20 @@ export const formatDateDisplay = (dateString) => {
 };
 
 /**
+ * Formats a date string to short format MM/DD/YYYY
+ * @param {string} dateString - ISO date string from database
+ * @returns {string} Formatted date string in MM/DD/YYYY format
+ */
+export const formatDateShort = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  return `${month}/${day}/${year}`;
+};
+
+/**
  * Parses a date input value (YYYY-MM-DD) and returns it formatted for database storage
  * @param {string} dateString - Date string in YYYY-MM-DD format
  * @returns {string} ISO string for database storage
