@@ -466,6 +466,8 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
         onSubmit={handleSubmitDeliverable}
         loading={submittingDeliverable}
         mode={deliverableMode}
+        projectStartDate={projectStartDate}
+        projectEndDate={projectEndDate}
       />
 
       <TaskFormDialog

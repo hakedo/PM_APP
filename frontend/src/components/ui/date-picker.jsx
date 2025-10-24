@@ -18,7 +18,7 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
     }
   };
 
-  const displayDate = value ? format(new Date(value), 'PPP') : null;
+  const displayDate = value ? format(new Date(value), 'MM/dd/yyyy') : null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

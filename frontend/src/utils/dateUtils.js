@@ -109,3 +109,38 @@ export const getBusinessDaysBetween = (startDate, endDate) => {
   
   return count;
 };
+
+/**
+ * Add days to a date (calendar days)
+ * @param {Date|string} startDate - The start date
+ * @param {number} days - Number of calendar days to add
+ * @returns {string} End date in YYYY-MM-DD format
+ */
+export const addCalendarDays = (startDate, days) => {
+  const date = new Date(startDate);
+  date.setDate(date.getDate() + parseInt(days));
+  return formatDateForInput(date);
+};
+
+/**
+ * Add business days to a date (excluding weekends)
+ * @param {Date|string} startDate - The start date
+ * @param {number} days - Number of business days to add
+ * @returns {string} End date in YYYY-MM-DD format
+ */
+export const addBusinessDays = (startDate, days) => {
+  const date = new Date(startDate);
+  let daysAdded = 0;
+  const targetDays = parseInt(days);
+  
+  while (daysAdded < targetDays) {
+    date.setDate(date.getDate() + 1);
+    const dayOfWeek = date.getDay();
+    // Skip weekends
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      daysAdded++;
+    }
+  }
+  
+  return formatDateForInput(date);
+};

@@ -161,7 +161,7 @@ export function DeliverableGroup({
             <div className="flex items-center px-4 py-2.5 text-xs font-bold text-gray-700 uppercase tracking-wider bg-gradient-to-r from-gray-100 to-gray-50 border-l-4 border-transparent">
               <div className="w-8 mr-2 flex-shrink-0" /> {/* Space for expand button */}
               <div className="flex-1 min-w-0 pr-4 mr-2 border-r border-gray-300">Deliverable Name</div>
-              <div className="w-48 px-4 mr-2 border-r border-gray-300 text-center flex-shrink-0">Timeline</div>
+              <div className="w-64 px-2 mr-2 border-r border-gray-300 text-center flex-shrink-0">Timeline</div>
               <div className="w-32 mr-2 border-r border-gray-300 text-center flex-shrink-0">Status</div>
               <div className="w-32 mr-2 border-r border-gray-300 text-center flex-shrink-0">Assignee</div>
               <div className="w-20 mr-2 border-r border-gray-300 text-center flex-shrink-0">Tasks</div>

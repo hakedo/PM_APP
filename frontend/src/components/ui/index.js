@@ -27,6 +27,8 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tool
 export { Popover, PopoverContent, PopoverTrigger } from './popover';
 export { Calendar } from './calendar';
 export { DatePicker } from './date-picker';
+export { DateRangePicker } from './date-range-picker';
+export { InlineDatePicker } from './inline-date-picker';
 export { ScrollArea } from './scroll-area';
 export { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './accordion';
 export { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from './sheet';

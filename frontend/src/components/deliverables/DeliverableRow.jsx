@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { ChevronRight, ChevronDown, MoreVertical, Plus, Edit2, Trash2, Check, Circle, Package } from 'lucide-react';
 import { 
   Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
-  DropdownMenuTrigger, Checkbox, DatePicker, Select, SelectContent, 
+  DropdownMenuTrigger, Checkbox, DateRangePicker, Select, SelectContent, 
   SelectItem, SelectTrigger, SelectValue, Input
 } from '../ui';
 import { cn } from '@/lib/utils';
-import { formatDateDisplay, formatDateShort } from '@/utils/dateUtils';
+import { formatDateDisplay } from '@/utils/dateUtils';
 
 const statusConfig = {
   'not-started': { label: 'Not Started', variant: 'secondary', color: 'text-gray-600' },
@@ -37,10 +37,15 @@ export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAd
           <Package className="w-4 h-4 text-purple-600 flex-shrink-0" />
           <span className="font-semibold text-gray-900">{deliverable.name}</span>
         </div>
-        <div className="w-48 text-sm flex items-center justify-center gap-1 px-4 mr-2 border-r border-purple-200 flex-shrink-0">
-          <span className="text-gray-700">{formatDateShort(deliverable.startDate)}</span>
-          <span className="text-purple-400 font-bold">→</span>
-          <span className="text-gray-700">{formatDateShort(deliverable.endDate)}</span>
+        <div className="w-64 px-2 mr-2 border-r border-purple-200 flex items-center justify-center flex-shrink-0">
+          <DateRangePicker
+            startDate={deliverable.startDate}
+            endDate={deliverable.endDate}
+            onStartDateChange={(date) => handleFieldUpdate('startDate', date)}
+            onEndDateChange={(date) => handleFieldUpdate('endDate', date)}
+            placeholder="Set date"
+            className="h-8 text-xs border-0 shadow-none hover:bg-purple-50 rounded"
+          />
         </div>
         <div className="w-32 mr-2 border-r border-purple-200 flex items-center justify-center flex-shrink-0">
           <Select value={deliverable.status} onValueChange={(value) => handleFieldUpdate('status', value)}>
