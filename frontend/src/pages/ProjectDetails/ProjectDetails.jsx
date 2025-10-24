@@ -8,7 +8,7 @@ import { ClientAssignmentSection, DeliverablesSection } from '../../components/p
 import { FinancesSection } from '../../components/finances';
 import { useProject, useTeam } from '../../hooks';
 import { clientService, assignmentService } from '../../services';
-import { extractDateForInput } from '../../utils/dateUtils';
+import { formatDateForInput } from '../../utils/dateUtils';
 import { formatPhoneNumber } from '../../utils/formatters';
 
 function ProjectDetails() {
@@ -50,8 +50,7 @@ function ProjectDetails() {
   const addBusinessDays = (startDate, days) => {
     let currentDate;
     if (typeof startDate === 'string') {
-      const d = new Date(startDate);
-      currentDate = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      currentDate = new Date(startDate);
     } else {
       currentDate = new Date(startDate);
     }
@@ -69,8 +68,7 @@ function ProjectDetails() {
   const addCalendarDays = (startDate, days) => {
     let date;
     if (typeof startDate === 'string') {
-      const d = new Date(startDate);
-      date = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+      date = new Date(startDate);
     } else {
       date = new Date(startDate);
     }
@@ -118,8 +116,8 @@ function ProjectDetails() {
     setEditedProject({
       title: project.title,
       description: project.description || '',
-      startDate: extractDateForInput(project.startDate),
-      endDate: extractDateForInput(project.endDate)
+      startDate: formatDateForInput(project.startDate),
+      endDate: formatDateForInput(project.endDate)
     });
     setIsEditing(true);
   };

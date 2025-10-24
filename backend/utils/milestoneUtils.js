@@ -186,7 +186,7 @@ export const validateMilestoneDates = (milestone, previousEndDate, projectEndDat
     // Normalize dates to compare only date parts (ignore time)
     const normalizeDate = (date) => {
       const d = new Date(date);
-      d.setUTCHours(0, 0, 0, 0);
+      d.setHours(0, 0, 0, 0);
       return d;
     };
 
@@ -231,7 +231,7 @@ export const validateMilestoneDates = (milestone, previousEndDate, projectEndDat
     // Normalize dates to compare
     const normalizeDate = (date) => {
       const d = new Date(date);
-      d.setUTCHours(0, 0, 0, 0);
+      d.setHours(0, 0, 0, 0);
       return d;
     };
 

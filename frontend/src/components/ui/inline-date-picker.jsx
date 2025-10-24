@@ -16,7 +16,7 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
   // Parse date string to local Date object
   const parseDate = (dateString) => {
     if (!dateString) return null
-    // If it's already a full ISO string with timezone, parse it directly
+    // If it's already a full ISO string, parse it directly
     if (dateString.includes('T')) {
       return new Date(dateString)
     }
@@ -61,7 +61,7 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
   }, [endDate])
 
   const handleDateSelect = (date) => {
-    // Extract date components to avoid any timezone issues
+    // Extract date components to format as YYYY-MM-DD
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')

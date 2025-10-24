@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 // Parse date string to local Date object
 const parseDate = (dateString) => {
   if (!dateString) return null
-  // If it's already a full ISO string with timezone, parse it directly
+  // If it's already a full ISO string, parse it directly
   if (dateString.includes('T')) {
     return new Date(dateString)
   }
@@ -56,7 +56,7 @@ function Calendar({
     // Current month's days
     for (let i = 1; i <= daysInMonth; i++) {
       const dayDate = new Date(year, month, i)
-      dayDate.setHours(12, 0, 0, 0) // Set to noon to avoid timezone issues
+      dayDate.setHours(12, 0, 0, 0) // Set to noon for consistent time handling
       days.push({
         date: dayDate,
         isCurrentMonth: true,
@@ -102,7 +102,7 @@ function Calendar({
       toString: day.date.toString()
     })
 
-    // Create a clean date object with noon time to avoid timezone issues
+    // Create a clean date object with noon time
     const cleanDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 12, 0, 0, 0)
     console.log('Clean date being sent:', cleanDate.toString())
     

@@ -1,11 +1,10 @@
 /**
  * Utility functions for handling dates consistently throughout the application
- * to avoid timezone issues
  */
 
 /**
- * Formats a date to YYYY-MM-DD string in local timezone
- * @param {Date} date - The date to format
+ * Formats a date to YYYY-MM-DD string
+ * @param {Date|string} date - The date to format
  * @returns {string} Date string in YYYY-MM-DD format
  */
 export const formatDateForInput = (date) => {
@@ -18,7 +17,7 @@ export const formatDateForInput = (date) => {
 };
 
 /**
- * Gets today's date in YYYY-MM-DD format in local timezone
+ * Gets today's date in YYYY-MM-DD format
  * @returns {string} Today's date in YYYY-MM-DD format
  */
 export const getTodayString = () => {
@@ -26,64 +25,18 @@ export const getTodayString = () => {
 };
 
 /**
- * Formats a date string (from database) to display format
- * Handles UTC dates from database properly
- * @param {string} dateString - ISO date string from database
+ * Formats a date string to display format
+ * @param {string|Date} dateString - Date string or Date object
  * @returns {string} Formatted date string
  */
 export const formatDateDisplay = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
-  // Use UTC methods to avoid timezone shift
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'
+    year: 'numeric'
   });
-};
-
-/**
- * Formats a date string to short format MM/DD/YYYY
- * @param {string} dateString - ISO date string from database
- * @returns {string} Formatted date string in MM/DD/YYYY format
- */
-export const formatDateShort = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  const year = date.getUTCFullYear();
-  return `${month}/${day}/${year}`;
-};
-
-/**
- * Parses a date input value (YYYY-MM-DD) and returns it formatted for database storage
- * @param {string} dateString - Date string in YYYY-MM-DD format
- * @returns {string} ISO string for database storage
- */
-export const parseDateInputForStorage = (dateString) => {
-  if (!dateString) return '';
-  // Create date at midnight in local timezone, then convert to ISO
-  const [year, month, day] = dateString.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.toISOString();
-};
-
-/**
- * Extracts YYYY-MM-DD from a database date string
- * Handles UTC dates properly
- * @param {string} dateString - ISO date string from database
- * @returns {string} Date in YYYY-MM-DD format for input fields
- */
-export const extractDateForInput = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  // Use UTC methods to get the date components stored in database
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 };
 
 /**

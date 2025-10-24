@@ -77,20 +77,20 @@ deliverableSchema.methods.validateDatesWithinMilestone = async function() {
   // Validate start date if provided
   if (this.startDate) {
     if (this.startDate < milestoneStart) {
-      errors.push(`Deliverable start date cannot be before milestone start date (${milestoneStart.toISOString().split('T')[0]})`);
+      errors.push(`Deliverable start date cannot be before milestone start date (${milestoneStart.toLocaleDateString()})`);
     }
     if (this.startDate > milestoneEnd) {
-      errors.push(`Deliverable start date cannot be after milestone end date (${milestoneEnd.toISOString().split('T')[0]})`);
+      errors.push(`Deliverable start date cannot be after milestone end date (${milestoneEnd.toLocaleDateString()})`);
     }
   }
 
   // Validate end date if provided
   if (this.endDate) {
     if (this.endDate < milestoneStart) {
-      errors.push(`Deliverable end date cannot be before milestone start date (${milestoneStart.toISOString().split('T')[0]})`);
+      errors.push(`Deliverable end date cannot be before milestone start date (${milestoneStart.toLocaleDateString()})`);
     }
     if (this.endDate > milestoneEnd) {
-      errors.push(`Deliverable end date cannot be after milestone end date (${milestoneEnd.toISOString().split('T')[0]})`);
+      errors.push(`Deliverable end date cannot be after milestone end date (${milestoneEnd.toLocaleDateString()})`);
     }
   }
 

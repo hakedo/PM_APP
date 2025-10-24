@@ -90,20 +90,20 @@ taskSchema.methods.validateDatesWithinDeliverable = async function() {
   // Validate start date if provided
   if (this.startDate) {
     if (deliverable.startDate && this.startDate < deliverable.startDate) {
-      errors.push(`Task start date cannot be before deliverable start date (${deliverable.startDate.toISOString().split('T')[0]})`);
+      errors.push(`Task start date cannot be before deliverable start date (${deliverable.startDate.toLocaleDateString()})`);
     }
     if (deliverable.endDate && this.startDate > deliverable.endDate) {
-      errors.push(`Task start date cannot be after deliverable end date (${deliverable.endDate.toISOString().split('T')[0]})`);
+      errors.push(`Task start date cannot be after deliverable end date (${deliverable.endDate.toLocaleDateString()})`);
     }
   }
 
   // Validate end date if provided
   if (this.endDate) {
     if (deliverable.startDate && this.endDate < deliverable.startDate) {
-      errors.push(`Task end date cannot be before deliverable start date (${deliverable.startDate.toISOString().split('T')[0]})`);
+      errors.push(`Task end date cannot be before deliverable start date (${deliverable.startDate.toLocaleDateString()})`);
     }
     if (deliverable.endDate && this.endDate > deliverable.endDate) {
-      errors.push(`Task end date cannot be after deliverable end date (${deliverable.endDate.toISOString().split('T')[0]})`);
+      errors.push(`Task end date cannot be after deliverable end date (${deliverable.endDate.toLocaleDateString()})`);
     }
   }
 

@@ -43,14 +43,12 @@ router.post('/', async (req, res, next) => {
   try {
     const projectData = { ...req.body };
     
-    // Convert date strings to UTC dates at midnight
+    // Convert date strings to Date objects
     if (projectData.startDate) {
-      const [year, month, day] = projectData.startDate.split('-').map(Number);
-      projectData.startDate = new Date(Date.UTC(year, month - 1, day));
+      projectData.startDate = new Date(projectData.startDate);
     }
     if (projectData.endDate) {
-      const [year, month, day] = projectData.endDate.split('-').map(Number);
-      projectData.endDate = new Date(Date.UTC(year, month - 1, day));
+      projectData.endDate = new Date(projectData.endDate);
     }
     
     const newProject = new Project(projectData);
@@ -73,14 +71,12 @@ router.put('/:id', async (req, res, next) => {
   try {
     const updateData = { ...req.body };
     
-    // Convert date strings to UTC dates at midnight
+    // Convert date strings to Date objects
     if (updateData.startDate) {
-      const [year, month, day] = updateData.startDate.split('-').map(Number);
-      updateData.startDate = new Date(Date.UTC(year, month - 1, day));
+      updateData.startDate = new Date(updateData.startDate);
     }
     if (updateData.endDate) {
-      const [year, month, day] = updateData.endDate.split('-').map(Number);
-      updateData.endDate = new Date(Date.UTC(year, month - 1, day));
+      updateData.endDate = new Date(updateData.endDate);
     }
     
     const updatedProject = await Project.findByIdAndUpdate(

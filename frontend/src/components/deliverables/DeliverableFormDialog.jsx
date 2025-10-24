@@ -17,7 +17,7 @@ import {
 } from '../ui';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { extractDateForInput } from '@/utils/dateUtils';
+import { formatDateForInput } from '@/utils/dateUtils';
 
 const statusOptions = [
   { value: 'not-started', label: 'Not Started' },
@@ -46,7 +46,7 @@ export function DeliverableFormDialog({
       const selectedDate = new Date(date);
       
       if (selectedDate < projectStart) {
-        setStartDateError(`Start date cannot be earlier than project start date (${extractDateForInput(projectStartDate)})`);
+        setStartDateError(`Start date cannot be earlier than project start date (${formatDateForInput(projectStartDate)})`);
       } else {
         setStartDateError('');
       }

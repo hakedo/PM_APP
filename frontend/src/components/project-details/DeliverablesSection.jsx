@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, Button } from '../ui';
 import { DeliverableGroup, DeliverableFormDialog, TaskFormDialog } from '../deliverables';
 import DeliverableGanttChart from '../gantt/DeliverableGanttChart';
 import { deliverableService, deliverableGroupService } from '@/services';
-import { extractDateForInput } from '@/utils/dateUtils';
+import { formatDateForInput } from '@/utils/dateUtils';
 
 const emptyDeliverable = {
   name: '',
@@ -164,8 +164,8 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     setCurrentDeliverable({
       ...emptyDeliverable,
       group: groupId,
-      startDate: extractDateForInput(projectStartDate) || '',
-      endDate: extractDateForInput(projectEndDate) || ''
+      startDate: formatDateForInput(projectStartDate) || '',
+      endDate: formatDateForInput(projectEndDate) || ''
     });
     setDeliverableMode('create');
     setDeliverableDialogOpen(true);
@@ -175,8 +175,8 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     setCurrentDeliverable({
       name: deliverable.name,
       group: deliverable.group,
-      startDate: extractDateForInput(deliverable.startDate),
-      endDate: extractDateForInput(deliverable.endDate),
+      startDate: formatDateForInput(deliverable.startDate),
+      endDate: formatDateForInput(deliverable.endDate),
       status: deliverable.status,
       assignee: deliverable.assignee
     });
@@ -230,7 +230,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     const deliverable = deliverables.find(d => d._id === deliverableId);
     setCurrentTask({
       ...emptyTask,
-      dueDate: extractDateForInput(deliverable?.endDate) || ''
+      dueDate: formatDateForInput(deliverable?.endDate) || ''
     });
     setCurrentDeliverableId(deliverableId);
     setTaskMode('create');
@@ -240,7 +240,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   const handleEditTask = (deliverableId, task) => {
     setCurrentTask({
       name: task.name,
-      dueDate: extractDateForInput(task.dueDate),
+      dueDate: formatDateForInput(task.dueDate),
       status: task.status
     });
     setCurrentDeliverableId(deliverableId);
