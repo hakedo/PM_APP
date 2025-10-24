@@ -15,7 +15,11 @@ export function EmptyState({
       <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
       <p className="text-gray-600 mb-6">{description}</p>
       {actionLabel && onAction && (
-        <Button onClick={onAction} className="gap-2">
+        <Button 
+          onClick={onAction} 
+          size="lg"
+          className="gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+        >
           {actionLabel}
         </Button>
       )}

@@ -69,7 +69,11 @@ function Projects() {
           title="Projects"
           description="Manage your projects and track progress"
           action={
-            <Button onClick={handleAddProject} size="lg" className="gap-2">
+            <Button 
+              onClick={handleAddProject} 
+              size="lg" 
+              className="gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
               <Plus className="w-4 h-4" />
               New Project
             </Button>
