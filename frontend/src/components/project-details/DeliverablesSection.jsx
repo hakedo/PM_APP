@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Package, Plus, FolderPlus } from 'lucide-react';
+import { Package, Plus, FolderPlus, Table, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '../ui';
 import { DeliverableGroup, DeliverableFormDialog, TaskFormDialog } from '../deliverables';
+import DeliverableGanttChart from '../gantt/DeliverableGanttChart';
 import { deliverableService, deliverableGroupService } from '@/services';
 import { extractDateForInput } from '@/utils/dateUtils';
 
@@ -24,6 +25,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   const [deliverables, setDeliverables] = useState([]);
   const [tasksByDeliverable, setTasksByDeliverable] = useState({});
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'timeline'
   
   // Deliverable dialog state
   const [deliverableDialogOpen, setDeliverableDialogOpen] = useState(false);
@@ -331,67 +333,126 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
       .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
   };
 
+  // Gantt click handlers
+  const handleGanttItemClick = (item, type, group, deliverable) => {
+    if (type === 'deliverable') {
+      handleEditDeliverable(item._id);
+    } else if (type === 'task') {
+      handleEditTask(deliverable._id, item._id);
+    }
+  };
+
+  const handleGanttAddDeliverable = (group) => {
+    handleAddDeliverable(group._id);
+  };
+
+  const handleGanttAddTask = (group, deliverable) => {
+    handleAddTask(deliverable._id);
+  };
+
   return (
     <>
       <Card className="border-gray-200">
-        {/* Header */}
+        {/* Header with Tabs */}
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Package className="w-6 h-6" />
-              Deliverables ({deliverables.length})
+              <span className="text-xl font-semibold">Deliverables ({deliverables.length})</span>
             </div>
             <Button onClick={handleAddGroup} variant="outline" size="sm" className="gap-2">
               <FolderPlus className="w-4 h-4" />
               Add Group
             </Button>
-          </CardTitle>
+          </div>
+
+          {/* View Mode Tabs */}
+          <div className="flex gap-1 border-b border-gray-200 -mb-4">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                viewMode === 'table'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              <Table className="w-4 h-4" />
+              Table View
+            </button>
+            <button
+              onClick={() => setViewMode('timeline')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                viewMode === 'timeline'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Timeline View
+            </button>
+          </div>
         </CardHeader>
 
-        {/* Groups Content */}
+        {/* Content */}
         <CardContent className="p-0">
-          {groups && groups.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {groups
-                .filter(group => group && group._id) // Filter out any invalid groups
-                .map((group, index) => (
-                  <DeliverableGroup
-                    key={group._id}
-                    group={group}
-                    deliverables={getDeliverablesByGroup(group._id)}
-                    tasksByDeliverable={tasksByDeliverable}
-                    isFirst={index === 0}
-                    isLast={index === groups.length - 1}
-                    onMoveUp={() => handleMoveGroup(group._id, 'up')}
-                    onMoveDown={() => handleMoveGroup(group._id, 'down')}
-                    onDelete={handleDeleteGroup}
-                    onRename={handleRenameGroup}
-                    onAddDeliverable={handleAddDeliverable}
-                    onEditDeliverable={handleEditDeliverable}
-                    onDeleteDeliverable={handleDeleteDeliverable}
-                    onAddTask={handleAddTask}
-                    onToggleTask={handleToggleTask}
-                    onEditTask={handleEditTask}
-                    onDeleteTask={handleDeleteTask}
-                    onUpdateField={handleUpdateField}
-                  />
-                ))}
-            </div>
-          ) : (
-            <div className="py-12">
-              <div className="text-center space-y-4">
-                <div>
-                  <FolderPlus className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No groups yet</h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Create a group to start organizing your deliverables
-                  </p>
-                </div>
-                <Button onClick={handleAddGroup} size="lg" className="gap-2">
-                  <FolderPlus className="w-4 h-4" />
-                  Create Your First Group
-                </Button>
+          {viewMode === 'table' ? (
+            // Table View
+            groups && groups.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {groups
+                  .filter(group => group && group._id)
+                  .map((group, index) => (
+                    <DeliverableGroup
+                      key={group._id}
+                      group={group}
+                      deliverables={getDeliverablesByGroup(group._id)}
+                      tasksByDeliverable={tasksByDeliverable}
+                      isFirst={index === 0}
+                      isLast={index === groups.length - 1}
+                      onMoveUp={() => handleMoveGroup(group._id, 'up')}
+                      onMoveDown={() => handleMoveGroup(group._id, 'down')}
+                      onDelete={handleDeleteGroup}
+                      onRename={handleRenameGroup}
+                      onAddDeliverable={handleAddDeliverable}
+                      onEditDeliverable={handleEditDeliverable}
+                      onDeleteDeliverable={handleDeleteDeliverable}
+                      onAddTask={handleAddTask}
+                      onToggleTask={handleToggleTask}
+                      onEditTask={handleEditTask}
+                      onDeleteTask={handleDeleteTask}
+                      onUpdateField={handleUpdateField}
+                    />
+                  ))}
               </div>
+            ) : (
+              <div className="py-12">
+                <div className="text-center space-y-4">
+                  <div>
+                    <FolderPlus className="w-12 h-12 mx-auto text-gray-400 mb-3" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No groups yet</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Create a group to start organizing your deliverables
+                    </p>
+                  </div>
+                  <Button onClick={handleAddGroup} size="lg" className="gap-2">
+                    <FolderPlus className="w-4 h-4" />
+                    Create Your First Group
+                  </Button>
+                </div>
+              </div>
+            )
+          ) : (
+            // Timeline View (Gantt Chart)
+            <div className="p-4">
+              <DeliverableGanttChart
+                groups={groups}
+                deliverables={deliverables}
+                tasksByDeliverable={tasksByDeliverable}
+                onItemClick={handleGanttItemClick}
+                onAddGroup={handleAddGroup}
+                onAddDeliverable={handleGanttAddDeliverable}
+                onAddTask={handleGanttAddTask}
+              />
             </div>
           )}
         </CardContent>
