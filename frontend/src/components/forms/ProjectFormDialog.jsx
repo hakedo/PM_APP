@@ -40,10 +40,15 @@ export function ProjectFormDialog({
               variant="outline" 
               onClick={() => onOpenChange(false)}
               disabled={loading}
+              className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button 
+              type="submit" 
+              disabled={loading}
+              className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+            >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create Project
             </Button>
