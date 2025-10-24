@@ -45,14 +45,13 @@ export function ProjectFormFields({ project, onChange }) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="endDate">End Date *</Label>
+          <Label htmlFor="endDate">End Date (optional)</Label>
           <Input
             id="endDate"
             name="endDate"
             type="date"
             value={project.endDate}
             onChange={handleInputChange}
-            required
           />
         </div>
       </div>
