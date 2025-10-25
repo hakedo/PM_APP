@@ -270,6 +270,7 @@ export function DeliverableFormDialog({
                 required
                 placeholder="Enter deliverable name"
                 className="h-9 text-sm"
+                autoComplete="off"
               />
             </div>
 

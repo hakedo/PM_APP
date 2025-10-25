@@ -9,6 +9,7 @@ export { Label } from './label';
 export { Textarea } from './textarea';
 export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from './dropdown-menu';
 export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption } from './table';
+export { DataTable } from './data-table';
 export { Badge } from './badge';
 export { Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem, SelectSeparator } from './select';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs';

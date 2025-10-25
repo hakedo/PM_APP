@@ -6,7 +6,7 @@ import { Button } from "./button";
 import { Calendar } from "./calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 
-export function DatePicker({ value, onChange, placeholder = "Pick a date", className }) {
+export function DatePicker({ value, onChange, placeholder = "Pick a date", className, minDate, maxDate }) {
   const [open, setOpen] = React.useState(false);
   
   const handleSelect = (date) => {
@@ -19,6 +19,17 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
   };
 
   const displayDate = value ? format(new Date(value), 'MM/dd/yyyy') : null;
+
+  // Prepare disabled dates matcher
+  const disabledMatcher = (date) => {
+    if (minDate && date < new Date(minDate)) {
+      return true;
+    }
+    if (maxDate && date > new Date(maxDate)) {
+      return true;
+    }
+    return false;
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -40,6 +51,7 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
           mode="single"
           selected={value ? new Date(value) : undefined}
           onSelect={handleSelect}
+          disabled={disabledMatcher}
           initialFocus
         />
       </PopoverContent>

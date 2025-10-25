@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Package, Plus, FolderPlus, Table, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '../ui';
-import { DeliverableGroup, DeliverableFormDialog, TaskFormDialog, GroupFormDialog } from '../deliverables';
+import { GroupedDeliverableTable, DeliverableFormDialog, TaskFormDialog, GroupFormDialog } from '../deliverables';
 import DeliverableGanttChart from '../gantt/DeliverableGanttChart';
 import { deliverableService, deliverableGroupService } from '@/services';
 import { formatDateForInput } from '@/utils/dateUtils';
@@ -268,6 +268,20 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     e.preventDefault();
     setSubmittingTask(true);
     
+    // Validate task date is within deliverable range
+    const deliverable = deliverables.find(d => d._id === currentDeliverableId);
+    if (deliverable) {
+      const taskDate = new Date(currentTask.dueDate);
+      const deliverableStart = new Date(deliverable.startDate);
+      const deliverableEnd = new Date(deliverable.endDate);
+      
+      if (taskDate < deliverableStart || taskDate > deliverableEnd) {
+        alert(`Task due date must be between ${new Date(deliverable.startDate).toLocaleDateString()} and ${new Date(deliverable.endDate).toLocaleDateString()}`);
+        setSubmittingTask(false);
+        return;
+      }
+    }
+    
     try {
       if (taskMode === 'create') {
         await deliverableService.createTask(currentDeliverableId, currentTask);
@@ -423,7 +437,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
         </CardHeader>
 
         {/* Content */}
-        <CardContent className="p-6 bg-gray-50">
+        <CardContent className="p-6">
           {viewMode === 'table' ? (
             // Table View
             groups && groups.length > 0 ? (
@@ -431,7 +445,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
                 {groups
                   .filter(group => group && group._id)
                   .map((group, index) => (
-                    <DeliverableGroup
+                    <GroupedDeliverableTable
                       key={group._id}
                       group={group}
                       deliverables={getDeliverablesByGroup(group._id)}
@@ -512,6 +526,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
         onSubmit={handleSubmitTask}
         loading={submittingTask}
         mode={taskMode}
+        deliverable={deliverables.find(d => d._id === currentDeliverableId)}
       />
 
       <GroupFormDialog

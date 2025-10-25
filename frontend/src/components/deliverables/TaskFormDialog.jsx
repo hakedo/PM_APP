@@ -8,11 +8,18 @@ export function TaskFormDialog({
   onChange, 
   onSubmit, 
   loading = false,
-  mode = 'create' 
+  mode = 'create',
+  deliverable
 }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onSubmit(e);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   return (
@@ -27,6 +34,11 @@ export function TaskFormDialog({
               ? 'Add a new task to this deliverable'
               : 'Update task information'
             }
+            {deliverable && (
+              <span className="block mt-2 text-blue-600 font-medium">
+                Deliverable: {deliverable.name} ({formatDate(deliverable.startDate)} - {formatDate(deliverable.endDate)})
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
         
@@ -41,15 +53,25 @@ export function TaskFormDialog({
                 onChange={(e) => onChange({ ...task, name: e.target.value })}
                 required
                 placeholder="Enter task name"
+                autoComplete="off"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Due Date *</Label>
+              <Label htmlFor="dueDate">
+                Due Date *
+                {deliverable && (
+                  <span className="text-xs text-gray-500 font-normal ml-2">
+                    (Must be between {formatDate(deliverable.startDate)} and {formatDate(deliverable.endDate)})
+                  </span>
+                )}
+              </Label>
               <DatePicker
                 value={task.dueDate}
                 onChange={(date) => onChange({ ...task, dueDate: date })}
                 placeholder="Select due date"
+                minDate={deliverable?.startDate}
+                maxDate={deliverable?.endDate}
               />
             </div>
           </div>

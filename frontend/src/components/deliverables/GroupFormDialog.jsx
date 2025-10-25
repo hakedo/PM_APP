@@ -44,6 +44,7 @@ export function GroupFormDialog({
                 placeholder="Enter group name"
                 required
                 autoFocus
+                autoComplete="off"
               />
             </div>
           </div>
