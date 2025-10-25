@@ -1,5 +1,5 @@
 import { Plus, Circle, Check, MoreVertical, Edit2, Trash2 } from 'lucide-react';
-import { Card, Button, Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input } from '../ui';
+import { Card, Button, Checkbox, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input, DatePicker, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui';
 import { DataTable } from '../ui/data-table';
 import { createDeliverableColumns } from './deliverable-columns';
 import { cn } from '@/lib/utils';
@@ -144,24 +144,58 @@ export function DeliverableDataTable({
                       )}
                     </div>
 
-                    {/* Due Date */}
-                    <div className="text-xs text-gray-600 font-medium bg-gray-100 px-3 py-1.5 rounded border border-gray-200">
-                      {formatDateShort(task.dueDate)}
+                    {/* Due Date - Editable */}
+                    <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <DatePicker
+                        value={task.dueDate}
+                        onChange={(date) => onEditTask(deliverable._id, { ...task, dueDate: date })}
+                        placeholder="Set date"
+                        minDate={deliverable.startDate}
+                        maxDate={deliverable.endDate}
+                        className="text-xs font-medium border-0 bg-gray-100 hover:bg-blue-50 transition-all h-7 px-3"
+                      />
                     </div>
 
-                    {/* Status Badge */}
-                    <div className="flex items-center">
-                      {task.status === 'completed' ? (
-                        <div className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                          <Check className="w-3.5 h-3.5" />
-                          <span className="text-xs font-semibold">Done</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                          <Circle className="w-3.5 h-3.5" />
-                          <span className="text-xs font-semibold">Todo</span>
-                        </div>
-                      )}
+                    {/* Status Badge - Editable */}
+                    <div className="flex items-center flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={task.status}
+                        onValueChange={(value) => {
+                          // Call onToggleTask which handles the status update
+                          onToggleTask(deliverable._id, task._id, task.status);
+                        }}
+                      >
+                        <SelectTrigger 
+                          className="h-7 border-0 shadow-none hover:bg-blue-50 rounded-full w-auto px-2 py-1 transition-all [&>svg]:hidden"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {task.status === 'completed' ? (
+                            <div className="flex items-center gap-1 text-green-600 bg-green-50 px-1 rounded-full">
+                              <Check className="w-3.5 h-3.5" />
+                              <span className="text-xs font-semibold">Done</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-blue-600 bg-blue-50 px-1 rounded-full">
+                              <Circle className="w-3.5 h-3.5" />
+                              <span className="text-xs font-semibold">Todo</span>
+                            </div>
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="not-started">
+                            <div className="flex items-center gap-2">
+                              <Circle className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Todo</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="completed">
+                            <div className="flex items-center gap-2">
+                              <Check className="w-3.5 h-3.5 text-green-600" />
+                              <span>Done</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Actions */}

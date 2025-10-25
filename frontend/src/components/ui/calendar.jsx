@@ -215,22 +215,25 @@ function Calendar({
                   className={cn(
                     "h-7 w-full flex items-center justify-center text-xs transition-colors relative z-10",
                     !day.isCurrentMonth && "text-gray-300 hover:bg-transparent cursor-default",
-                    day.isCurrentMonth && "text-gray-700",
-                    isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                    day.isCurrentMonth && !isDisabled && "text-gray-700",
+                    isDisabled && day.isCurrentMonth && "text-gray-300 bg-gray-50 cursor-not-allowed hover:bg-gray-50 line-through",
+                    !isDisabled && day.isCurrentMonth && "hover:bg-blue-50"
                   )}
                 >
                   <span className={cn(
                     "flex items-center justify-center transition-all",
+                    // Disabled dates styling
+                    isDisabled && day.isCurrentMonth && "opacity-40",
                     // Today indicator (when not selected as start/end)
-                    dayIsToday && !rangeStart && !rangeEnd && "w-7 h-7 rounded-full ring-2 ring-red-300 ring-inset text-red-500 font-medium",
+                    dayIsToday && !rangeStart && !rangeEnd && !isDisabled && "w-7 h-7 rounded-full ring-2 ring-red-300 ring-inset text-red-500 font-medium",
                     // Single day - circle with ring
                     isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full ring-2 ring-blue-300 ring-offset-1",
                     // Start date only - solid circle
                     rangeStart && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
                     // End date - solid circle
                     rangeEnd && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
-                    // Hover states
-                    day.isCurrentMonth && !rangeStart && !rangeEnd && !inRange && "hover:bg-gray-100 rounded-full w-7 h-7",
+                    // Hover states for enabled dates
+                    day.isCurrentMonth && !rangeStart && !rangeEnd && !inRange && !isDisabled && "hover:bg-blue-100 rounded-full w-7 h-7",
                     isSingleDay && "hover:bg-blue-600 hover:ring-blue-400",
                     (rangeStart || rangeEnd) && !isSingleDay && "hover:bg-blue-600"
                   )}>

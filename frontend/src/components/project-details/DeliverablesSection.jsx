@@ -106,11 +106,13 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     
     setSubmittingGroup(true);
     try {
-      await deliverableGroupService.create({
+      const newGroup = await deliverableGroupService.create({
         project: projectId,
         name: groupName.trim()
       });
-      await fetchData();
+      
+      // Optimistic update
+      setGroups(prev => [...prev, newGroup]);
       setGroupDialogOpen(false);
       setGroupName('');
     } catch (error) {
@@ -122,12 +124,16 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   };
 
   const handleRenameGroup = async (groupId, newName) => {
+    // Optimistic update
+    setGroups(prev => prev.map(g => g._id === groupId ? { ...g, name: newName } : g));
+    
     try {
       await deliverableGroupService.update(groupId, { name: newName });
-      await fetchData();
     } catch (error) {
       console.error('Error renaming group:', error);
       alert('Failed to rename group. Please try again.');
+      // Revert on error
+      fetchData();
     }
   };
 
@@ -143,9 +149,11 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
       return;
     }
     
+    // Optimistic update
+    setGroups(prev => prev.filter(g => g._id !== groupId));
+    
     try {
       await deliverableGroupService.delete(groupId);
-      await fetchData();
     } catch (error) {
       console.error('Error deleting group:', error);
       alert('Failed to delete group. Please try again.');
@@ -206,15 +214,23 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     
     try {
       if (deliverableMode === 'create') {
-        await deliverableService.create({
+        const newDeliverable = await deliverableService.create({
           ...currentDeliverable,
           project: projectId
         });
+        
+        // Optimistic update
+        setDeliverables(prev => [...prev, newDeliverable]);
+        setTasksByDeliverable(prev => ({ ...prev, [newDeliverable._id]: [] }));
       } else {
         await deliverableService.update(editingDeliverableId, currentDeliverable);
+        
+        // Optimistic update
+        setDeliverables(prev => prev.map(d => 
+          d._id === editingDeliverableId ? { ...d, ...currentDeliverable } : d
+        ));
       }
       
-      await fetchData();
       setDeliverableDialogOpen(false);
       setCurrentDeliverable(emptyDeliverable);
       setEditingDeliverableId(null);
@@ -231,12 +247,21 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
       return;
     }
     
+    // Optimistic update
+    setDeliverables(prev => prev.filter(d => d._id !== id));
+    setTasksByDeliverable(prev => {
+      const newTasks = { ...prev };
+      delete newTasks[id];
+      return newTasks;
+    });
+    
     try {
       await deliverableService.delete(id);
-      await fetchData();
     } catch (error) {
       console.error('Error deleting deliverable:', error);
       alert('Failed to delete deliverable. Please try again.');
+      // Revert on error
+      fetchData();
     }
   };
 
@@ -284,12 +309,25 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     
     try {
       if (taskMode === 'create') {
-        await deliverableService.createTask(currentDeliverableId, currentTask);
+        const newTask = await deliverableService.createTask(currentDeliverableId, currentTask);
+        
+        // Optimistic update
+        setTasksByDeliverable(prev => ({
+          ...prev,
+          [currentDeliverableId]: [...(prev[currentDeliverableId] || []), newTask]
+        }));
       } else {
         await deliverableService.updateTask(currentDeliverableId, editingTaskId, currentTask);
+        
+        // Optimistic update
+        setTasksByDeliverable(prev => ({
+          ...prev,
+          [currentDeliverableId]: (prev[currentDeliverableId] || []).map(t =>
+            t._id === editingTaskId ? { ...t, ...currentTask } : t
+          )
+        }));
       }
       
-      await fetchData();
       setTaskDialogOpen(false);
       setCurrentTask(emptyTask);
       setCurrentDeliverableId(null);
@@ -303,12 +341,22 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   };
 
   const handleToggleTask = async (deliverableId, taskId, currentStatus) => {
+    const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+    
+    // Optimistic update
+    setTasksByDeliverable(prev => ({
+      ...prev,
+      [deliverableId]: (prev[deliverableId] || []).map(t =>
+        t._id === taskId ? { ...t, status: newStatus } : t
+      )
+    }));
+    
     try {
-      const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
       await deliverableService.updateTask(deliverableId, taskId, { status: newStatus });
-      await fetchData();
     } catch (error) {
       console.error('Error toggling task:', error);
+      // Revert on error
+      fetchData();
     }
   };
 
@@ -317,12 +365,19 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
       return;
     }
     
+    // Optimistic update
+    setTasksByDeliverable(prev => ({
+      ...prev,
+      [deliverableId]: (prev[deliverableId] || []).filter(t => t._id !== taskId)
+    }));
+    
     try {
       await deliverableService.deleteTask(deliverableId, taskId);
-      await fetchData();
     } catch (error) {
       console.error('Error deleting task:', error);
       alert('Failed to delete task. Please try again.');
+      // Revert on error
+      fetchData();
     }
   };
 
