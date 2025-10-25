@@ -107,8 +107,15 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
       endDate, 
       formatted,
       willSetStartDate: !selectingEnd,
-      willSetEndDate: selectingEnd
+      willSetEndDate: selectingEnd,
+      durationType
     })
+    
+    // Switch to days mode when manually selecting dates via calendar while in weeks mode
+    if (durationType === "weeks") {
+      console.log('🔄 Switching to days mode due to manual calendar date selection')
+      setDurationType("days")
+    }
     
     if (selectingEnd) {
       // Selecting end date
@@ -118,6 +125,14 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
         start.setHours(0, 0, 0, 0)
         const selectedDate = new Date(date)
         selectedDate.setHours(0, 0, 0, 0)
+        
+        console.log('🔍 Date comparison:', {
+          start: start.toISOString(),
+          selected: selectedDate.toISOString(),
+          isBefore: selectedDate < start,
+          isEqual: selectedDate.getTime() === start.getTime(),
+          isAfter: selectedDate > start
+        })
         
         // Allow end date to be same as or after start date (allows single-day deliverables)
         if (selectedDate < start) {
@@ -221,8 +236,8 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
       console.log('📊 Converting units:', { actualDays, fromType: durationType, toType: type })
       
       if (type === "weeks") {
-        // When switching to weeks, round to nearest week and update end date
-        const weeks = Math.round(actualDays / 7)
+        // When switching to weeks, round to nearest week (minimum 1 week)
+        const weeks = Math.max(1, Math.round(actualDays / 7))
         console.log('  → Rounding to weeks:', weeks)
         setDuration(weeks)
         
@@ -260,6 +275,13 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
       
       if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
         const formatted = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+        
+        // Switch to days mode when manually editing dates
+        if (durationType === "weeks") {
+          console.log('🔄 Switching to days mode due to manual start date change')
+          setDurationType("days")
+        }
+        
         onStartDateChange(formatted)
         
         // If end date exists and is before new start date, adjust end date to match start date
@@ -290,6 +312,12 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
       if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
         const formatted = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
         
+        // Switch to days mode when manually editing dates
+        if (durationType === "weeks") {
+          console.log('🔄 Switching to days mode due to manual end date change')
+          setDurationType("days")
+        }
+        
         // Validate that end date is not before start date
         if (startDate) {
           const start = parseDate(startDate)
@@ -299,8 +327,11 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
           
           if (end >= start) {
             onEndDateChange(formatted)
+          } else {
+            // Reset input to current valid end date
+            console.log('❌ End date is before start date, resetting input')
+            setEndDateInput(endDate ? formatDate(endDate) : "")
           }
-          // If end date is before start, don't update (silently reject invalid input)
         } else {
           onEndDateChange(formatted)
         }
@@ -413,7 +444,18 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
           disabled={(date) => {
             // When selecting end date, disable dates before start date
             if (selectingEnd && startDate) {
-              return date < parseDate(startDate)
+              const start = parseDate(startDate)
+              const checkDate = new Date(date)
+              // Normalize both to midnight for accurate comparison
+              start.setHours(0, 0, 0, 0)
+              checkDate.setHours(0, 0, 0, 0)
+              const isDisabled = checkDate < start
+              console.log('🔍 Calendar disabled check:', {
+                date: date.toDateString(),
+                startDate: start.toDateString(),
+                isDisabled
+              })
+              return isDisabled
             }
             // When selecting start date, disable dates before project start date
             if (!selectingEnd && projectStartDate) {
