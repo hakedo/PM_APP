@@ -369,9 +369,9 @@ function DeliverableGanttChart({
                 {/* Group container background */}
                 {group.calculatedStartDate && group.calculatedEndDate && (
                   <div 
-                    className="absolute left-[280px] top-0 bottom-0 pointer-events-none z-0"
+                    className="absolute top-0 bottom-0 overflow-hidden"
                     style={{ 
-                      marginLeft: `${(() => {
+                      left: `${280 + (() => {
                         const start = parseLocalDate(group.calculatedStartDate);
                         const startOffset = Math.max(0, (start - minDate) / (24 * 60 * 60 * 1000));
                         const pixelsPerDay = cellWidth / interval;
@@ -388,15 +388,22 @@ function DeliverableGanttChart({
                   >
                     {expandedGroups[group._id] ? (
                       <>
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-l-sm"></div>
-                        <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-r-sm"></div>
-                        <div className="absolute inset-0 bg-blue-50/15 pointer-events-none"></div>
-                        <div className="absolute -top-5 left-2 text-[10px] font-bold text-blue-600 uppercase tracking-wide truncate max-w-full pr-4">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-l-sm pointer-events-none z-0"></div>
+                        <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-r-sm pointer-events-none z-0"></div>
+                        <div className="absolute inset-0 bg-blue-50/15 pointer-events-none z-0"></div>
+                        <div className="absolute -top-5 left-2 text-[10px] font-bold text-blue-600 uppercase tracking-wide truncate max-w-full pr-4 pointer-events-none z-0">
                           {group.name}
                         </div>
                       </>
                     ) : (
-                      <div className="absolute top-2 h-8 rounded-full bg-blue-400/70 shadow-md flex items-center px-4 left-0 right-0">
+                      <div 
+                        className="absolute top-2 h-8 rounded-full bg-blue-400/70 shadow-md flex items-center px-4 left-1 right-1 cursor-pointer hover:bg-blue-500/80 transition-colors duration-150 z-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpand(group._id);
+                        }}
+                        title={`Click to expand ${group.name}`}
+                      >
                         <FolderOpen className="w-3.5 h-3.5 mr-2 text-white" />
                         <span className="text-xs font-semibold text-white truncate drop-shadow-sm">
                           {group.name}
