@@ -10,6 +10,7 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
   const [selectingEnd, setSelectingEnd] = React.useState(false)
   const [duration, setDuration] = React.useState(7)
   const [durationType, setDurationType] = React.useState("days") // "days" or "weeks"
+  const [dayType, setDayType] = React.useState("calendar") // "calendar" or "business" - only for days mode
   const [startDateInput, setStartDateInput] = React.useState("")
   const [endDateInput, setEndDateInput] = React.useState("")
   const [initialized, setInitialized] = React.useState(false)
@@ -51,39 +52,82 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
     return `${month}/${day}/${year}`
   }
 
+  // Calculate business days between two dates (excluding weekends)
+  const calculateBusinessDays = (startDate, endDate) => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    let count = 0
+    const current = new Date(start)
+    
+    while (current <= end) {
+      const dayOfWeek = current.getDay()
+      // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        count++
+      }
+      current.setDate(current.getDate() + 1)
+    }
+    
+    return count
+  }
+
+  // Add business days to a start date
+  const addBusinessDays = (startDate, days) => {
+    const result = new Date(startDate)
+    let addedDays = 0
+    
+    while (addedDays < days) {
+      result.setDate(result.getDate() + 1)
+      const dayOfWeek = result.getDay()
+      // Skip weekends
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        addedDays++
+      }
+    }
+    
+    return result
+  }
+
   // Update duration when dates change
   React.useEffect(() => {
     if (startDate && endDate) {
       const start = parseDate(startDate)
       const end = parseDate(endDate)
       
-      // Calculate the number of days between dates (inclusive)
-      // We need to count both the start and end dates
-      const diffTime = end - start
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
-      
-      // Add 1 to make it inclusive (e.g., Oct 22 to Oct 24 = 3 days: 22, 23, 24)
-      const actualDays = diffDays + 1
-      
       console.log('🔄 useEffect recalculating duration:', { 
         startDate, 
         endDate, 
-        diffDays, 
-        actualDays, 
         durationType,
+        dayType,
         currentDuration: duration
       })
       
       // Update duration based on type
       if (durationType === "weeks") {
+        // Calculate calendar days for weeks
+        const diffTime = end - start
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+        const actualDays = diffDays + 1
         const calculatedWeeks = Math.round(actualDays / 7)
-        console.log('📊 Weeks calculation:', { actualDays, calculatedWeeks })
+        console.log('� Weeks calculation:', { actualDays, calculatedWeeks })
         setDuration(calculatedWeeks)
       } else {
-        setDuration(actualDays)
+        // Calculate based on day type (calendar or business)
+        if (dayType === "business") {
+          const businessDays = calculateBusinessDays(start, end)
+          console.log('💼 Business days calculation:', { businessDays })
+          setDuration(businessDays)
+        } else {
+          // Calendar days
+          const diffTime = end - start
+          const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+          const actualDays = diffDays + 1
+          console.log('📅 Calendar days calculation:', { actualDays })
+          setDuration(actualDays)
+        }
       }
     }
-  }, [startDate, endDate, durationType])
+  }, [startDate, endDate, durationType, dayType])
 
   // Update input fields when dates change
   React.useEffect(() => {
@@ -194,21 +238,37 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
     const amount = parseInt(value)
     if (isNaN(amount) || amount < 1) return // Minimum 1 day/week
     
-    console.log('🔢 handleDurationChange:', { value, amount, durationType, startDate })
+    console.log('🔢 handleDurationChange:', { value, amount, durationType, dayType, startDate })
     
     setDuration(amount)
     if (startDate) {
       const start = parseDate(startDate)
-      const newEnd = new Date(start)
+      let newEnd
       
       // Calculate based on duration type
       if (durationType === "weeks") {
         const daysToAdd = (amount * 7) - 1
-        newEnd.setDate(newEnd.getDate() + daysToAdd) // -1 to make it inclusive
+        newEnd = new Date(start)
+        newEnd.setDate(newEnd.getDate() + daysToAdd)
         console.log('📆 Weeks calculation:', { amount, daysToAdd, startDate, newEndDate: newEnd.toDateString() })
       } else {
-        newEnd.setDate(newEnd.getDate() + amount - 1) // -1 to make it inclusive (1 day = same day)
-        console.log('📆 Days calculation:', { amount, startDate, newEndDate: newEnd.toDateString() })
+        // Days mode - check if business or calendar
+        if (dayType === "business") {
+          // Add business days
+          if (amount === 1) {
+            // Single business day = same day
+            newEnd = new Date(start)
+          } else {
+            // For n business days, we need to add (n-1) business days to the start
+            newEnd = addBusinessDays(start, amount - 1)
+          }
+          console.log('💼 Business days calculation:', { amount, startDate, newEndDate: newEnd.toDateString() })
+        } else {
+          // Calendar days
+          newEnd = new Date(start)
+          newEnd.setDate(newEnd.getDate() + amount - 1) // -1 to make it inclusive (1 day = same day)
+          console.log('📅 Calendar days calculation:', { amount, startDate, newEndDate: newEnd.toDateString() })
+        }
       }
       
       const year = newEnd.getFullYear()
@@ -258,6 +318,29 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
       } else {
         // Display in days - no adjustment needed
         console.log('  → Display as days:', actualDays)
+        setDuration(actualDays)
+      }
+    }
+  }
+
+  const handleDayTypeChange = (type) => {
+    console.log('🔄 Switching day type to:', type)
+    setDayType(type)
+    
+    // Recalculate duration with new day type
+    if (startDate && endDate) {
+      const start = parseDate(startDate)
+      const end = parseDate(endDate)
+      
+      if (type === "business") {
+        const businessDays = calculateBusinessDays(start, end)
+        console.log('  → Recalculating as business days:', businessDays)
+        setDuration(businessDays)
+      } else {
+        const diffTime = end - start
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
+        const actualDays = diffDays + 1
+        console.log('  → Recalculating as calendar days:', actualDays)
         setDuration(actualDays)
       }
     }
@@ -431,6 +514,37 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
                   className="w-3 h-3 text-blue-500 cursor-pointer"
                 />
                 <span className="text-xs text-gray-700">Weeks</span>
+              </label>
+            </div>
+            
+            {/* Day Type Radio Buttons - Always reserve space, hide when in weeks mode */}
+            <div className={cn(
+              "flex items-center gap-3 px-1 mt-1",
+              durationType === "weeks" && "invisible"
+            )}>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dayType"
+                  value="calendar"
+                  checked={dayType === "calendar"}
+                  onChange={(e) => handleDayTypeChange(e.target.value)}
+                  className="w-3 h-3 text-blue-500 cursor-pointer"
+                  disabled={durationType === "weeks"}
+                />
+                <span className="text-xs text-gray-700">Calendar</span>
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input
+                  type="radio"
+                  name="dayType"
+                  value="business"
+                  checked={dayType === "business"}
+                  onChange={(e) => handleDayTypeChange(e.target.value)}
+                  className="w-3 h-3 text-blue-500 cursor-pointer"
+                  disabled={durationType === "weeks"}
+                />
+                <span className="text-xs text-gray-700">Business</span>
               </label>
             </div>
           </div>
