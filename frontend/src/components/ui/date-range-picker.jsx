@@ -13,8 +13,11 @@ export function DateRangePicker({ startDate, endDate, onStartDateChange, onEndDa
     // Always in range mode
     if (selectingEnd) {
       // Selecting end date
-      if (startDate && date < new Date(startDate)) {
-        return
+      if (startDate) {
+        const startDateObj = parseDate(startDate)
+        if (startDateObj && date < startDateObj) {
+          return
+        }
       }
       // Format as YYYY-MM-DD using the date components directly to avoid timezone issues
       const year = date.getFullYear()
@@ -26,6 +29,18 @@ export function DateRangePicker({ startDate, endDate, onStartDateChange, onEndDa
       setSelectingEnd(false)
     } else {
       // Selecting start date
+      // Validate: start date cannot be after end date (but can be same day)
+      if (endDate) {
+        const endDateObj = parseDate(endDate)
+        if (endDateObj) {
+          endDateObj.setHours(0, 0, 0, 0)
+          const selectedDate = new Date(date)
+          selectedDate.setHours(0, 0, 0, 0)
+          if (selectedDate > endDateObj) {
+            return
+          }
+        }
+      }
       // Format as YYYY-MM-DD using the date components directly to avoid timezone issues
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -41,12 +56,21 @@ export function DateRangePicker({ startDate, endDate, onStartDateChange, onEndDa
     if (!dateString) return null
     
     // Handle YYYY-MM-DD format as local date
-    if (typeof dateString === 'string' && dateString.includes('-')) {
+    if (typeof dateString === 'string' && dateString.includes('-') && !dateString.includes('T')) {
       const [year, month, day] = dateString.split('-').map(Number)
       return new Date(year, month - 1, day, 0, 0, 0, 0)
     }
     
-    return new Date(dateString)
+    // Handle ISO timestamp - extract date from the string to avoid timezone conversion
+    if (typeof dateString === 'string' && dateString.includes('T')) {
+      const datePart = dateString.split('T')[0]
+      const [year, month, day] = datePart.split('-').map(Number)
+      return new Date(year, month - 1, day, 0, 0, 0, 0)
+    }
+    
+    // Fallback for other formats
+    const date = new Date(dateString)
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
   }
 
   const formatDate = (date) => {
@@ -124,22 +148,40 @@ export function DateRangePicker({ startDate, endDate, onStartDateChange, onEndDa
             selected={selectingEnd ? (endDate ? new Date(endDate) : null) : (startDate ? new Date(startDate) : null)}
             onSelect={handleDateSelect}
             disabled={(date) => {
+              // Create a clean date at local midnight using date components
+              const checkDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
+              
               // When selecting end date, disable dates before start date
               if (selectingEnd && startDate) {
-                return date < new Date(startDate)
-              }
-              // When selecting start date, disable dates before project start date
-              if (!selectingEnd && projectStartDate) {
-                const projectStart = parseDate(projectStartDate)
-                if (projectStart) {
-                  // Set both dates to midnight for comparison
-                  const checkDate = new Date(date)
-                  checkDate.setHours(0, 0, 0, 0)
-                  projectStart.setHours(0, 0, 0, 0)
-                  // Disable dates strictly before project start (allow same day)
-                  return checkDate < projectStart
+                const startDateObj = parseDate(startDate)
+                if (startDateObj) {
+                  return checkDate.getTime() < startDateObj.getTime()
                 }
               }
+              
+              // When selecting start date
+              if (!selectingEnd) {
+                // Disable dates after end date (allow same day with <=)
+                if (endDate) {
+                  const endDateObj = parseDate(endDate)
+                  if (endDateObj) {
+                    // Start date must be <= end date, so disable if start > end
+                    if (checkDate.getTime() > endDateObj.getTime()) {
+                      return true
+                    }
+                  }
+                }
+                
+                // Disable dates before project start date
+                if (projectStartDate) {
+                  const projectStart = parseDate(projectStartDate)
+                  if (projectStart) {
+                    // Disable dates strictly before project start (allow same day)
+                    return checkDate.getTime() < projectStart.getTime()
+                  }
+                }
+              }
+              
               return false
             }}
             selectedRange={startDate && endDate ? { start: startDate, end: endDate } : null}
