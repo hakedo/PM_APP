@@ -3,6 +3,36 @@
  */
 
 /**
+ * Parse date string to local Date object
+ * @param {string} dateString - Date string (YYYY-MM-DD or ISO format)
+ * @returns {Date|null} Date object or null
+ */
+const parseLocalDate = (dateString) => {
+  if (!dateString) return null;
+  
+  // If it's an ISO string with timezone
+  if (typeof dateString === 'string' && dateString.includes('T')) {
+    // Extract date portion directly from ISO string to avoid timezone conversion
+    const datePart = dateString.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+  
+  // If it's a YYYY-MM-DD string
+  if (typeof dateString === 'string' && dateString.includes('-')) {
+    const [year, month, day] = dateString.split('-').map(Number);
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+  
+  // Fallback for Date objects
+  if (dateString instanceof Date) {
+    return new Date(dateString.getFullYear(), dateString.getMonth(), dateString.getDate(), 0, 0, 0, 0);
+  }
+  
+  return null;
+};
+
+/**
  * Calculate the total date range for the Gantt chart
  * @param {Array} milestones - Array of milestones with calculated dates
  * @param {string} viewMode - View mode: 'day', 'week', 'month', or 'auto'
@@ -31,8 +61,8 @@ export const calculateDateRange = (milestones, viewMode = 'auto') => {
 
   // Find earliest start and latest end across all items
   milestones.forEach(milestone => {
-    const mStart = milestone.calculatedStartDate ? new Date(milestone.calculatedStartDate) : null;
-    const mEnd = milestone.calculatedEndDate ? new Date(milestone.calculatedEndDate) : null;
+    const mStart = parseLocalDate(milestone.calculatedStartDate);
+    const mEnd = parseLocalDate(milestone.calculatedEndDate);
 
     if (mStart && (!minDate || mStart < minDate)) minDate = mStart;
     if (mEnd && (!maxDate || mEnd > maxDate)) maxDate = mEnd;
@@ -40,8 +70,8 @@ export const calculateDateRange = (milestones, viewMode = 'auto') => {
     // Check deliverables
     if (milestone.deliverables) {
       milestone.deliverables.forEach(deliverable => {
-        const dStart = deliverable.calculatedStartDate ? new Date(deliverable.calculatedStartDate) : null;
-        const dEnd = deliverable.calculatedEndDate ? new Date(deliverable.calculatedEndDate) : null;
+        const dStart = parseLocalDate(deliverable.calculatedStartDate);
+        const dEnd = parseLocalDate(deliverable.calculatedEndDate);
 
         if (dStart && (!minDate || dStart < minDate)) minDate = dStart;
         if (dEnd && (!maxDate || dEnd > maxDate)) maxDate = dEnd;
@@ -49,8 +79,8 @@ export const calculateDateRange = (milestones, viewMode = 'auto') => {
         // Check tasks
         if (deliverable.tasks) {
           deliverable.tasks.forEach(task => {
-            const tStart = task.calculatedStartDate ? new Date(task.calculatedStartDate) : null;
-            const tEnd = task.calculatedEndDate ? new Date(task.calculatedEndDate) : null;
+            const tStart = parseLocalDate(task.calculatedStartDate);
+            const tEnd = parseLocalDate(task.calculatedEndDate);
 
             if (tStart && (!minDate || tStart < minDate)) minDate = tStart;
             if (tEnd && (!maxDate || tEnd > maxDate)) maxDate = tEnd;
@@ -170,11 +200,15 @@ export const calculateBarPosition = (startDate, endDate, minDate, cellWidth, int
     return { left: 0, width: 0 };
   }
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
+  
+  if (!start || !end) {
+    return { left: 0, width: 0 };
+  }
   
   const startOffset = Math.max(0, (start - minDate) / (24 * 60 * 60 * 1000));
-  const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000));
+  const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000)) + 1; // +1 to make it inclusive
 
   // Calculate pixel positions based on cell width and interval
   const pixelsPerDay = cellWidth / interval;

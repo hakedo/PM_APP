@@ -5,13 +5,18 @@ import { cn } from "@/lib/utils"
 // Parse date string to local Date object
 const parseDate = (dateString) => {
   if (!dateString) return null
-  // If it's already a full ISO string, parse it directly
+  
+  // If it's an ISO string with timezone
   if (dateString.includes('T')) {
-    return new Date(dateString)
+    // Extract date portion directly from ISO string to avoid timezone conversion
+    const datePart = dateString.split('T')[0]
+    const [year, month, day] = datePart.split('-').map(Number)
+    return new Date(year, month - 1, day, 0, 0, 0, 0)
   }
-  // If it's just YYYY-MM-DD, treat it as local date
+  
+  // If it's just YYYY-MM-DD, treat it as local date at midnight
   const [year, month, day] = dateString.split('-').map(Number)
-  return new Date(year, month - 1, day, 12, 0, 0, 0)
+  return new Date(year, month - 1, day, 0, 0, 0, 0)
 }
 
 function Calendar({
@@ -55,8 +60,7 @@ function Calendar({
 
     // Current month's days
     for (let i = 1; i <= daysInMonth; i++) {
-      const dayDate = new Date(year, month, i)
-      dayDate.setHours(12, 0, 0, 0) // Set to noon for consistent time handling
+      const dayDate = new Date(year, month, i, 0, 0, 0, 0) // Set to midnight for consistent time handling
       days.push({
         date: dayDate,
         isCurrentMonth: true,
@@ -102,8 +106,8 @@ function Calendar({
       toString: day.date.toString()
     })
 
-    // Create a clean date object with noon time
-    const cleanDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 12, 0, 0, 0)
+    // Create a clean date object at midnight in local time
+    const cleanDate = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 0, 0, 0, 0)
     console.log('Clean date being sent:', cleanDate.toString())
     
     onSelect && onSelect(cleanDate)

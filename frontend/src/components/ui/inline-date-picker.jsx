@@ -34,13 +34,18 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
   // Parse date string to local Date object
   const parseDate = (dateString) => {
     if (!dateString) return null
-    // If it's already a full ISO string, parse it directly
+    
+    // If it's an ISO string with timezone
     if (dateString.includes('T')) {
-      return new Date(dateString)
+      // Extract date portion directly from ISO string to avoid timezone conversion
+      const datePart = dateString.split('T')[0]
+      const [year, month, day] = datePart.split('-').map(Number)
+      return new Date(year, month - 1, day, 0, 0, 0, 0)
     }
-    // If it's just YYYY-MM-DD, treat it as local date
+    
+    // If it's just YYYY-MM-DD, treat it as local date at midnight
     const [year, month, day] = dateString.split('-').map(Number)
-    return new Date(year, month - 1, day, 12, 0, 0, 0)
+    return new Date(year, month - 1, day, 0, 0, 0, 0)
   }
 
   const formatDate = (date) => {

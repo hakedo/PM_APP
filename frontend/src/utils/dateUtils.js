@@ -9,6 +9,21 @@
  */
 export const formatDateForInput = (date) => {
   if (!date) return '';
+  
+  if (typeof date === 'string') {
+    // If it's a YYYY-MM-DD string, return as-is
+    if (!date.includes('T') && date.includes('-')) {
+      return date.split(' ')[0]; // Handle "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+    }
+    
+    // If it's an ISO timestamp, extract the date portion directly from the string
+    if (date.includes('T')) {
+      // Extract YYYY-MM-DD from ISO string before any timezone conversion
+      return date.split('T')[0];
+    }
+  }
+  
+  // For Date objects, format as local date
   const d = new Date(date);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -31,7 +46,23 @@ export const getTodayString = () => {
  */
 export const formatDateDisplay = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  
+  let date;
+  if (typeof dateString === 'string') {
+    if (dateString.includes('T')) {
+      // ISO timestamp - extract date portion from string directly
+      const datePart = dateString.split('T')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      // YYYY-MM-DD format - parse as local date
+      const [year, month, day] = dateString.split('-').map(Number);
+      date = new Date(year, month - 1, day);
+    }
+  } else {
+    date = new Date(dateString);
+  }
+  
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

@@ -39,13 +39,38 @@ export function DateRangePicker({ startDate, endDate, onStartDateChange, onEndDa
 
   const parseDate = (dateString) => {
     if (!dateString) return null
-    const [year, month, day] = dateString.split('-').map(Number)
-    return new Date(year, month - 1, day)
+    
+    // Handle YYYY-MM-DD format as local date
+    if (typeof dateString === 'string' && dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-').map(Number)
+      return new Date(year, month - 1, day, 0, 0, 0, 0)
+    }
+    
+    return new Date(dateString)
   }
 
   const formatDate = (date) => {
     if (!date) return null
-    return format(new Date(date), "MMM d, yyyy")
+    
+    let dateObj
+    if (typeof date === 'string') {
+      if (date.includes('T')) {
+        // ISO timestamp - extract date portion directly from string
+        const datePart = date.split('T')[0]
+        const [year, month, day] = datePart.split('-').map(Number)
+        dateObj = new Date(year, month - 1, day)
+      } else if (date.includes('-')) {
+        // YYYY-MM-DD format
+        const [year, month, day] = date.split('-').map(Number)
+        dateObj = new Date(year, month - 1, day)
+      } else {
+        dateObj = new Date(date)
+      }
+    } else {
+      dateObj = date
+    }
+    
+    return format(dateObj, "MMM d, yyyy")
   }
 
   const displayText = React.useMemo(() => {
