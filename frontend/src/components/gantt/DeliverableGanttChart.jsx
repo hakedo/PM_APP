@@ -366,10 +366,10 @@ function DeliverableGanttChart({
             {/* Group rows */}
             {ganttData.map((group) => (
               <div key={group._id} className="relative">
-                {/* Group container background */}
-                {group.calculatedStartDate && group.calculatedEndDate && (
+                {/* Expanded group background that spans all rows */}
+                {expandedGroups[group._id] && group.calculatedStartDate && group.calculatedEndDate && (
                   <div 
-                    className="absolute top-0 bottom-0 overflow-hidden"
+                    className="absolute top-0 bottom-0 pointer-events-none"
                     style={{ 
                       left: `${280 + (() => {
                         const start = parseLocalDate(group.calculatedStartDate);
@@ -380,41 +380,21 @@ function DeliverableGanttChart({
                       width: `${(() => {
                         const start = parseLocalDate(group.calculatedStartDate);
                         const end = parseLocalDate(group.calculatedEndDate);
-                        const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000)) + 1; // +1 to make it inclusive
+                        const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000)) + 1;
                         const pixelsPerDay = cellWidth / interval;
                         return duration * pixelsPerDay;
                       })()}px`
                     }}
                   >
-                    {expandedGroups[group._id] ? (
-                      <>
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-l-sm pointer-events-none z-0"></div>
-                        <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-r-sm pointer-events-none z-0"></div>
-                        <div className="absolute inset-0 bg-blue-50/15 pointer-events-none z-0"></div>
-                        <div className="absolute -top-5 left-2 text-[10px] font-bold text-blue-600 uppercase tracking-wide truncate max-w-full pr-4 pointer-events-none z-0">
-                          {group.name}
-                        </div>
-                      </>
-                    ) : (
-                      <div 
-                        className="absolute top-2 h-8 rounded-full bg-blue-400/70 shadow-md flex items-center px-4 left-1 right-1 cursor-pointer hover:bg-blue-500/80 transition-colors duration-150 z-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleExpand(group._id);
-                        }}
-                        title={`Click to expand ${group.name}`}
-                      >
-                        <FolderOpen className="w-3.5 h-3.5 mr-2 text-white" />
-                        <span className="text-xs font-semibold text-white truncate drop-shadow-sm">
-                          {group.name}
-                        </span>
-                      </div>
-                    )}
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-l-sm"></div>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 bg-blue-400/60 rounded-r-sm"></div>
+                    <div className="absolute inset-0 bg-blue-50/15"></div>
                   </div>
                 )}
-              
+
                 {/* Group header row */}
-                <div className="flex items-center border-b border-gray-200 relative z-10 group">
+                <div className="flex items-center border-b border-gray-200 relative group">
+                  {/* Left column - Name */}
                   <div className="w-[280px] flex-shrink-0 px-3 py-1.5 border-r border-gray-300 flex items-center gap-2 sticky left-0 bg-white z-20">
                     <button
                       onClick={() => toggleExpand(group._id)}
@@ -461,10 +441,43 @@ function DeliverableGanttChart({
                     </div>
                   </div>
 
+                  {/* Right column - Timeline area */}
                   <div 
-                    className="relative" 
+                    className="relative flex-1" 
                     style={{ width: `${totalWidth}px`, minWidth: `${totalWidth}px` }}
-                  />
+                  >
+                    {/* Collapsed pill visualization */}
+                    {!expandedGroups[group._id] && group.calculatedStartDate && group.calculatedEndDate && (
+                      <div 
+                        className="absolute top-1/2 -translate-y-1/2 h-8 rounded-full bg-blue-400/70 shadow-md flex items-center px-4 cursor-pointer hover:bg-blue-500/80 transition-colors duration-150"
+                        style={{ 
+                          left: `${(() => {
+                            const start = parseLocalDate(group.calculatedStartDate);
+                            const startOffset = Math.max(0, (start - minDate) / (24 * 60 * 60 * 1000));
+                            const pixelsPerDay = cellWidth / interval;
+                            return startOffset * pixelsPerDay + 4;
+                          })()}px`,
+                          width: `${(() => {
+                            const start = parseLocalDate(group.calculatedStartDate);
+                            const end = parseLocalDate(group.calculatedEndDate);
+                            const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000)) + 1;
+                            const pixelsPerDay = cellWidth / interval;
+                            return duration * pixelsPerDay - 8;
+                          })()}px`
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpand(group._id);
+                        }}
+                        title={`Click to expand ${group.name}`}
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 mr-2 text-white flex-shrink-0" />
+                        <span className="text-xs font-semibold text-white truncate drop-shadow-sm">
+                          {group.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Deliverables (expanded) */}
