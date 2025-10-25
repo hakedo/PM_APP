@@ -206,33 +206,29 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
   }
 
   const handleDurationTypeChange = (type) => {
+    console.log('🔄 Switching duration type to:', type)
     setDurationType(type)
     
-    // When switching to weeks, snap the end date to align with week boundaries
+    // Just convert the display units, don't modify the actual date range
     if (startDate && endDate) {
       const start = parseDate(startDate)
       const end = parseDate(endDate)
       const diffTime = end - start
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24))
       
       // Add 1 to make it inclusive
       const actualDays = diffDays + 1
       
+      console.log('📊 Converting units:', { actualDays, fromType: durationType, toType: type })
+      
       if (type === "weeks") {
-        // Round to nearest week and update end date to match
-        const weeks = Math.ceil(actualDays / 7)
+        // Just display in weeks, don't change the end date
+        const weeks = Math.round(actualDays / 7)
+        console.log('  → Display as weeks:', weeks)
         setDuration(weeks)
-        
-        // Update end date to exactly match the week count
-        const newEnd = new Date(start)
-        newEnd.setDate(newEnd.getDate() + (weeks * 7) - 1)
-        
-        const year = newEnd.getFullYear()
-        const month = String(newEnd.getMonth() + 1).padStart(2, '0')
-        const day = String(newEnd.getDate()).padStart(2, '0')
-        onEndDateChange(`${year}-${month}-${day}`)
       } else {
-        // Show in days - already correct
+        // Display in days
+        console.log('  → Display as days:', actualDays)
         setDuration(actualDays)
       }
     }
