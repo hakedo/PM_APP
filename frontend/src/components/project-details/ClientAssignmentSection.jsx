@@ -52,7 +52,7 @@ function ClientAssignmentSection({
               onClick={() => setShowClientSearch(true)}
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
               <UserPlus className="w-4 h-4" />
               Assign Client
@@ -91,7 +91,7 @@ function ClientAssignmentSection({
                     variant="ghost"
                     size="sm"
                     onClick={() => onRemoveClient(assignment._id, assignment.fullName)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:scale-105 transition-all duration-200"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -159,6 +159,7 @@ function ClientAssignmentSection({
                       <Button
                         onClick={() => onAssignClient(client)}
                         size="sm"
+                        className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                       >
                         Assign
                       </Button>
@@ -177,6 +178,7 @@ function ClientAssignmentSection({
                 setShowClientSearch(false);
                 setSearchQuery('');
               }}
+              className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
               Cancel
             </Button>
@@ -186,7 +188,7 @@ function ClientAssignmentSection({
                 setShowClientSearch(false);
                 setIsCreatingClient(true);
               }}
-              className="gap-2"
+              className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
             >
               <UserPlus className="w-4 h-4" />
               Create New Client
@@ -348,10 +350,15 @@ function ClientAssignmentSection({
                 variant="outline"
                 onClick={onCloseNewClientDialog}
                 disabled={creatingClient}
+                className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={creatingClient}>
+              <Button 
+                type="submit" 
+                disabled={creatingClient}
+                className="shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              >
                 {creatingClient ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />

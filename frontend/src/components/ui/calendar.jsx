@@ -188,6 +188,7 @@ function Calendar({
             const inRange = isInRange(day.date)
             const rangeStart = isRangeStart(day.date)
             const rangeEnd = isRangeEnd(day.date)
+            const isSingleDay = rangeStart && rangeEnd // Both start and end on same day
 
             return (
               <div key={index} className="relative">
@@ -195,11 +196,12 @@ function Calendar({
                 {inRange && !rangeStart && !rangeEnd && day.isCurrentMonth && (
                   <div className="absolute inset-0 bg-blue-100" />
                 )}
-                {rangeStart && day.isCurrentMonth && (
-                  <div className="absolute inset-0 bg-blue-100" style={{ borderTopLeftRadius: '0.25rem', borderBottomLeftRadius: '0.25rem' }} />
+                {/* Range backgrounds */}
+                {rangeStart && !isSingleDay && day.isCurrentMonth && (
+                  <div className="absolute inset-y-0 right-0 left-1/2 bg-blue-100" />
                 )}
-                {rangeEnd && day.isCurrentMonth && (
-                  <div className="absolute inset-0 bg-blue-100" style={{ borderTopRightRadius: '0.25rem', borderBottomRightRadius: '0.25rem' }} />
+                {rangeEnd && !isSingleDay && day.isCurrentMonth && (
+                  <div className="absolute inset-y-0 left-0 right-1/2 bg-blue-100" />
                 )}
                 
                 <button
@@ -208,15 +210,28 @@ function Calendar({
                   disabled={isDisabled || !day.isCurrentMonth}
                   className={cn(
                     "h-7 w-full flex items-center justify-center text-xs transition-colors relative z-10",
-                    "hover:bg-gray-200 rounded",
                     !day.isCurrentMonth && "text-gray-300 hover:bg-transparent cursor-default",
-                    day.isCurrentMonth && "text-gray-900",
-                    dayIsToday && !rangeStart && !rangeEnd && "ring-1 ring-blue-400 ring-inset font-medium rounded",
-                    (rangeStart || rangeEnd) && "bg-blue-500 text-white font-semibold rounded shadow-sm",
+                    day.isCurrentMonth && "text-gray-700",
                     isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
                   )}
                 >
-                  {day.date.getDate()}
+                  <span className={cn(
+                    "flex items-center justify-center transition-all",
+                    // Today indicator (when not selected as start/end)
+                    dayIsToday && !rangeStart && !rangeEnd && "w-7 h-7 rounded-full ring-2 ring-red-300 ring-inset text-red-500 font-medium",
+                    // Single day - circle with ring
+                    isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full ring-2 ring-blue-300 ring-offset-1",
+                    // Start date only - solid circle
+                    rangeStart && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
+                    // End date - pill shape (rounded rectangle)
+                    rangeEnd && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
+                    // Hover states
+                    day.isCurrentMonth && !rangeStart && !rangeEnd && !inRange && "hover:bg-gray-100 rounded-full w-7 h-7",
+                    isSingleDay && "hover:bg-blue-600 hover:ring-blue-400",
+                    (rangeStart || rangeEnd) && !isSingleDay && "hover:bg-blue-600"
+                  )}>
+                    {day.date.getDate()}
+                  </span>
                 </button>
               </div>
             )

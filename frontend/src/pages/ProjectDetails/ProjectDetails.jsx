@@ -282,7 +282,7 @@ function ProjectDetails() {
           <Button
             variant="ghost"
             onClick={() => navigate('/projects')}
-            className="gap-2 -ml-2"
+            className="gap-2 -ml-2 hover:scale-105 transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Projects

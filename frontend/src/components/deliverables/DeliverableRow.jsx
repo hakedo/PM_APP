@@ -30,7 +30,7 @@ export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAd
     <div className="rounded-lg bg-white border-2 border-purple-200 shadow-md hover:shadow-lg transition-all overflow-hidden">
       {/* Deliverable Row */}
       <div className="flex items-center px-4 py-3 group bg-gradient-to-r from-purple-50/50 to-transparent border-l-4 border-purple-500">
-        <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center justify-center w-8 h-8 hover:bg-purple-100 rounded-lg transition-colors flex-shrink-0 mr-2">
+        <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center justify-center w-8 h-8 hover:bg-purple-100 rounded-lg transition-colors flex-shrink-0 mr-2 cursor-pointer">
           {isExpanded ? (<ChevronDown className="w-4 h-4 text-purple-700" />) : (<ChevronRight className="w-4 h-4 text-purple-700" />)}
         </button>
         <div className="flex-1 min-w-0 flex items-center gap-2 pr-4 mr-2 border-r border-purple-200">

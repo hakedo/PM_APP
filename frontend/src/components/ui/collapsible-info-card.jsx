@@ -46,7 +46,7 @@ export function CollapsibleInfoCard({
                   e.stopPropagation();
                   setIsCollapsed(!isCollapsed);
                 }}
-                className="gap-2"
+                className="gap-2 hover:scale-105 transition-all duration-200"
               >
                 {isCollapsed ? (
                   <>
@@ -72,7 +72,7 @@ export function CollapsibleInfoCard({
                     onCancel();
                   }}
                   disabled={saving}
-                  className="gap-2"
+                  className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
                 >
                   <X className="w-4 h-4" />
                   Cancel
@@ -84,7 +84,7 @@ export function CollapsibleInfoCard({
                     onSave();
                   }}
                   disabled={saving}
-                  className="gap-2"
+                  className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                 >
                   {saving ? (
                     <>
@@ -107,7 +107,7 @@ export function CollapsibleInfoCard({
                   e.stopPropagation();
                   onEdit();
                 }}
-                className="gap-2"
+                className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
               >
                 <Edit2 className="w-4 h-4" />
                 Edit

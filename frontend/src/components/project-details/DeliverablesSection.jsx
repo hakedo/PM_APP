@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Package, Plus, FolderPlus, Table, Calendar } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '../ui';
-import { DeliverableGroup, DeliverableFormDialog, TaskFormDialog } from '../deliverables';
+import { DeliverableGroup, DeliverableFormDialog, TaskFormDialog, GroupFormDialog } from '../deliverables';
 import DeliverableGanttChart from '../gantt/DeliverableGanttChart';
 import { deliverableService, deliverableGroupService } from '@/services';
 import { formatDateForInput } from '@/utils/dateUtils';
@@ -26,6 +26,11 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   const [tasksByDeliverable, setTasksByDeliverable] = useState({});
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'timeline'
+  
+  // Group dialog state
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [submittingGroup, setSubmittingGroup] = useState(false);
   
   // Deliverable dialog state
   const [deliverableDialogOpen, setDeliverableDialogOpen] = useState(false);
@@ -90,19 +95,29 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
   };
 
   // Group handlers
-  const handleAddGroup = async () => {
-    const name = prompt('Enter group name:');
-    if (!name || !name.trim()) return;
+  const handleAddGroup = () => {
+    setGroupName('');
+    setGroupDialogOpen(true);
+  };
+
+  const handleSubmitGroup = async (e) => {
+    e.preventDefault();
+    if (!groupName || !groupName.trim()) return;
     
+    setSubmittingGroup(true);
     try {
       await deliverableGroupService.create({
         project: projectId,
-        name: name.trim()
+        name: groupName.trim()
       });
       await fetchData();
+      setGroupDialogOpen(false);
+      setGroupName('');
     } catch (error) {
       console.error('Error creating group:', error);
       alert('Failed to create group. Please try again.');
+    } finally {
+      setSubmittingGroup(false);
     }
   };
 
@@ -164,8 +179,8 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
     setCurrentDeliverable({
       ...emptyDeliverable,
       group: groupId,
-      startDate: formatDateForInput(projectStartDate) || '',
-      endDate: formatDateForInput(projectEndDate) || ''
+      startDate: '',
+      endDate: ''
     });
     setDeliverableMode('create');
     setDeliverableDialogOpen(true);
@@ -360,7 +375,12 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
               <Package className="w-6 h-6" />
               <span className="text-xl font-semibold">Deliverables ({deliverables.length})</span>
             </div>
-            <Button onClick={handleAddGroup} variant="outline" size="sm" className="gap-2">
+            <Button 
+              onClick={handleAddGroup} 
+              variant="outline" 
+              size="sm" 
+              className="gap-2 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
               <FolderPlus className="w-4 h-4" />
               Add Group
             </Button>
@@ -370,7 +390,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
           <div className="flex gap-1 border-b border-gray-200 -mb-4">
             <button
               onClick={() => setViewMode('table')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
                 viewMode === 'table'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
@@ -381,7 +401,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
             </button>
             <button
               onClick={() => setViewMode('timeline')}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px cursor-pointer ${
                 viewMode === 'timeline'
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
@@ -434,7 +454,11 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
                       Create a group to start organizing your deliverables
                     </p>
                   </div>
-                  <Button onClick={handleAddGroup} size="lg" className="gap-2">
+                  <Button 
+                    onClick={handleAddGroup} 
+                    size="lg" 
+                    className="gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  >
                     <FolderPlus className="w-4 h-4" />
                     Create Your First Group
                   </Button>
@@ -478,6 +502,15 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
         onSubmit={handleSubmitTask}
         loading={submittingTask}
         mode={taskMode}
+      />
+
+      <GroupFormDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        groupName={groupName}
+        onGroupNameChange={setGroupName}
+        onSubmit={handleSubmitGroup}
+        loading={submittingGroup}
       />
     </>
   );

@@ -16,7 +16,7 @@ import {
   InlineDatePicker
 } from '../ui';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDateForInput } from '@/utils/dateUtils';
 
 const statusOptions = [
@@ -39,19 +39,68 @@ export function DeliverableFormDialog({
 }) {
   const [startDateError, setStartDateError] = useState('');
 
+  // Clear error when dialog opens or closes
+  useEffect(() => {
+    if (!open) {
+      setStartDateError('');
+    }
+  }, [open]);
+
+  // Validate if a start date is valid (returns true if valid, false if invalid)
+  const validateStartDate = (date) => {
+    if (!date || !projectStartDate) return true; // No validation if no date or no project start
+    
+    const projectStart = new Date(projectStartDate);
+    projectStart.setHours(0, 0, 0, 0);
+    
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    
+    return selectedDate >= projectStart;
+  };
+
   // Validate start date
   const handleStartDateChange = (date) => {
-    if (projectStartDate) {
+    // Only validate if there's actually a date and a project start date
+    if (date && projectStartDate) {
       const projectStart = new Date(projectStartDate);
+      projectStart.setHours(0, 0, 0, 0);
+      
       const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
       
       if (selectedDate < projectStart) {
         setStartDateError(`Start date cannot be earlier than project start date (${formatDateForInput(projectStartDate)})`);
       } else {
         setStartDateError('');
       }
+    } else {
+      // Clear error if no date is selected
+      setStartDateError('');
     }
     onChange({ ...deliverable, startDate: date });
+  };
+
+  // Handle both dates change (also validates and clears errors)
+  const handleBothDatesChange = (start, end) => {
+    // Validate start date and set/clear error
+    if (start && projectStartDate) {
+      const projectStart = new Date(projectStartDate);
+      projectStart.setHours(0, 0, 0, 0);
+      
+      const selectedDate = new Date(start);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+      if (selectedDate < projectStart) {
+        setStartDateError(`Start date cannot be earlier than project start date (${formatDateForInput(projectStartDate)})`);
+      } else {
+        setStartDateError('');
+      }
+    } else {
+      setStartDateError('');
+    }
+    
+    onChange({ ...deliverable, startDate: start, endDate: end });
   };
 
   const handleSubmit = (e) => {
@@ -99,10 +148,13 @@ export function DeliverableFormDialog({
                 endDate={deliverable.endDate}
                 onStartDateChange={handleStartDateChange}
                 onEndDateChange={(date) => onChange({ ...deliverable, endDate: date })}
+                onBothDatesChange={handleBothDatesChange}
+                validateStartDate={validateStartDate}
+                projectStartDate={projectStartDate}
               />
-              {startDateError && (
-                <p className="text-xs text-red-600 mt-0.5">{startDateError}</p>
-              )}
+              <p className={`text-xs mt-0.5 min-h-[1.25rem] ${startDateError ? 'text-red-600' : 'text-transparent'}`}>
+                {startDateError || 'No error'}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -145,11 +197,15 @@ export function DeliverableFormDialog({
               variant="outline" 
               onClick={() => onOpenChange(false)}
               disabled={loading}
-              className="h-9"
+              className="h-9 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !!startDateError} className="h-9">
+            <Button 
+              type="submit" 
+              disabled={loading || !!startDateError} 
+              className="h-9 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
+            >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {mode === 'create' ? 'Create Deliverable' : 'Save Changes'}
             </Button>
