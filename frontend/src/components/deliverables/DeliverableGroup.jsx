@@ -21,7 +21,8 @@ export function DeliverableGroup({
   onToggleTask,
   onEditTask,
   onDeleteTask,
-  onUpdateField
+  onUpdateField,
+  projectStartDate
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(group.name);
@@ -203,6 +204,7 @@ export function DeliverableGroup({
                   onDeleteTask={onDeleteTask}
                   onUpdateField={onUpdateField}
                   isLast={index === deliverables.length - 1}
+                  projectStartDate={projectStartDate}
                 />
               ))
             )}

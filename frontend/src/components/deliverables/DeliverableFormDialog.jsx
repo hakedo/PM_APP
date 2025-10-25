@@ -50,11 +50,42 @@ export function DeliverableFormDialog({
   const validateStartDate = (date) => {
     if (!date || !projectStartDate) return true; // No validation if no date or no project start
     
-    const projectStart = new Date(projectStartDate);
+    // Parse project start date properly
+    let projectStart;
+    if (typeof projectStartDate === 'string') {
+      // If it's YYYY-MM-DD format, parse correctly
+      if (projectStartDate.length === 10 && projectStartDate.includes('-')) {
+        const [year, month, day] = projectStartDate.split('-').map(Number);
+        projectStart = new Date(year, month - 1, day);
+      } else {
+        projectStart = new Date(projectStartDate);
+      }
+    } else {
+      projectStart = new Date(projectStartDate);
+    }
     projectStart.setHours(0, 0, 0, 0);
     
-    const selectedDate = new Date(date);
+    // Parse selected date
+    let selectedDate;
+    if (typeof date === 'string') {
+      if (date.length === 10 && date.includes('-')) {
+        const [year, month, day] = date.split('-').map(Number);
+        selectedDate = new Date(year, month - 1, day);
+      } else {
+        selectedDate = new Date(date);
+      }
+    } else {
+      selectedDate = new Date(date);
+    }
     selectedDate.setHours(0, 0, 0, 0);
+    
+    console.log('Validating start date:', {
+      date,
+      projectStartDate,
+      selectedDate: selectedDate.toISOString(),
+      projectStart: projectStart.toISOString(),
+      isValid: selectedDate >= projectStart
+    });
     
     return selectedDate >= projectStart;
   };
@@ -63,14 +94,48 @@ export function DeliverableFormDialog({
   const handleStartDateChange = (date) => {
     // Only validate if there's actually a date and a project start date
     if (date && projectStartDate) {
-      const projectStart = new Date(projectStartDate);
+      // Parse project start date properly
+      let projectStart;
+      if (typeof projectStartDate === 'string') {
+        if (projectStartDate.length === 10 && projectStartDate.includes('-')) {
+          const [year, month, day] = projectStartDate.split('-').map(Number);
+          projectStart = new Date(year, month - 1, day);
+        } else {
+          projectStart = new Date(projectStartDate);
+        }
+      } else {
+        projectStart = new Date(projectStartDate);
+      }
       projectStart.setHours(0, 0, 0, 0);
       
-      const selectedDate = new Date(date);
+      // Parse selected date
+      let selectedDate;
+      if (typeof date === 'string') {
+        if (date.length === 10 && date.includes('-')) {
+          const [year, month, day] = date.split('-').map(Number);
+          selectedDate = new Date(year, month - 1, day);
+        } else {
+          selectedDate = new Date(date);
+        }
+      } else {
+        selectedDate = new Date(date);
+      }
       selectedDate.setHours(0, 0, 0, 0);
       
+      console.log('Checking date error:', {
+        date,
+        projectStartDate,
+        selectedDate: selectedDate.toISOString(),
+        projectStart: projectStart.toISOString(),
+        shouldError: selectedDate < projectStart
+      });
+      
       if (selectedDate < projectStart) {
-        setStartDateError(`Start date cannot be earlier than project start date (${formatDateForInput(projectStartDate)})`);
+        // Format project start date for display
+        const displayDate = typeof projectStartDate === 'string' && projectStartDate.length === 10 
+          ? projectStartDate 
+          : formatDateForInput(projectStartDate);
+        setStartDateError(`Start date cannot be earlier than project start date (${displayDate})`);
       } else {
         setStartDateError('');
       }
@@ -85,14 +150,48 @@ export function DeliverableFormDialog({
   const handleBothDatesChange = (start, end) => {
     // Validate start date and set/clear error
     if (start && projectStartDate) {
-      const projectStart = new Date(projectStartDate);
+      // Parse project start date properly
+      let projectStart;
+      if (typeof projectStartDate === 'string') {
+        if (projectStartDate.length === 10 && projectStartDate.includes('-')) {
+          const [year, month, day] = projectStartDate.split('-').map(Number);
+          projectStart = new Date(year, month - 1, day);
+        } else {
+          projectStart = new Date(projectStartDate);
+        }
+      } else {
+        projectStart = new Date(projectStartDate);
+      }
       projectStart.setHours(0, 0, 0, 0);
       
-      const selectedDate = new Date(start);
+      // Parse selected date
+      let selectedDate;
+      if (typeof start === 'string') {
+        if (start.length === 10 && start.includes('-')) {
+          const [year, month, day] = start.split('-').map(Number);
+          selectedDate = new Date(year, month - 1, day);
+        } else {
+          selectedDate = new Date(start);
+        }
+      } else {
+        selectedDate = new Date(start);
+      }
       selectedDate.setHours(0, 0, 0, 0);
       
+      console.log('handleBothDatesChange validation:', {
+        start,
+        projectStartDate,
+        selectedDate: selectedDate.toISOString(),
+        projectStart: projectStart.toISOString(),
+        shouldError: selectedDate < projectStart
+      });
+      
       if (selectedDate < projectStart) {
-        setStartDateError(`Start date cannot be earlier than project start date (${formatDateForInput(projectStartDate)})`);
+        // Format project start date for display
+        const displayDate = typeof projectStartDate === 'string' && projectStartDate.length === 10 
+          ? projectStartDate 
+          : formatDateForInput(projectStartDate);
+        setStartDateError(`Start date cannot be earlier than project start date (${displayDate})`);
       } else {
         setStartDateError('');
       }

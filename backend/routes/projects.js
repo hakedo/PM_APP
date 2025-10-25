@@ -1,5 +1,5 @@
 import express from 'express';
-import { Project, ClientProjectAssignment } from '../models/index.js';
+import { Project, ClientProjectAssignment, DeliverableNew, TaskNew, DeliverableGroup } from '../models/index.js';
 import { recalculateDeliverableDates, recalculateTaskDates } from '../utils/dateCalculations.js';
 
 const router = express.Router();
@@ -43,12 +43,23 @@ router.post('/', async (req, res, next) => {
   try {
     const projectData = { ...req.body };
     
-    // Convert date strings to Date objects
-    if (projectData.startDate) {
-      projectData.startDate = new Date(projectData.startDate);
+    // Parse date strings as local dates (YYYY-MM-DD format)
+    // Append time to treat as local date, not UTC
+    if (projectData.startDate && typeof projectData.startDate === 'string') {
+      // Only append time if it's a simple YYYY-MM-DD format
+      if (projectData.startDate.length === 10 && !projectData.startDate.includes('T')) {
+        projectData.startDate = new Date(projectData.startDate + 'T12:00:00');
+      } else {
+        projectData.startDate = new Date(projectData.startDate);
+      }
     }
-    if (projectData.endDate) {
-      projectData.endDate = new Date(projectData.endDate);
+    if (projectData.endDate && typeof projectData.endDate === 'string') {
+      // Only append time if it's a simple YYYY-MM-DD format
+      if (projectData.endDate.length === 10 && !projectData.endDate.includes('T')) {
+        projectData.endDate = new Date(projectData.endDate + 'T12:00:00');
+      } else {
+        projectData.endDate = new Date(projectData.endDate);
+      }
     }
     
     const newProject = new Project(projectData);
@@ -71,12 +82,23 @@ router.put('/:id', async (req, res, next) => {
   try {
     const updateData = { ...req.body };
     
-    // Convert date strings to Date objects
-    if (updateData.startDate) {
-      updateData.startDate = new Date(updateData.startDate);
+    // Parse date strings as local dates (YYYY-MM-DD format)
+    // Append time to treat as local date, not UTC
+    if (updateData.startDate && typeof updateData.startDate === 'string') {
+      // Only append time if it's a simple YYYY-MM-DD format
+      if (updateData.startDate.length === 10 && !updateData.startDate.includes('T')) {
+        updateData.startDate = new Date(updateData.startDate + 'T12:00:00');
+      } else {
+        updateData.startDate = new Date(updateData.startDate);
+      }
     }
-    if (updateData.endDate) {
-      updateData.endDate = new Date(updateData.endDate);
+    if (updateData.endDate && typeof updateData.endDate === 'string') {
+      // Only append time if it's a simple YYYY-MM-DD format
+      if (updateData.endDate.length === 10 && !updateData.endDate.includes('T')) {
+        updateData.endDate = new Date(updateData.endDate + 'T12:00:00');
+      } else {
+        updateData.endDate = new Date(updateData.endDate);
+      }
     }
     
     const updatedProject = await Project.findByIdAndUpdate(
@@ -126,22 +148,18 @@ router.delete('/:id', async (req, res, next) => {
     // Remove all client assignments for this project
     await ClientProjectAssignment.deleteMany({ projectId: req.params.id });
 
-    // Find all milestones for this project
-    const milestones = await Milestone.find({ projectId: req.params.id });
-    const milestoneIds = milestones.map(m => m._id);
+    // Delete all deliverable groups for this project
+    await DeliverableGroup.deleteMany({ projectId: req.params.id });
 
-    // Find all deliverables for these milestones
-    const deliverables = await Deliverable.find({ milestoneId: { $in: milestoneIds } });
+    // Find all deliverables for this project
+    const deliverables = await DeliverableNew.find({ projectId: req.params.id });
     const deliverableIds = deliverables.map(d => d._id);
 
     // Delete all tasks for these deliverables
-    await Task.deleteMany({ deliverableId: { $in: deliverableIds } });
+    await TaskNew.deleteMany({ deliverableId: { $in: deliverableIds } });
 
-    // Delete all deliverables for these milestones
-    await Deliverable.deleteMany({ milestoneId: { $in: milestoneIds } });
-
-    // Delete all milestones for this project
-    await Milestone.deleteMany({ projectId: req.params.id });
+    // Delete all deliverables for this project
+    await DeliverableNew.deleteMany({ projectId: req.params.id });
     
     res.json({ 
       message: 'Project deleted successfully',

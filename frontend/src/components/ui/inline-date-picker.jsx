@@ -396,7 +396,25 @@ export function InlineDatePicker({ startDate, endDate, onStartDateChange, onEndD
           mode="single"
           selected={selectingEnd ? (endDate ? parseDate(endDate) : null) : (startDate ? parseDate(startDate) : null)}
           onSelect={handleDateSelect}
-          disabled={selectingEnd && startDate ? (date) => date < parseDate(startDate) : undefined}
+          disabled={(date) => {
+            // When selecting end date, disable dates before start date
+            if (selectingEnd && startDate) {
+              return date < parseDate(startDate)
+            }
+            // When selecting start date, disable dates before project start date
+            if (!selectingEnd && projectStartDate) {
+              const projectStart = parseDate(projectStartDate)
+              if (projectStart) {
+                // Set both dates to midnight for comparison
+                const checkDate = new Date(date)
+                checkDate.setHours(0, 0, 0, 0)
+                projectStart.setHours(0, 0, 0, 0)
+                // Disable dates strictly before project start (allow same day)
+                return checkDate < projectStart
+              }
+            }
+            return false
+          }}
           selectedRange={startDate && endDate ? { start: startDate, end: endDate } : null}
           className="border rounded-md"
         />

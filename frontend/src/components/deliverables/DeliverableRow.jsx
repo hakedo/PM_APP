@@ -15,7 +15,7 @@ const statusConfig = {
   'blocked': { label: 'Blocked', variant: 'destructive', color: 'text-red-600' }
 };
 
-export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAddTask, onToggleTask, onEditTask, onDeleteTask, onUpdateField, isLast }) {
+export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAddTask, onToggleTask, onEditTask, onDeleteTask, onUpdateField, isLast, projectStartDate }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const completedTasks = tasks.filter(t => t.status === 'completed').length;
   const totalTasks = tasks.length;
@@ -45,6 +45,7 @@ export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAd
             onEndDateChange={(date) => handleFieldUpdate('endDate', date)}
             placeholder="Set date"
             className="h-8 text-xs border-0 shadow-none hover:bg-purple-50 rounded"
+            projectStartDate={projectStartDate}
           />
         </div>
         <div className="w-32 mr-2 border-r border-purple-200 flex items-center justify-center flex-shrink-0">

@@ -314,11 +314,20 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
 
   const handleUpdateField = async (deliverableId, updates) => {
     try {
+      // Optimistic update - update UI immediately
+      setDeliverables(prevDeliverables => 
+        prevDeliverables.map(d => 
+          d._id === deliverableId ? { ...d, ...updates } : d
+        )
+      );
+      
+      // Send update to backend
       await deliverableService.update(deliverableId, updates);
-      await fetchData();
     } catch (error) {
       console.error('Error updating deliverable field:', error);
       alert('Failed to update field. Please try again.');
+      // Revert on error by fetching fresh data
+      await fetchData();
     }
   };
 
@@ -441,6 +450,7 @@ export function DeliverablesSection({ projectId, projectStartDate, projectEndDat
                       onEditTask={handleEditTask}
                       onDeleteTask={handleDeleteTask}
                       onUpdateField={handleUpdateField}
+                      projectStartDate={projectStartDate}
                     />
                   ))}
               </div>

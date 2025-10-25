@@ -223,7 +223,7 @@ function Calendar({
                     isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full ring-2 ring-blue-300 ring-offset-1",
                     // Start date only - solid circle
                     rangeStart && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
-                    // End date - pill shape (rounded rectangle)
+                    // End date - solid circle
                     rangeEnd && !isSingleDay && "w-7 h-7 bg-blue-500 text-white font-semibold rounded-full",
                     // Hover states
                     day.isCurrentMonth && !rangeStart && !rangeEnd && !inRange && "hover:bg-gray-100 rounded-full w-7 h-7",
