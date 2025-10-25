@@ -6,7 +6,8 @@ import GanttRow from './GanttRow';
 import { 
   calculateDateRange, 
   generateDateLabels, 
-  calculateTodayPosition 
+  calculateTodayPosition,
+  parseLocalDate 
 } from '../../utils/ganttUtils';
 
 /**
@@ -371,15 +372,15 @@ function DeliverableGanttChart({
                     className="absolute left-[280px] top-0 bottom-0 pointer-events-none z-0"
                     style={{ 
                       marginLeft: `${(() => {
-                        const start = new Date(group.calculatedStartDate);
+                        const start = parseLocalDate(group.calculatedStartDate);
                         const startOffset = Math.max(0, (start - minDate) / (24 * 60 * 60 * 1000));
                         const pixelsPerDay = cellWidth / interval;
                         return startOffset * pixelsPerDay;
                       })()}px`,
                       width: `${(() => {
-                        const start = new Date(group.calculatedStartDate);
-                        const end = new Date(group.calculatedEndDate);
-                        const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000));
+                        const start = parseLocalDate(group.calculatedStartDate);
+                        const end = parseLocalDate(group.calculatedEndDate);
+                        const duration = Math.max(1, (end - start) / (24 * 60 * 60 * 1000)) + 1; // +1 to make it inclusive
                         const pixelsPerDay = cellWidth / interval;
                         return duration * pixelsPerDay;
                       })()}px`
@@ -520,7 +521,7 @@ function DeliverableGanttChart({
                               {deliverable.tasks && deliverable.tasks.map((task) => {
                                 if (!task.calculatedDueDate) return null;
                               
-                                const taskDue = new Date(task.calculatedDueDate);
+                                const taskDue = parseLocalDate(task.calculatedDueDate);
                                 const dueOffset = Math.max(0, (taskDue - minDate) / (24 * 60 * 60 * 1000));
                                 const pixelsPerDay = cellWidth / interval;
                                 const position = dueOffset * pixelsPerDay;

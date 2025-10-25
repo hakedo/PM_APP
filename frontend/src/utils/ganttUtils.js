@@ -7,7 +7,7 @@
  * @param {string} dateString - Date string (YYYY-MM-DD or ISO format)
  * @returns {Date|null} Date object or null
  */
-const parseLocalDate = (dateString) => {
+export const parseLocalDate = (dateString) => {
   if (!dateString) return null;
   
   // If it's an ISO string with timezone
