@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, MoreVertical, Plus, Edit2, Trash2, Check, Circle, Package } from 'lucide-react';
+import { ChevronRight, ChevronDown, MoreVertical, Plus, Edit2, Trash2, Check, Circle, Package, Clock, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { 
   Badge, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuTrigger, Checkbox, DateRangePicker, Select, SelectContent, 
@@ -9,10 +9,42 @@ import { cn } from '@/lib/utils';
 import { formatDateDisplay } from '@/utils/dateUtils';
 
 const statusConfig = {
-  'not-started': { label: 'Not Started', variant: 'secondary', color: 'text-gray-600' },
-  'in-progress': { label: 'In Progress', variant: 'default', color: 'text-blue-600' },
-  'completed': { label: 'Completed', variant: 'default', color: 'text-green-600' },
-  'blocked': { label: 'Blocked', variant: 'destructive', color: 'text-red-600' }
+  'not-started': { 
+    label: 'Not Started', 
+    variant: 'secondary', 
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-100',
+    hoverBg: 'hover:bg-gray-50',
+    icon: Clock,
+    iconColor: 'text-gray-500'
+  },
+  'in-progress': { 
+    label: 'In Progress', 
+    variant: 'default', 
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    hoverBg: 'hover:bg-blue-50',
+    icon: Play,
+    iconColor: 'text-blue-500'
+  },
+  'completed': { 
+    label: 'Completed', 
+    variant: 'default', 
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    hoverBg: 'hover:bg-green-50',
+    icon: CheckCircle2,
+    iconColor: 'text-green-500'
+  },
+  'blocked': { 
+    label: 'Blocked', 
+    variant: 'destructive', 
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    hoverBg: 'hover:bg-red-50',
+    icon: AlertCircle,
+    iconColor: 'text-red-500'
+  }
 };
 
 export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAddTask, onToggleTask, onEditTask, onDeleteTask, onUpdateField, isLast, projectStartDate }) {
@@ -48,16 +80,45 @@ export function DeliverableRow({ deliverable, tasks = [], onEdit, onDelete, onAd
             projectStartDate={projectStartDate}
           />
         </div>
-        <div className="w-32 mr-2 border-r border-purple-200 flex items-center justify-center flex-shrink-0">
+        <div className="w-32 px-2 mr-2 border-r border-purple-200 flex items-center justify-center flex-shrink-0">
           <Select value={deliverable.status} onValueChange={(value) => handleFieldUpdate('status', value)}>
-            <SelectTrigger className="h-8 border-0 shadow-none hover:bg-purple-50 rounded w-full">
-              <Badge variant={statusConfig[deliverable.status].variant} className={cn("text-xs pointer-events-none font-semibold", statusConfig[deliverable.status].color)}>{statusConfig[deliverable.status].label}</Badge>
+            <SelectTrigger className="h-8 border-0 shadow-none hover:bg-purple-50 rounded w-full [&>svg]:hidden justify-center px-0">
+              <Badge 
+                variant={statusConfig[deliverable.status].variant} 
+                className={cn(
+                  "text-xs pointer-events-none font-semibold flex items-center gap-1.5 px-2.5 py-1",
+                  statusConfig[deliverable.status].color,
+                  statusConfig[deliverable.status].bgColor
+                )}
+              >
+                {(() => {
+                  const StatusIcon = statusConfig[deliverable.status].icon;
+                  return <StatusIcon className={cn("w-3 h-3", statusConfig[deliverable.status].iconColor)} />;
+                })()}
+                {statusConfig[deliverable.status].label}
+              </Badge>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="not-started">Not Started</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="blocked">Blocked</SelectItem>
+              {Object.entries(statusConfig).map(([value, config]) => {
+                const StatusIcon = config.icon;
+                return (
+                  <SelectItem 
+                    key={value} 
+                    value={value}
+                    className={cn(
+                      "cursor-pointer transition-colors",
+                      config.hoverBg
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <StatusIcon className={cn("w-4 h-4", config.iconColor)} />
+                      <span className={cn("font-medium", config.color)}>
+                        {config.label}
+                      </span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

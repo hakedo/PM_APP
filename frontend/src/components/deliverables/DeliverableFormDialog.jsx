@@ -15,15 +15,48 @@ import {
   SelectValue,
   InlineDatePicker
 } from '../ui';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Clock, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDateForInput } from '@/utils/dateUtils';
+import { cn } from '@/lib/utils';
 
 const statusOptions = [
-  { value: 'not-started', label: 'Not Started' },
-  { value: 'in-progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'blocked', label: 'Blocked' }
+  { 
+    value: 'not-started', 
+    label: 'Not Started',
+    icon: Clock,
+    color: 'text-gray-600',
+    bgColor: 'bg-gray-100',
+    hoverBg: 'hover:bg-gray-50',
+    iconColor: 'text-gray-500'
+  },
+  { 
+    value: 'in-progress', 
+    label: 'In Progress',
+    icon: Play,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    hoverBg: 'hover:bg-blue-50',
+    iconColor: 'text-blue-500'
+  },
+  { 
+    value: 'completed', 
+    label: 'Completed',
+    icon: CheckCircle2,
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    hoverBg: 'hover:bg-green-50',
+    iconColor: 'text-green-500'
+  },
+  { 
+    value: 'blocked', 
+    label: 'Blocked',
+    icon: AlertCircle,
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    hoverBg: 'hover:bg-red-50',
+    iconColor: 'text-red-500'
+  }
 ];
 
 export function DeliverableFormDialog({ 
@@ -263,15 +296,42 @@ export function DeliverableFormDialog({
                   value={deliverable.status}
                   onValueChange={(value) => onChange({ ...deliverable, status: value })}
                 >
-                  <SelectTrigger className="h-9 text-sm">
-                    <SelectValue placeholder="Select status" />
+                  <SelectTrigger className="h-9 text-sm [&>svg]:hidden">
+                    <SelectValue placeholder="Select status">
+                      {deliverable.status && (() => {
+                        const selectedStatus = statusOptions.find(opt => opt.value === deliverable.status);
+                        if (!selectedStatus) return null;
+                        const StatusIcon = selectedStatus.icon;
+                        return (
+                          <div className="flex items-center gap-2">
+                            <StatusIcon className={cn("w-4 h-4", selectedStatus.iconColor)} />
+                            <span className={selectedStatus.color}>{selectedStatus.label}</span>
+                          </div>
+                        );
+                      })()}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    {statusOptions.map(option => {
+                      const StatusIcon = option.icon;
+                      return (
+                        <SelectItem 
+                          key={option.value} 
+                          value={option.value}
+                          className={cn(
+                            "cursor-pointer transition-colors",
+                            option.hoverBg
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <StatusIcon className={cn("w-4 h-4", option.iconColor)} />
+                            <span className={cn("font-medium", option.color)}>
+                              {option.label}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
